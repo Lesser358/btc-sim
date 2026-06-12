@@ -1114,16 +1114,16 @@ function renderHistory(){
   const total = wins+losses;
   const winRate = total>0 ? (wins/total*100) : 0;
   const totalPnl = S.history.reduce((s,h)=>s+h.pnl,0);
-  const bestPnl = pnlTrades.length ? Math.max(...pnlTrades.map(h=>h.pnl)) : 0;
-  const worstPnl = pnlTrades.length ? Math.min(...pnlTrades.map(h=>h.pnl)) : 0;
+  const bestPnl  = pnlTrades.length ? Math.max(...pnlTrades.map(h=>h.pnl)) : null;
+  const worstPnl = pnlTrades.length ? Math.min(...pnlTrades.map(h=>h.pnl)) : null;
   const liqCount = S.history.filter(h=>h.type==="강제청산").length;
 
   const statsHtml = `<div class="stats-bar">
     <div class="stat-chip"><div class="sl">총 거래</div><div class="sv">${total}회</div></div>
     <div class="stat-chip"><div class="sl">승률</div><div class="sv ${winRate>=50?'green':'red'}">${total>0?fmt(winRate,1):'0.0'}%</div></div>
     <div class="stat-chip"><div class="sl">누적 손익</div><div class="sv ${totalPnl>=0?'green':'red'}">${fmtUsd(totalPnl)}</div></div>
-    <div class="stat-chip"><div class="sl">최고 수익</div><div class="sv green">${pnlTrades.length?fmtUsd(bestPnl):'-'}</div></div>
-    <div class="stat-chip"><div class="sl">최대 손실</div><div class="sv red">${pnlTrades.length?fmtUsd(worstPnl):'-'}</div></div>
+    <div class="stat-chip"><div class="sl">최고 수익</div><div class="sv green">${bestPnl!==null&&bestPnl>0?fmtUsd(bestPnl):'-'}</div></div>
+    <div class="stat-chip"><div class="sl">최대 손실</div><div class="sv red">${worstPnl!==null&&worstPnl<0?fmtUsd(worstPnl):'-'}</div></div>
     <div class="stat-chip"><div class="sl">청산 횟수</div><div class="sv ${liqCount>0?'red':''}">${liqCount}</div></div>
   </div>`;
 
@@ -2423,6 +2423,8 @@ async function pollLoop(){
   if(Date.now() - lastKlineSync > 8000){ lastKlineSync = Date.now(); syncKlines(); }
 }
 setInterval(pollLoop, 1000);
+// 200ms마다 forming candle 갱신 — 추가 API 없이 이미 받은 lastPrice로 차트 부드럽게
+setInterval(()=>{ if(lastPrice>0) liveTick(lastPrice); }, 200);
 </script>
 </body>
 </html>
