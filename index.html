@@ -44,26 +44,9 @@
   .card .hd{padding:8px 12px;border-bottom:1px solid var(--line);font-weight:600;font-size:12px;
     display:flex;align-items:center;justify-content:space-between;gap:8px;}
 
-  /* chart toolbar */
-  .chartbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px;border-bottom:1px solid var(--line);}
-  .ivbtn{background:transparent;border:1px solid transparent;color:var(--muted);
-    padding:4px 8px;border-radius:5px;font-size:12px;}
-  .ivbtn.active{background:var(--panel2);color:var(--yellow);}
-  .ivbtn:hover{color:var(--text);}
-  .togglebox{margin-left:auto;display:flex;align-items:center;gap:8px;}
-  .switch{position:relative;display:inline-block;width:38px;height:20px;}
-  .switch input{display:none;}
-  .slider{position:absolute;inset:0;background:#3a3f47;border-radius:20px;transition:.2s;}
-  .slider:before{content:"";position:absolute;width:16px;height:16px;left:2px;top:2px;
-    background:#fff;border-radius:50%;transition:.2s;}
-  .switch input:checked + .slider{background:var(--yellow);}
-  .switch input:checked + .slider:before{transform:translateX(18px);}
-  .hullperiod{width:46px;background:var(--panel2);border:1px solid var(--line);color:var(--text);
-    border-radius:4px;padding:3px 5px;text-align:center;}
   #soundBtn{background:transparent;border:1px solid var(--line);color:var(--muted);
     padding:4px 8px;border-radius:5px;font-size:11px;}
   #soundBtn.on{color:var(--green);border-color:var(--green);}
-  #chart{width:100%;height:440px;}
 
   /* ===== Order panel ===== */
   aside{display:flex;flex-direction:column;gap:10px;}
@@ -71,6 +54,48 @@
   .seg button{flex:1;background:transparent;border:none;color:var(--muted);padding:6px;
     border-radius:5px;font-size:12px;font-weight:600;}
   .seg button.active{background:#363b44;color:var(--text);}
+  .ivseg{display:flex;gap:2px;flex-wrap:wrap;}
+  .ivseg button{background:transparent;border:none;color:var(--muted);padding:4px 7px;
+    font-size:11px;border-radius:4px;font-weight:600;
+    display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.2;}
+  .ivseg button.active{background:#363b44;color:var(--text);}
+  .ivseg button:hover{color:var(--text);}
+  .iv-cd{font-size:9px;color:var(--muted);font-variant-numeric:tabular-nums;letter-spacing:0;}
+  .ivseg button.active .iv-cd{color:var(--yellow);}
+  /* ===== 지표 시스템 ===== */
+  #addIndBtn{background:var(--panel2);border:1px solid var(--line);color:var(--muted);
+    padding:4px 10px;border-radius:5px;font-size:11px;font-weight:600;margin-left:auto;}
+  #addIndBtn:hover{color:var(--text);border-color:#3a4049;}
+  #indBar{display:flex;align-items:center;flex-wrap:wrap;gap:4px;
+    padding:4px 10px;border-bottom:1px solid var(--line);min-height:0;}
+  #indBar:empty{display:none;}
+  .ind-chip{display:inline-flex;align-items:center;gap:4px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:4px;padding:2px 7px;font-size:11px;
+    cursor:pointer;white-space:nowrap;}
+  .ind-chip:hover{border-color:#3a4049;color:var(--text);}
+  .ind-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .ind-x{color:var(--muted);margin-left:2px;font-size:13px;line-height:1;}
+  .ind-x:hover{color:var(--red);}
+  /* 지표 검색 모달 */
+  .indModalBox{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:22px;width:500px;text-align:left;max-height:80vh;display:flex;flex-direction:column;}
+  .ind-group-title{font-size:11px;color:var(--muted);font-weight:700;padding:6px 0 4px;
+    border-bottom:1px solid var(--line);margin-bottom:4px;}
+  .ind-items{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
+  .ind-item{background:var(--panel2);border:1px solid var(--line);border-radius:5px;
+    padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;}
+  .ind-item:hover{border-color:var(--yellow);color:var(--yellow);}
+  /* 지표 설정 패널 */
+  #indSettings{position:fixed;bottom:24px;right:24px;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:16px;z-index:150;
+    display:none;flex-direction:column;gap:10px;min-width:240px;max-width:300px;
+    box-shadow:0 4px 24px rgba(0,0,0,.5);}
+  .sp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;}
+  .sp-row span{color:var(--muted);}
+  .sp-in{width:64px;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:4px;padding:3px 5px;text-align:right;font-size:12px;}
+  .sp-color{width:36px;height:24px;border:1px solid var(--line);border-radius:4px;
+    background:none;cursor:pointer;padding:1px;}
   .panelpad{padding:12px;display:flex;flex-direction:column;gap:10px;}
   .row{display:flex;align-items:center;gap:8px;}
   label.fl{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;}
@@ -95,6 +120,32 @@
   .lsbtns button{flex:1;border:none;border-radius:6px;padding:12px;font-size:14px;font-weight:700;color:#fff;}
   .blong{background:var(--green);} .bshort{background:var(--red);}
   .lsbtns button:hover{opacity:.9;}
+
+  /* 알람 패널 */
+  #alarmPanel{position:fixed;top:72px;right:16px;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:16px;z-index:150;
+    display:none;flex-direction:column;gap:12px;min-width:270px;max-width:310px;
+    box-shadow:0 4px 24px rgba(0,0,0,.5);}
+  .al-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;}
+  .al-row>span{color:var(--muted);}
+  .al-in{width:68px;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:4px;padding:3px 6px;text-align:right;font-size:12px;}
+  .al-sel{background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:4px;padding:3px 7px;font-size:12px;cursor:pointer;}
+  .al-toggle{display:flex;align-items:center;gap:6px;cursor:pointer;}
+  .al-toggle input[type=checkbox]{accent-color:var(--yellow);width:14px;height:14px;cursor:pointer;}
+  .al-section{border:1px solid var(--line);border-radius:7px;padding:10px;display:flex;flex-direction:column;gap:8px;}
+  .al-section-title{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:0.8px;text-transform:uppercase;}
+  #alarmToast{position:fixed;top:70px;left:50%;transform:translateX(-50%);
+    background:#1a1e27;border:2px solid var(--yellow);color:var(--yellow);
+    border-radius:10px;padding:12px 24px;font-size:14px;font-weight:700;
+    z-index:999;display:none;text-align:center;box-shadow:0 4px 24px rgba(240,185,11,0.35);
+    white-space:nowrap;pointer-events:none;animation:toastIn .2s ease;}
+  @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+  #alarmBtn{background:transparent;border:1px solid var(--line);color:var(--muted);
+    border-radius:5px;padding:4px 10px;font-size:12px;cursor:pointer;transition:color .15s,border-color .15s;}
+  #alarmBtn:hover{color:var(--text);border-color:#3a4049;}
+  #alarmBtn.active{color:var(--yellow);border-color:var(--yellow);}
 
   /* account summary */
   .acct .panelpad{gap:7px;}
@@ -131,6 +182,28 @@
   .close-pct-in{width:42px;background:var(--panel2);border:1px solid var(--line);
     color:var(--text);border-radius:4px;padding:2px 3px;text-align:center;font-size:11px;}
 
+  /* position control panel */
+  .pos-ctl{border-top:1px solid var(--line);padding:8px 10px;display:flex;flex-direction:column;gap:7px;}
+  .pc-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+  .pc-lb{font-size:11px;color:var(--muted);width:42px;flex-shrink:0;}
+  .pc-in{width:60px;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:4px;padding:3px 5px;text-align:right;font-size:11px;}
+  .pc-in2{width:88px;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:4px;padding:3px 5px;text-align:right;font-size:11px;}
+  .pc-u{font-size:10px;color:var(--muted);}
+  .closebtn.full{border-color:var(--red);color:var(--red);margin-left:auto;}
+  .closebtn.go:hover{border-color:var(--green);color:var(--green);}
+  .pc-seg{width:74px;flex:0 0 auto;padding:2px;}
+  .pc-seg button{padding:3px 4px;font-size:10px;}
+
+  /* 그리기 도구 툴바 */
+  .drawbar{display:flex;align-items:center;gap:3px;padding:5px 8px;border-bottom:1px solid var(--line);flex-wrap:wrap;background:var(--panel);}
+  .drawbar button{background:transparent;border:1px solid transparent;color:var(--muted);
+    padding:4px 8px;font-size:11px;border-radius:4px;font-weight:600;white-space:nowrap;}
+  .drawbar button:hover{color:var(--text);background:var(--panel2);}
+  .drawbar button.active{background:#363b44;color:var(--text);border-color:var(--line);}
+  .db-sep{width:1px;height:15px;background:var(--line);margin:0 4px;}
+
   /* modal + toast */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;
     align-items:center;justify-content:center;z-index:100;}
@@ -146,25 +219,6 @@
     border-radius:8px;font-size:13px;z-index:200;opacity:0;transition:.3s;pointer-events:none;}
   #toast.show{opacity:1;}
   .hint{font-size:11px;color:var(--muted);padding:0 12px 12px;line-height:1.5;}
-  /* 그리기 도구 툴바 */
-  .drawtoolbar{display:flex;align-items:center;gap:4px;padding:5px 8px;border-bottom:1px solid var(--line);flex-wrap:wrap;background:var(--panel);}
-  .dtbtn{background:transparent;border:1px solid var(--line);color:var(--muted);padding:3px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;}
-  .dtbtn:hover{color:var(--text);}
-  .dtbtn.dt-active{background:var(--blue);color:#fff;border-color:var(--blue);}
-  .dtbtn.dt-danger{color:var(--red);border-color:var(--red);}
-  .dtbtn.dt-danger:hover{background:#2a0e14;}
-  /* 지표 패널 */
-  .ind-panel{display:none;gap:10px;flex-wrap:wrap;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--panel2);}
-  .ind-panel.show{display:flex;}
-  .ind-group{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);}
-  .ind-group label{cursor:pointer;}
-  .ind-in{width:40px;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:4px;padding:2px 4px;text-align:center;font-size:11px;font-family:inherit;}
-  .ind-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0;}
-  .ind-chip{display:inline-flex;align-items:center;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:2px 6px;font-size:10px;}
-  .ind-chip .rm{cursor:pointer;color:var(--muted);margin-left:2px;}
-  .ind-chip .rm:hover{color:var(--red);}
-  #indBtn{background:transparent;border:1px solid var(--line);color:var(--muted);padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;}
-  #indBtn.on{color:var(--blue);border-color:var(--blue);}
 </style>
 </head>
 <body>
@@ -194,68 +248,50 @@
 <main>
   <!-- ===== LEFT: chart + tables ===== -->
   <div style="display:flex;flex-direction:column;gap:10px;">
-    <div class="card">
-      <div class="chartbar">
-        <button class="ivbtn" data-iv="1m">1분</button>
-        <button class="ivbtn" data-iv="3m">3분</button>
-        <button class="ivbtn" data-iv="5m">5분</button>
-        <button class="ivbtn" data-iv="15m">15분</button>
-        <button class="ivbtn" data-iv="30m">30분</button>
-        <button class="ivbtn" data-iv="1h">1시간</button>
-        <button class="ivbtn" data-iv="2h">2시간</button>
-        <button class="ivbtn" data-iv="4h">4시간</button>
-        <button class="ivbtn" data-iv="6h">6시간</button>
-        <button class="ivbtn" data-iv="8h">8시간</button>
-        <button class="ivbtn" data-iv="12h">12시간</button>
-        <button class="ivbtn" data-iv="1d">1일</button>
-        <button class="ivbtn" data-iv="3d">3일</button>
-        <button class="ivbtn" data-iv="1w">1주</button>
-        <button class="ivbtn" data-iv="1M">1월</button>
-        <div class="togglebox">
-          <span class="muted" style="font-size:11px;">HMA</span>
-          <input class="hullperiod" id="hullPeriod" type="number" value="55" min="2" max="400" title="HMA 기간" />
-          <label class="switch"><input type="checkbox" id="hullToggle" checked><span class="slider"></span></label>
-          <button id="soundBtn" class="on" title="소리 알림 켜기/끄기">소리 ON</button>
-          <button id="indBtn" title="보조지표 추가/제거">지표 ▾</button>
+    <div class="card" style="overflow:hidden;">
+      <div style="display:flex;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;">
+        <button id="soundBtn" class="on" title="소리 알림 켜기/끄기">소리 ON</button>
+        <div class="ivseg" id="intervalSeg">
+          <button data-iv="1m">1분<span class="iv-cd"></span></button>
+          <button data-iv="3m">3분<span class="iv-cd"></span></button>
+          <button data-iv="5m">5분<span class="iv-cd"></span></button>
+          <button data-iv="15m">15분<span class="iv-cd"></span></button>
+          <button data-iv="30m">30분<span class="iv-cd"></span></button>
+          <button data-iv="1h">1시간<span class="iv-cd"></span></button>
+          <button data-iv="2h">2시간<span class="iv-cd"></span></button>
+          <button data-iv="4h">4시간<span class="iv-cd"></span></button>
+          <button data-iv="6h">6시간<span class="iv-cd"></span></button>
+          <button data-iv="8h">8시간<span class="iv-cd"></span></button>
+          <button data-iv="12h">12시간<span class="iv-cd"></span></button>
+          <button data-iv="1d">1일<span class="iv-cd"></span></button>
+          <button data-iv="3d">3일<span class="iv-cd"></span></button>
+          <button data-iv="1w">1주<span class="iv-cd"></span></button>
+          <button data-iv="1M">1월<span class="iv-cd"></span></button>
         </div>
+        <button id="addIndBtn" onclick="openIndModal()">지표+</button>
+        <button id="alarmBtn" onclick="toggleAlarmPanel()">알람</button>
       </div>
-      <div class="ind-panel" id="indPanel">
-        <div class="ind-group">
-          <div class="ind-dot" style="background:#2962ff;"></div>
-          <label>EMA</label>
-          <input type="number" id="emaPeriod" class="ind-in" value="20" min="2" max="500">
-          <button class="dtbtn" id="addEmaBtn" style="padding:2px 7px;">추가</button>
-        </div>
-        <div class="ind-group">
-          <div class="ind-dot" style="background:#f57c00;"></div>
-          <label>SMA</label>
-          <input type="number" id="smaPeriod" class="ind-in" value="50" min="2" max="500">
-          <button class="dtbtn" id="addSmaBtn" style="padding:2px 7px;">추가</button>
-        </div>
-        <div class="ind-group">
-          <div class="ind-dot" style="background:rgba(147,51,234,0.8);"></div>
-          <input type="checkbox" id="bbOn">
-          <label for="bbOn">볼린저밴드</label>
-          <input type="number" id="bbPeriod" class="ind-in" value="20" min="2" max="500" title="기간">
-          <span style="font-size:10px;">×</span>
-          <input type="number" id="bbMult" class="ind-in" value="2" min="0.1" max="10" step="0.1" title="승수">
-        </div>
-        <div class="ind-group">
-          <input type="checkbox" id="volOn">
-          <label for="volOn">거래량</label>
-        </div>
-        <div id="activeIndList" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-left:4px;"></div>
+      <div id="indBar"></div>
+      <div class="drawbar" id="drawbar">
+        <button data-tool="pan" class="active" title="차트 이동/확대">이동</button>
+        <button data-tool="select" title="선택·이동·삭제">선택</button>
+        <span class="db-sep"></span>
+        <button data-tool="trend" title="추세선 (두 점 드래그)">추세선</button>
+        <button data-tool="hline" title="수평선 (클릭)">수평선</button>
+        <button data-tool="vline" title="수직선 (클릭)">수직선</button>
+        <button data-tool="rect" title="사각형 영역 (드래그)">사각형</button>
+        <button data-tool="fib" title="피보나치 되돌림 (드래그)">피보나치</button>
+        <button data-tool="channel" title="평행채널 (1단계: 기준선 드래그 → 2단계: 클릭으로 너비 확정)">채널</button>
+        <button data-tool="arrow" title="화살표 (두 점 드래그)">화살표</button>
+        <button data-tool="text" title="텍스트 (클릭 후 입력)">텍스트</button>
+        <button data-tool="long" title="롱 포지션 (진입→목표 드래그)">롱</button>
+        <button data-tool="short" title="숏 포지션 (진입→목표 드래그)">숏</button>
+        <span class="db-sep"></span>
+        <button id="drawDelBtn" title="선택한 도형 삭제">삭제</button>
+        <button id="drawClearBtn" title="모든 도형 삭제">전체삭제</button>
       </div>
-      <div class="drawtoolbar">
-        <span style="font-size:10px;color:var(--muted);margin-right:2px;">그리기:</span>
-        <button class="dtbtn dt-active" id="dt-cursor" onclick="setDrawMode('cursor')">↖ 커서</button>
-        <button class="dtbtn" id="dt-hline" onclick="setDrawMode('hline')">─ 수평선</button>
-        <button class="dtbtn" id="dt-trendline" onclick="setDrawMode('trendline')">╱ 추세선</button>
-        <button class="dtbtn" id="dt-fibonacci" onclick="setDrawMode('fibonacci')">φ 피보나치</button>
-        <button class="dtbtn dt-danger" onclick="clearDrawings()">✕ 전체삭제</button>
-        <span style="font-size:10px;color:var(--muted);margin-left:6px;" id="drawHint"></span>
-      </div>
-      <div id="chart"></div>
+      <div id="chart" style="height:600px;position:relative;"></div>
+      <div id="oscPane" style="height:160px;display:none;border-top:1px solid var(--line);"></div>
     </div>
 
     <div class="card">
@@ -311,7 +347,7 @@
           <span style="font-size:11px;color:var(--muted);">TP / SL · 선택</span>
           <div style="display:flex;gap:3px;">
             <button id="tpslPriceBtn" class="tpsl-btn active">가격</button>
-            <button id="tpslPctBtn" class="tpsl-btn">%</button>
+            <button id="tpslPctBtn" class="tpsl-btn">ROE%</button>
           </div>
         </div>
         <div class="row" style="gap:8px;">
@@ -327,6 +363,7 @@
 
         <div class="prev"><span>주문 수량</span><span id="prevQty">-</span></div>
         <div class="prev"><span>포지션 가치</span><span id="prevNotional">-</span></div>
+        <div class="prev"><span>예상 수수료 (왕복)</span><span id="prevFee">-</span></div>
         <div class="prev"><span>예상 청산가 (롱/숏)</span><span><span class="green" id="prevLiqL">-</span> / <span class="red" id="prevLiqS">-</span></span></div>
 
         <div class="lsbtns">
@@ -368,6 +405,106 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- 지표 검색 모달 -->
+<div class="modal" id="indModal">
+  <div class="indModalBox">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h2 style="font-size:16px;margin:0;">지표 추가</h2>
+      <button onclick="closeIndModal()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div class="field" style="margin-bottom:14px;">
+      <input id="indSearch" type="text" placeholder="지표 검색..." oninput="filterIndSearch()">
+    </div>
+    <div id="indList" style="overflow-y:auto;flex:1;">
+      <div class="ind-group" data-group="이동평균">
+        <div class="ind-group-title">이동평균</div>
+        <div class="ind-items">
+          <button class="ind-item" data-name="SMA 단순이동평균" onclick="addIndicator('sma')">SMA</button>
+          <button class="ind-item" data-name="EMA 지수이동평균" onclick="addIndicator('ema')">EMA</button>
+          <button class="ind-item" data-name="WMA 가중이동평균" onclick="addIndicator('wma')">WMA</button>
+          <button class="ind-item" data-name="Hull MA 헐이동평균" onclick="addIndicator('hma')">Hull MA</button>
+        </div>
+      </div>
+      <div class="ind-group" data-group="밴드">
+        <div class="ind-group-title">밴드 / 채널</div>
+        <div class="ind-items">
+          <button class="ind-item" data-name="BB 볼린저밴드 Bollinger Bands" onclick="addIndicator('bb')">볼린저밴드 (BB)</button>
+        </div>
+      </div>
+      <div class="ind-group" data-group="오실레이터">
+        <div class="ind-group-title">오실레이터</div>
+        <div class="ind-items">
+          <button class="ind-item" data-name="RSI 상대강도지수" onclick="addIndicator('rsi')">RSI</button>
+          <button class="ind-item" data-name="MACD" onclick="addIndicator('macd')">MACD</button>
+          <button class="ind-item" data-name="Stoch 스토캐스틱" onclick="addIndicator('stoch')">스토캐스틱</button>
+          <button class="ind-item" data-name="ATR 평균진폭" onclick="addIndicator('atr')">ATR</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 알람 오디오 -->
+<audio id="alarmAudio" src="핑구 알림음.mp3.mp4" preload="auto"></audio>
+
+<!-- 알람 패널 -->
+<div id="alarmPanel">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <b style="font-size:13px;">알람 설정</b>
+    <button onclick="closeAlarmPanel()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;">×</button>
+  </div>
+  <div class="al-section">
+    <div class="al-section-title">Hull MA 근접 알람</div>
+    <div class="al-row">
+      <span>알람 활성화</span>
+      <label class="al-toggle">
+        <input type="checkbox" id="alHmaOn" onchange="document.getElementById('alHmaOnLbl').textContent=this.checked?'ON':'OFF'">
+        <span id="alHmaOnLbl" style="font-size:12px;color:var(--text);">OFF</span>
+      </label>
+    </div>
+    <div class="al-row">
+      <span>근접 거리 (USDT)</span>
+      <input type="number" id="alHmaDist" class="al-in" value="200" min="1" max="99999" step="10">
+    </div>
+    <div class="al-row">
+      <span>알람 방향</span>
+      <select id="alHmaDir" class="al-sel">
+        <option value="both">양방향</option>
+        <option value="above">위에서 접근</option>
+        <option value="below">아래에서 접근</option>
+      </select>
+    </div>
+    <div class="al-row">
+      <span>볼륨</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <input type="range" id="alVolume" min="0" max="100" value="70" step="5"
+          style="width:88px;accent-color:var(--yellow);cursor:pointer;"
+          oninput="document.getElementById('alVolumeLbl').textContent=this.value+'%'">
+        <span id="alVolumeLbl" style="font-size:11px;color:var(--text);width:30px;text-align:right;">70%</span>
+      </div>
+    </div>
+    <div id="alHmaStatus" style="font-size:11px;color:var(--muted);min-height:14px;"></div>
+  </div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:2px;">
+    <button class="closebtn go" onclick="saveAlarmSettings()">저장</button>
+  </div>
+</div>
+<!-- 알람 토스트 -->
+<div id="alarmToast"></div>
+
+<!-- 지표 설정 패널 -->
+<div id="indSettings">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <b id="spTitle" style="font-size:13px;">설정</b>
+    <button onclick="closeIndSettings()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;">×</button>
+  </div>
+  <div id="spFields" style="display:flex;flex-direction:column;gap:7px;"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+    <button class="closebtn" onclick="removeIndicator(settingsInd&&settingsInd.id)">삭제</button>
+    <button class="closebtn go" onclick="applyIndSettings()">적용</button>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -438,18 +575,37 @@ const defaultState = () => ({
   totalFee: 0,
   totalFunding: 0,
   lastFundingT: 0,
-  hullOn: true,
-  hullPeriod: 55,
   interval: "1m",
   symbol: "btcusdt",
-  indicators: {lines:[], vol:false},
+  indicators: [],   // [{id, type, params}]
+  indDefaults: {},  // 마지막으로 저장한 지표 타입별 파라미터
+  alarms: { hmaProximity: { on: false, dist: 200, dir: 'both' }, volume: 70 },
 });
 let S = loadState();
 
 function loadState(){
   try{
     const raw = localStorage.getItem("btcSimState");
-    if(raw){ return Object.assign(defaultState(), JSON.parse(raw)); }
+    if(raw){
+      const saved = JSON.parse(raw);
+      const state = Object.assign(defaultState(), saved);
+      // 구 버전 HMA 마이그레이션
+      if(!Array.isArray(state.indicators)){
+        state.indicators = (saved.hullOn !== false)
+          ? [{id:String(Date.now()), type:'hma', params:{period:saved.hullPeriod||55, color:'#f0b90b', width:2}}]
+          : [];
+      }
+      // 알람 마이그레이션: pct(%) → dist(USDT)
+      if(!state.alarms) state.alarms = defaultState().alarms;
+      if(!state.alarms.hmaProximity) state.alarms.hmaProximity = defaultState().alarms.hmaProximity;
+      if(state.alarms.hmaProximity.dist == null){
+        state.alarms.hmaProximity.dist = state.alarms.hmaProximity.pct
+          ? Math.round(state.alarms.hmaProximity.pct * 1000) : 200;
+        delete state.alarms.hmaProximity.pct;
+      }
+      if(state.alarms.volume == null) state.alarms.volume = 70;
+      return state;
+    }
   }catch(e){}
   return defaultState();
 }
@@ -467,6 +623,11 @@ let prevClose24 = 0;
 let high24 = 0;
 let low24 = 0;
 let lastWsTime = 0;   // 마지막 WS 메시지 수신 시각
+
+/* ---------- 알람 ---------- */
+let lastHmaValue = null;
+// null=미초기화(첫 체크 시 발화 없이 상태만 기록), false=존 밖, true=존 안
+let hmaZoneState = null;
 
 /* ---------- 소리 ---------- */
 let soundOn = true;
@@ -580,39 +741,67 @@ function openOrder(side){
   const estFee = qty*price*feeRate;
   if(marginInput + estFee > available()+1e-6){ toast("사용 가능 잔고가 부족합니다."); return; }
 
+  const tpRaw = parseFloat(document.getElementById("tp").value) || 0;
+  const slRaw = parseFloat(document.getElementById("sl").value) || 0;
+
   if(ot==="limit"){
-    S.pending.push({id:Date.now()+Math.random(), kind:"limit", side, qty, price});
+    S.pending.push({id:uid(), kind:"limit", side, qty, price, tpRaw, slRaw, tpMode:tpSlMode});
     toast(`지정가 ${side==="long"?"롱":"숏"} 주문 등록 (${fmtPrice(price)})`);
   } else {
     applyFill(side, qty, price, TAKER);
     playBeep('fill');
+    if(tpRaw>0 || slRaw>0){ const ts=makeTpSl(side, price, tpRaw, slRaw, tpSlMode); applyTpSlOrders(side, ts.tp, ts.sl); }
     toast(`${side==="long"?"롱":"숏"} 진입 체결 @ ${fmtPrice(price)}`);
   }
-  registerTpSl(side, qty, price);
-  save(); renderAll();
+  document.getElementById("tp").value=""; document.getElementById("sl").value="";
+  updatePriceLines(); save(); renderAll();
 }
 
-function registerTpSl(side, qty, entryPrice){
-  const tpVal = parseFloat(document.getElementById("tp").value);
-  const slVal = parseFloat(document.getElementById("sl").value);
-  let tp = null, sl = null;
-  if(tpSlMode === "pct"){
-    if(tpVal > 0) tp = side==="long" ? entryPrice*(1+tpVal/100) : entryPrice*(1-tpVal/100);
-    if(slVal > 0) sl = side==="long" ? entryPrice*(1-slVal/100) : entryPrice*(1+slVal/100);
-  } else {
-    if(tpVal > 0) tp = tpVal;
-    if(slVal > 0) sl = slVal;
+function uid(){ return Date.now()+Math.random(); }
+
+/* TP/SL 입력값 → 절대가격 변환 (pct/가격 모드) */
+function makeTpSl(side, refPrice, tpRaw, slRaw, mode){
+  let tp=null, sl=null;
+  if(mode==="pct"){
+    const lev = S.leverage || 1;
+    if(tpRaw>0) tp = side==="long" ? refPrice*(1+tpRaw/lev/100) : refPrice*(1-tpRaw/lev/100);
+    if(slRaw>0) sl = side==="long" ? refPrice*(1-slRaw/lev/100) : refPrice*(1+slRaw/lev/100);
+  }else{
+    if(tpRaw>0) tp=tpRaw;
+    if(slRaw>0) sl=slRaw;
   }
-  if(tp) S.pending.push({id:Date.now()+Math.random(), kind:"tp", side, qty, price:tp});
-  if(sl) S.pending.push({id:Date.now()+Math.random(), kind:"sl", side, qty, price:sl});
+  return {tp, sl};
+}
+
+/* 방향 검증 후 TP/SL 주문 객체 생성 (부작용 없음 · 100% 청산형) */
+function buildTpSlOrders(side, tp, sl){
+  const out=[];
+  const ref = lastPrice || markPrice;
+  if(tp>0){
+    if((side==="long"&&tp>ref)||(side==="short"&&tp<ref)) out.push({id:uid(), kind:"tp", side, price:tp});
+    else toast("TP 가격 방향이 올바르지 않아 무시했습니다 (롱: 현재가보다 높게 / 숏: 낮게).");
+  }
+  if(sl>0){
+    if((side==="long"&&sl<ref)||(side==="short"&&sl>ref)) out.push({id:uid(), kind:"sl", side, price:sl});
+    else toast("SL 가격 방향이 올바르지 않아 무시했습니다 (롱: 현재가보다 낮게 / 숏: 높게).");
+  }
+  return out;
+}
+
+/* 기존 TP/SL 주문을 교체 */
+function applyTpSlOrders(side, tp, sl){
+  S.pending = S.pending.filter(o=>o.kind!=="tp"&&o.kind!=="sl").concat(buildTpSlOrders(side, tp, sl));
   updatePriceLines();
 }
 
-function closePosition(fraction){
+function closePosition(fraction, label){
   if(!S.position){ return; }
+  const price = lastPrice || markPrice;
+  if(!(price>0)){ toast("시세 로딩 중입니다. 잠시만요."); return; }
   const p = S.position;
-  const qty = p.qty*fraction;
-  const price = lastPrice;
+  const frac = Math.max(0, Math.min(1, fraction));
+  const qty = p.qty*frac;
+  if(qty<=0) return;
   const realized = p.side==="long" ? (price-p.entry)*qty : (p.entry-price)*qty;
   const fee = qty*price*TAKER;
   S.walletBalance += realized - fee;
@@ -620,15 +809,51 @@ function closePosition(fraction){
   p.qty -= qty;
   if(p.qty<1e-8){ S.position=null; cancelReduceOnly(); }
   else p.margin = (p.qty*p.entry)/S.leverage;
-  logHist(fraction>=1?"종료":"부분종료", p.side==="long"?"short":"long", qty, price, realized, fee);
+  logHist(frac>=1?"종료":"부분종료", p.side==="long"?"short":"long", qty, price, realized, fee);
   addMarker(); updatePriceLines(); save(); renderAll();
-  toast(`청산(종료) @ ${fmtPrice(price)} · 손익 ${fmtUsd(realized)} USDT`);
+  toast(`${label||'청산'} @ ${fmtPrice(price)} · 손익 ${fmtUsd(realized)} USDT`);
 }
 
 window.closePositionPct = function(){
+  if(!S.position) return;
   const inp = document.getElementById('closePctIn');
-  const pct = inp ? Math.max(1, Math.min(99, parseFloat(inp.value)||50))/100 : 0.5;
-  closePosition(pct);
+  const pct = inp ? Math.max(1, Math.min(100, parseFloat(inp.value)||100))/100 : 1;
+  closePosition(pct, pct>=1?'청산':'부분청산');
+};
+
+/* USDT(포지션 가치) 금액만큼 청산 */
+window.closePositionUsdt = function(){
+  if(!S.position) return;
+  const usdt = parseFloat(document.getElementById('closeUsdtIn').value) || 0;
+  if(usdt<=0){ toast('청산할 USDT(포지션 가치) 금액을 입력하세요.'); return; }
+  const px = lastPrice || markPrice;
+  if(!(px>0)){ toast('시세 로딩 중입니다.'); return; }
+  const p = S.position;
+  const qty = usdt/px;
+  if(qty>=p.qty-1e-9){ closePosition(1, '청산'); return; }
+  closePosition(qty/p.qty, '부분청산');
+};
+
+/* 현재 포지션 TP/SL 설정·수정 */
+window.applyPosTpSl = function(){
+  if(!S.position){ toast('보유 포지션이 없습니다.'); return; }
+  const p = S.position;
+  const tpv = parseFloat(document.getElementById('posTpIn').value) || 0;
+  const slv = parseFloat(document.getElementById('posSlIn').value) || 0;
+  if(posTpSlMode==='pct'){
+    const ts = makeTpSl(p.side, p.entry, tpv, slv, 'pct');   // 진입가 기준 %
+    applyTpSlOrders(p.side, ts.tp, ts.sl);
+  }else{
+    applyTpSlOrders(p.side, tpv>0?tpv:null, slv>0?slv:null);
+  }
+  save(); renderAll();
+  toast('TP/SL이 설정되었습니다.');
+};
+window.setPosTpSlMode = function(m){ posTpSlMode = m; renderPositions(); };
+window.clearPosTpSl = function(){
+  S.pending = S.pending.filter(o=>o.kind!=="tp"&&o.kind!=="sl");
+  updatePriceLines(); save(); renderAll();
+  toast('TP/SL이 해제되었습니다.');
 };
 
 function cancelReduceOnly(){ S.pending = S.pending.filter(o=>o.kind==="limit"); }
@@ -675,86 +900,56 @@ function checkLiquidation(){
 }
 
 /* ---------- 미체결 체크 ---------- */
-function checkPending(){
-  if(!S.pending.length) return;
+function checkPending(checkHi, checkLo){
+  const hi = (checkHi != null) ? checkHi : lastPrice;
+  const lo = (checkLo != null) ? checkLo : lastPrice;
+  if(!S.pending.length || !(hi > 0)) return;
   const remain = [];
+  const toAdd = [];
+  let closed = false;
   for(const o of S.pending){
-    let fill = false;
     if(o.kind==="limit"){
-      fill = o.side==="long" ? lastPrice<=o.price : lastPrice>=o.price;
-      if(fill){ playBeep('fill'); applyFill(o.side, o.qty, o.price, MAKER); toast(`지정가 체결 @ ${fmtPrice(o.price)}`); continue; }
-    } else if(S.position){
-      const ps = S.position.side;
-      if(o.kind==="tp") fill = ps==="long" ? lastPrice>=o.price : lastPrice<=o.price;
-      if(o.kind==="sl") fill = ps==="long" ? lastPrice<=o.price : lastPrice>=o.price;
+      const fill = o.side==="long" ? lo<=o.price : hi>=o.price;
       if(fill){
-        playBeep(o.kind);
-        closePosition(1);
-        toast(`${o.kind.toUpperCase()} 발동 @ ${fmtPrice(o.price)}`);
+        playBeep('fill');
+        applyFill(o.side, o.qty, o.price, MAKER);
+        toast(`지정가 체결 @ ${fmtPrice(o.price)}`);
+        if((o.tpRaw>0 || o.slRaw>0) && S.position){
+          const ts = makeTpSl(o.side, o.price, o.tpRaw, o.slRaw, o.tpMode);
+          toAdd.push(...buildTpSlOrders(o.side, ts.tp, ts.sl));
+        }
         continue;
       }
+      remain.push(o); continue;
+    }
+    // TP / SL (전량 청산형 reduce-only)
+    if(closed || !S.position){ continue; }            // 포지션 종료됨 → 남은 TP/SL 제거
+    const ps = S.position.side;
+    let fill = false;
+    if(o.kind==="tp") fill = ps==="long" ? hi>=o.price : lo<=o.price;
+    else if(o.kind==="sl") fill = ps==="long" ? lo<=o.price : hi>=o.price;
+    if(fill){
+      playBeep(o.kind);
+      closePosition(1, o.kind==="tp" ? "TP 익절" : "SL 손절");
+      closed = true;
+      continue;
     }
     remain.push(o);
   }
-  S.pending = remain;
+  S.pending = remain.concat(toAdd);
+  save();
 }
 
 /* ---------- 리셋 ---------- */
 function resetAccount(){
   S = defaultState();
-  S.hullOn = document.getElementById("hullToggle").checked;
-  S.hullPeriod = parseInt(document.getElementById("hullPeriod").value)||55;
-  S.interval = curInterval;
   S.symbol = curSymbol;
-  markers = [];
-  if(candleSeries) candleSeries.setMarkers([]);
-  updatePriceLines();
   save(); renderAll();
   toast("계좌가 초기화되었습니다. 5,000 USDT 지급 완료");
 }
 
-/* ============================ 차트 가격선 ============================ */
-const pricelines = { entry:null, liq:null, tp:null, sl:null };
-
-function updatePriceLines(){
-  if(!candleSeries) return;
-  // 기존 라인 제거
-  for(const key of Object.keys(pricelines)){
-    if(pricelines[key]){
-      try{ candleSeries.removePriceLine(pricelines[key]); }catch(e){}
-      pricelines[key] = null;
-    }
-  }
-  if(S.position){
-    const p = S.position;
-    const col = p.side==="long" ? "#0ecb81" : "#f6465d";
-    pricelines.entry = candleSeries.createPriceLine({
-      price: p.entry, color: col, lineWidth: 2,
-      lineStyle: 2, axisLabelVisible: true, title: "진입가",
-    });
-    const liq = curLiq();
-    if(liq){
-      pricelines.liq = candleSeries.createPriceLine({
-        price: liq, color: "#f0b90b", lineWidth: 1,
-        lineStyle: 2, axisLabelVisible: true, title: "청산가",
-      });
-    }
-  }
-  for(const o of S.pending){
-    if(o.kind==="tp" && !pricelines.tp){
-      pricelines.tp = candleSeries.createPriceLine({
-        price: o.price, color: "#0ecb81", lineWidth: 1,
-        lineStyle: 1, axisLabelVisible: true, title: "TP",
-      });
-    }
-    if(o.kind==="sl" && !pricelines.sl){
-      pricelines.sl = candleSeries.createPriceLine({
-        price: o.price, color: "#f6465d", lineWidth: 1,
-        lineStyle: 1, axisLabelVisible: true, title: "SL",
-      });
-    }
-  }
-}
+function updatePriceLines(){ drawPriceLines(); }
+function addMarker(){ /* 차트 마커 미사용 */ }
 
 /* ============================ UI 렌더링 ============================ */
 function renderAll(){
@@ -809,41 +1004,73 @@ function renderPreview(){
                 ? parseFloat(document.getElementById("limitPrice").value) : lastPrice;
   if(marginInput>0 && price>0){
     const qty = (marginInput*S.leverage)/price;
+    const notional = qty*price;
+    const feeRT = notional*((ot==="limit"?MAKER:TAKER) + TAKER);   // 진입(시장=테이커/지정=메이커) + 청산(테이커)
     document.getElementById("prevQty").textContent = fmtQty(qty)+" BTC";
-    document.getElementById("prevNotional").textContent = fmt(qty*price,2)+" USDT";
+    document.getElementById("prevNotional").textContent = fmt(notional,2)+" USDT";
+    document.getElementById("prevFee").textContent = fmt(feeRT,2)+" USDT";
     document.getElementById("prevLiqL").textContent = fmtPrice(liqPriceOf("long",qty,price,marginInput));
     document.getElementById("prevLiqS").textContent = fmtPrice(liqPriceOf("short",qty,price,marginInput));
   } else {
-    ["prevQty","prevNotional","prevLiqL","prevLiqS"].forEach(id=>document.getElementById(id).textContent="-");
+    ["prevQty","prevNotional","prevFee","prevLiqL","prevLiqS"].forEach(id=>document.getElementById(id).textContent="-");
   }
 }
 
+let posCtlRendered=false, posCtlModeShown=null;
 function renderPositions(){
   const el = document.getElementById("tab-pos");
-  if(!S.position){ el.innerHTML=`<div class="empty">보유 포지션이 없습니다.</div>`; return; }
+  if(!S.position){ el.innerHTML=`<div class="empty">보유 포지션이 없습니다.</div>`; posCtlRendered=false; return; }
   const p = S.position;
   const u = unrealized(markPrice);
   const roe = p.margin ? (u/p.margin*100) : 0;
   const liq = curLiq();
-  el.innerHTML = `<div class="tblwrap"><table><thead><tr>
-    <th>방향</th><th>수량</th><th>진입가</th><th>마크가</th><th>청산가</th>
-    <th>증거금</th><th>손익(USDT)</th><th>ROE</th><th>종료</th></tr></thead><tbody>
+  const tpO = S.pending.find(o=>o.kind==='tp');
+  const slO = S.pending.find(o=>o.kind==='sl');
+  const notional = p.qty*markPrice;
+  const tableHtml = `<div class="tblwrap"><table><thead><tr>
+    <th>방향</th><th>수량</th><th>가치(USDT)</th><th>진입가</th><th>마크가</th><th>청산가</th>
+    <th>증거금</th><th>손익(USDT)</th><th>ROE</th><th>TP</th><th>SL</th></tr></thead><tbody>
     <tr>
       <td class="${p.side==='long'?'green':'red'}">${p.side==='long'?'롱':'숏'} ${S.leverage}x</td>
-      <td>${fmtQty(p.qty)}</td><td>${fmtPrice(p.entry)}</td><td>${fmtPrice(markPrice)}</td>
+      <td>${fmtQty(p.qty)}</td><td>${fmt(notional,2)}</td>
+      <td>${fmtPrice(p.entry)}</td><td>${fmtPrice(markPrice)}</td>
       <td class="yellow">${liq?fmtPrice(liq):'-'}</td>
       <td>${fmt(p.margin,2)}</td>
       <td class="${u>=0?'green':'red'}">${fmtUsd(u)}</td>
-      <td class="${roe>=0?'green':'red'}">${fmtUsd(roe)}%</td>
-      <td>
-        <div style="display:flex;gap:3px;align-items:center;justify-content:flex-end;">
-          <input id="closePctIn" type="number" min="1" max="99" value="50" class="close-pct-in">
-          <span style="font-size:10px;color:var(--muted)">%</span>
-          <button class="closebtn" onclick="closePositionPct()">부분</button>
-          <button class="closebtn" onclick="closePosition(1)">전체</button>
-        </div>
-      </td>
+      <td class="${roe>=0?'green':'red'}">${(roe>=0?'+':'')+fmt(roe,2)}%</td>
+      <td class="green">${tpO?fmtPrice(tpO.price):'-'}</td>
+      <td class="red">${slO?fmtPrice(slO.price):'-'}</td>
     </tr></tbody></table></div>`;
+  const ctlHtml = `<div class="pos-ctl">
+      <div class="pc-row">
+        <span class="pc-lb">청산</span>
+        <input id="closePctIn" type="number" min="1" max="100" value="100" class="pc-in"><span class="pc-u">%</span>
+        <button class="closebtn" onclick="closePositionPct()">% 청산</button>
+        <input id="closeUsdtIn" type="number" min="0" placeholder="가치" class="pc-in"><span class="pc-u">USDT</span>
+        <button class="closebtn" onclick="closePositionUsdt()">USDT 청산</button>
+        <button class="closebtn full" onclick="closePosition(1,'청산')">전체 청산</button>
+      </div>
+      <div class="pc-row">
+        <span class="pc-lb">TP/SL</span>
+        <div class="seg pc-seg">
+          <button class="${posTpSlMode==='price'?'active':''}" onclick="setPosTpSlMode('price')">가격</button>
+          <button class="${posTpSlMode==='pct'?'active':''}" onclick="setPosTpSlMode('pct')">ROE%</button>
+        </div>
+        <input id="posTpIn" type="number" placeholder="${posTpSlMode==='pct'?'TP ROE% 예:50':'TP 가격'}" class="pc-in2" value="${posTpSlMode==='price'&&tpO?tpO.price:''}"><span class="pc-u">${posTpSlMode==='pct'?'ROE%':'USDT'}</span>
+        <input id="posSlIn" type="number" placeholder="${posTpSlMode==='pct'?'SL ROE% 예:20':'SL 가격'}" class="pc-in2" value="${posTpSlMode==='price'&&slO?slO.price:''}"><span class="pc-u">${posTpSlMode==='pct'?'ROE%':'USDT'}</span>
+        <button class="closebtn go" onclick="applyPosTpSl()">적용</button>
+        <button class="closebtn" onclick="clearPosTpSl()">해제</button>
+      </div>
+    </div>`;
+  // 표(라이브)는 매번 갱신, 제어판(입력칸)은 포지션 생성/모드변경 때만 → 입력 중 값 보존
+  if(!posCtlRendered || posCtlModeShown!==posTpSlMode){
+    el.innerHTML = `<div id="posTableBox">${tableHtml}</div><div id="posCtlBox">${ctlHtml}</div>`;
+    posCtlRendered = true; posCtlModeShown = posTpSlMode;
+  }else{
+    const tb = document.getElementById("posTableBox");
+    if(tb) tb.innerHTML = tableHtml;
+    else el.innerHTML = `<div id="posTableBox">${tableHtml}</div><div id="posCtlBox">${ctlHtml}</div>`;
+  }
 }
 
 function renderOrders(){
@@ -855,7 +1082,7 @@ function renderOrders(){
     S.pending.map(o=>`<tr>
       <td>${kindName[o.kind]}</td>
       <td class="${o.side==='long'?'green':'red'}">${o.kind==='limit'?(o.side==='long'?'롱':'숏'):'청산'}</td>
-      <td>${fmtQty(o.qty)}</td><td>${fmtPrice(o.price)}</td>
+      <td>${o.kind==='limit'?fmtQty(o.qty):'전량'}</td><td>${fmtPrice(o.price)}</td>
       <td><button class="closebtn" onclick="cancelOrder(${o.id})">취소</button></td>
     </tr>`).join("")+`</tbody></table></div>`;
 }
@@ -914,357 +1141,606 @@ function toast(msg){
   clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove("show"), 2600);
 }
 
-/* ============================ 차트 ============================ */
-let chart, candleSeries, hullSeries=null, markers=[];
-let curInterval = S.interval || "1m";
-let candles = [];
+/* ============================ TV 위젯 ============================ */
+/* ============================ 차트 (Lightweight Charts v4.2.3) ============================ */
+let chart=null, candleSeries=null, volSeries=null;
+let oscChart=null;                  // 오실레이터 전용 차트
+const indSeriesMap = new Map();     // ind.id → series 또는 {mid,upper,lower} 등
+let candles=[];                       // {time, open, high, low, close, volume}
+let curInterval = S.interval || '1m';
+let priceLines=[];                     // 차트 가격선(진입/청산/TP/SL/지정가)
+let lastKlineSync=0;                   // 마지막 klines 재동기화 시각
+let loadingMore=false, noMoreHistory=false;   // 과거 봉 지연로딩 상태
 
 function initChart(){
-  const el = document.getElementById("chart");
+  const el = document.getElementById('chart');
   chart = LightweightCharts.createChart(el, {
-    layout:{background:{type:"solid",color:"#0b0e11"},textColor:"#848e9c"},
-    grid:{vertLines:{color:"#1b2026"},horzLines:{color:"#1b2026"}},
-    rightPriceScale:{borderColor:"#2a2f36"},
-    timeScale:{borderColor:"#2a2f36",timeVisible:true,secondsVisible:false},
-    crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    autoSize: true,
+    layout:{ background:{color:'#0b0e11'}, textColor:'#848e9c', fontSize:11 },
+    grid:{ vertLines:{color:'#1b2026'}, horzLines:{color:'#1b2026'} },
+    timeScale:{ timeVisible:true, secondsVisible:false, borderColor:'#2a2f36', rightOffset:12, barSpacing:8 },
+    rightPriceScale:{ borderColor:'#2a2f36' },
+    crosshair:{ mode: LightweightCharts.CrosshairMode.Normal },
+    localization:{ locale:'ko-KR' },
   });
   candleSeries = chart.addCandlestickSeries({
-    upColor:"#0ecb81",downColor:"#f6465d",borderVisible:false,
-    wickUpColor:"#0ecb81",wickDownColor:"#f6465d",
+    upColor:'#0ecb81', downColor:'#f6465d', borderVisible:false,
+    wickUpColor:'#0ecb81', wickDownColor:'#f6465d',
   });
-  new ResizeObserver(()=>chart.applyOptions({width:el.clientWidth,height:440})).observe(el);
-  chart.applyOptions({width:el.clientWidth,height:440});
-  chart.subscribeClick(onChartClick);
+  volSeries = chart.addHistogramSeries({ priceFormat:{type:'volume'}, priceScaleId:'' });
+  volSeries.priceScale().applyOptions({ scaleMargins:{ top:0.85, bottom:0 } });
+
+  loadHistory();
 }
 
-/* ---------- Hull MA ---------- */
-function wma(arr, period){
-  const out = new Array(arr.length).fill(null);
-  const denom = period*(period+1)/2;
-  for(let i=period-1;i<arr.length;i++){
-    let s=0;
-    for(let j=0;j<period;j++){ s += arr[i-period+1+j]*(j+1); }
-    out[i] = s/denom;
+async function loadHistory(){
+  if(!candleSeries) return;
+  loadingMore=false; noMoreHistory=false;       // 심볼/시간봉 바뀌면 지연로딩 상태 초기화
+  try{
+    const sym = curSymbol.toUpperCase();
+    const r = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${curInterval}&limit=1000`);
+    const raw = await r.json();
+    if(!Array.isArray(raw)) return;
+    candles = raw.map(k=>({ time:Math.floor(k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5] }));
+    candleSeries.setData(candles);
+    volSeries.setData(candles.map(c=>({ time:c.time, value:c.volume, color: c.close>=c.open?'rgba(14,203,129,0.35)':'rgba(246,70,93,0.35)' })));
+    renderAllIndicators();
+    showLatestView();
+  }catch(e){ console.warn('klines 로드 실패', e); }
+}
+
+/* 최신 봉 위주 + 오른쪽 여백을 화면 너비에 맞춰 결정적으로 표시 (애니메이션 X) */
+function showLatestView(){
+  if(!chart || !candles.length) return;
+  const apply=()=>{
+    const n = candles.length, off = 12;
+    let plotW = 0;
+    try{ plotW = chart.timeScale().width(); }catch(e){}
+    if(!plotW){ const el=document.getElementById('chart'); plotW = el ? el.clientWidth-60 : 800; }   // 초기 width=0 대비
+    const want = Math.max(40, Math.min(n, Math.floor(plotW/8) - off));   // 약 8px/봉
+    try{ chart.timeScale().setVisibleLogicalRange({ from: n - want, to: n - 1 + off }); }catch(e){}
+  };
+  apply();
+  requestAnimationFrame(apply);     // 레이아웃 안정 후 다시 한 번 (정확한 폭으로)
+}
+
+/* 왼쪽으로 스크롤하면 과거 봉을 더 불러와 앞에 이어붙임 (무한 과거) */
+async function loadOlder(){
+  if(loadingMore || noMoreHistory || !candleSeries || !candles.length) return;
+  loadingMore = true;
+  try{
+    const sym = curSymbol.toUpperCase();
+    const endTime = candles[0].time*1000 - 1;     // 현재 가장 오래된 봉 직전까지
+    const r = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${curInterval}&endTime=${endTime}&limit=1000`);
+    const raw = await r.json();
+    if(!Array.isArray(raw) || !raw.length){ noMoreHistory=true; return; }
+    const firstT = candles[0].time;
+    const older = raw.map(k=>({ time:Math.floor(k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5] }))
+                     .filter(c=>c.time < firstT);
+    if(!older.length){ noMoreHistory=true; return; }
+    const added = older.length;
+    const oldRange = chart.timeScale().getVisibleLogicalRange();
+    candles = older.concat(candles);
+    candleSeries.setData(candles);
+    volSeries.setData(candles.map(c=>({ time:c.time, value:c.volume, color: c.close>=c.open?'rgba(14,203,129,0.35)':'rgba(246,70,93,0.35)' })));
+    renderAllIndicators();
+    if(oldRange) chart.timeScale().setVisibleLogicalRange({ from: oldRange.from+added, to: oldRange.to+added });  // 보던 위치 유지
+  }catch(e){ /* 무시 */ }
+  finally{ loadingMore=false; }
+}
+
+/* Hull MA = WMA( 2·WMA(n/2) − WMA(n), √n ) */
+function calcHMA(src, period){
+  const half=Math.max(1,Math.floor(period/2)), sq=Math.max(1,Math.round(Math.sqrt(period)));
+  const close=src.map(c=>c.close);
+  const wmaAt=(arr,p,i)=>{ if(i+1<p) return null; let n=0,d=0; for(let j=0;j<p;j++){ const w=p-j; n+=arr[i-j]*w; d+=w; } return n/d; };
+  const raw=[];
+  for(let i=0;i<close.length;i++){ const a=wmaAt(close,half,i), b=wmaAt(close,period,i); raw.push((a!=null&&b!=null)?2*a-b:null); }
+  const out=[];
+  for(let i=0;i<raw.length;i++){
+    if(i+1<sq){ continue; }
+    let n=0,d=0,ok=true;
+    for(let j=0;j<sq;j++){ const v=raw[i-j]; if(v==null){ok=false;break;} const w=sq-j; n+=v*w; d+=w; }
+    if(ok) out.push({ time:src[i].time, value:n/d });
   }
   return out;
 }
-function hullMA(closes, period){
-  const half = Math.floor(period/2);
-  const sq   = Math.floor(Math.sqrt(period));
-  const wH   = wma(closes, half), wF = wma(closes, period);
-  // diff 유효 구간은 (period-1) 이후부터 — null 구간을 0으로 치환하면 HMA가 0쪽으로 끌려내려오는 버그 발생
-  const startIdx = period - 1;
-  const diffArr = [];
-  for(let i = startIdx; i < closes.length; i++) diffArr.push(2*wH[i] - wF[i]);
-  const hSub = wma(diffArr, sq);
-  const out  = new Array(closes.length).fill(null);
-  for(let i = 0; i < hSub.length; i++){
-    if(hSub[i] !== null) out[startIdx + i] = hSub[i];
+
+/* ============================================================
+   지표 시스템
+   ============================================================ */
+
+const INDICATOR_DEFS = [
+  {type:'sma', name:'SMA',    label:'단순이동평균 (SMA)',    group:'이동평균',   overlay:true,  defaults:{period:20, color:'#2962ff', width:1}},
+  {type:'ema', name:'EMA',    label:'지수이동평균 (EMA)',    group:'이동평균',   overlay:true,  defaults:{period:20, color:'#f48fb1', width:1}},
+  {type:'wma', name:'WMA',    label:'가중이동평균 (WMA)',    group:'이동평균',   overlay:true,  defaults:{period:20, color:'#80cbc4', width:1}},
+  {type:'hma', name:'Hull MA',label:'헐 이동평균 (Hull MA)', group:'이동평균',   overlay:true,  defaults:{period:55, color:'#f0b90b', width:2}},
+  {type:'bb',  name:'BB',     label:'볼린저밴드 (BB)',       group:'밴드',       overlay:true,  defaults:{period:20, mult:2.0, colorMid:'#2962ff', colorBand:'rgba(41,98,255,0.35)', width:1}},
+  {type:'rsi', name:'RSI',    label:'RSI',                   group:'오실레이터', overlay:false, defaults:{period:14, obLevel:70, osLevel:30, color:'#9c27b0', width:1}},
+  {type:'macd',name:'MACD',   label:'MACD',                  group:'오실레이터', overlay:false, defaults:{fast:12, slow:26, signal:9, colorMacd:'#2962ff', colorSignal:'#f0b90b'}},
+  {type:'stoch',name:'Stoch', label:'스토캐스틱 (Stoch)',    group:'오실레이터', overlay:false, defaults:{kPeriod:14, smooth:3, dPeriod:3, obLevel:80, osLevel:20, colorK:'#2962ff', colorD:'#f0b90b'}},
+  {type:'atr', name:'ATR',    label:'ATR',                   group:'오실레이터', overlay:false, defaults:{period:14, color:'#9c27b0', width:1}},
+];
+
+/* ---- 계산 함수 ---- */
+function calcSMA(src, period){
+  const cl=src.map(c=>c.close), out=[];
+  for(let i=period-1;i<cl.length;i++){ let s=0; for(let j=0;j<period;j++) s+=cl[i-j]; out.push({time:src[i].time,value:s/period}); }
+  return out;
+}
+function emaArr(arr, period){
+  const k=2/(period+1); let e=null; const out=[];
+  for(let i=0;i<arr.length;i++){
+    if(i<period-1){ out.push(null); continue; }
+    if(i===period-1){ let s=0; for(let j=0;j<period;j++) s+=arr[j]; e=s/period; }
+    else e=arr[i]*k+e*(1-k);
+    out.push(e);
   }
   return out;
 }
-function refreshHull(){
-  if(!chart) return;
-  if(hullSeries){ chart.removeSeries(hullSeries); hullSeries=null; }
-  if(!S.hullOn || candles.length < (S.hullPeriod+5)) return;
-  hullSeries = chart.addLineSeries({color:"#f0b90b",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
-  const closes = candles.map(c=>c.close);
-  const h = hullMA(closes, S.hullPeriod);
-  const data = [];
-  for(let i=0;i<candles.length;i++){ if(h[i]!=null) data.push({time:candles[i].time,value:h[i]}); }
-  hullSeries.setData(data);
+function calcEMA(src, period){
+  const v=emaArr(src.map(c=>c.close),period), out=[];
+  v.forEach((x,i)=>{ if(x!=null) out.push({time:src[i].time,value:x}); }); return out;
 }
-
-/* ===== HMA 실시간 갱신 (현재 봉 마지막 포인트만 업데이트) ===== */
-function updateHullLast(){
-  if(!hullSeries||!S.hullOn||candles.length<(S.hullPeriod+5)) return;
-  const closes=candles.map(c=>c.close);
-  const h=hullMA(closes,S.hullPeriod);
-  const li=candles.length-1;
-  if(h[li]!=null) hullSeries.update({time:candles[li].time,value:h[li]});
-}
-
-/* ===== 지표 계산 함수 ===== */
-function calcEMA(closes,period){
-  const k=2/(period+1),out=new Array(closes.length).fill(null);
-  let ema=closes[0]; out[0]=ema;
-  for(let i=1;i<closes.length;i++){ema=closes[i]*k+ema*(1-k);out[i]=ema;}
+function _wmaAt(arr,p,i){ if(i+1<p) return null; let n=0,d=0; for(let j=0;j<p;j++){const w=p-j;n+=arr[i-j]*w;d+=w;} return n/d; }
+function calcWMA(src, period){
+  const cl=src.map(c=>c.close), out=[];
+  for(let i=period-1;i<cl.length;i++){ const v=_wmaAt(cl,period,i); if(v!=null) out.push({time:src[i].time,value:v}); }
   return out;
 }
-function calcSMA(closes,period){
-  const out=new Array(closes.length).fill(null);
-  for(let i=period-1;i<closes.length;i++){let s=0;for(let j=0;j<period;j++)s+=closes[i-j];out[i]=s/period;}
+function calcBB(src, period, mult){
+  const cl=src.map(c=>c.close), out={mid:[],upper:[],lower:[]};
+  for(let i=period-1;i<cl.length;i++){
+    let s=0; for(let j=0;j<period;j++) s+=cl[i-j]; const avg=s/period;
+    let vr=0; for(let j=0;j<period;j++) vr+=(cl[i-j]-avg)**2; const std=Math.sqrt(vr/period);
+    const t=src[i].time;
+    out.mid.push({time:t,value:avg}); out.upper.push({time:t,value:avg+mult*std}); out.lower.push({time:t,value:avg-mult*std});
+  }
   return out;
 }
-function calcBB(closes,period,mult){
-  const sma=calcSMA(closes,period);
-  const upper=new Array(closes.length).fill(null),lower=new Array(closes.length).fill(null);
-  for(let i=period-1;i<closes.length;i++){
-    let v=0;for(let j=0;j<period;j++)v+=(closes[i-j]-sma[i])**2;
-    const sd=Math.sqrt(v/period);upper[i]=sma[i]+mult*sd;lower[i]=sma[i]-mult*sd;
+function calcRSI(src, period){
+  const cl=src.map(c=>c.close), out=[]; let ag=0,al=0;
+  for(let i=1;i<=period;i++){ const d=cl[i]-cl[i-1]; if(d>0) ag+=d; else al-=d; }
+  ag/=period; al/=period;
+  for(let i=period;i<cl.length;i++){
+    if(i>period){ const d=cl[i]-cl[i-1]; ag=(ag*(period-1)+(d>0?d:0))/period; al=(al*(period-1)+(d<0?-d:0))/period; }
+    out.push({time:src[i].time, value:al===0?100:100-(100/(1+ag/al))});
   }
-  return{upper,middle:sma,lower};
+  return out;
 }
-function toLineData(vals){
-  const d=[];for(let i=0;i<candles.length;i++)if(vals[i]!=null)d.push({time:candles[i].time,value:vals[i]});
-  return d;
-}
-
-/* ===== 지표 시리즈 관리 ===== */
-const EMA_COLORS=['#2962ff','#00bcd4','#ff6d00','#e53935','#00897b','#7c4dff'];
-const SMA_COLORS=['#f57c00','#388e3c','#ad1457','#0288d1','#558b2f','#5d4037'];
-let indSeries=[],indIdCnt=0,volSeries=null;
-
-function addIndicatorLine(type,period,color,mult,existId){
-  if(!chart||!candles.length)return;
-  const closes=candles.map(c=>c.close);
-  const id=(existId!=null)?existId:++indIdCnt;
-  if(type==='ema'){
-    const v=calcEMA(closes,period);
-    const s=chart.addLineSeries({color,lineWidth:1,priceLineVisible:false,lastValueVisible:true,title:'EMA'+period});
-    s.setData(toLineData(v));
-    indSeries.push({id,type,period,color,series:s});
-  }else if(type==='sma'){
-    const v=calcSMA(closes,period);
-    const s=chart.addLineSeries({color,lineWidth:1,priceLineVisible:false,lastValueVisible:true,title:'SMA'+period});
-    s.setData(toLineData(v));
-    indSeries.push({id,type,period,color,series:s});
-  }else if(type==='bb'){
-    const m=mult||2,bb=calcBB(closes,period,m),col=color||'rgba(147,51,234,0.85)';
-    const sU=chart.addLineSeries({color:col,lineWidth:1,priceLineVisible:false,lastValueVisible:false,title:'BB+'});
-    const sM=chart.addLineSeries({color:col,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,title:'BB'});
-    const sL=chart.addLineSeries({color:col,lineWidth:1,priceLineVisible:false,lastValueVisible:false,title:'BB-'});
-    sU.setData(toLineData(bb.upper));sM.setData(toLineData(bb.middle));sL.setData(toLineData(bb.lower));
-    indSeries.push({id,type:'bb',period,color:col,mult:m,seriesU:sU,seriesM:sM,seriesL:sL});
+function calcMACD(src, fast, slow, signal){
+  const cl=src.map(c=>c.close), ef=emaArr(cl,fast), es=emaArr(cl,slow);
+  const ml=ef.map((v,i)=>(v!=null&&es[i]!=null)?v-es[i]:null);
+  const vs=ml.findIndex(v=>v!=null); if(vs<0) return {macd:[],signal:[],hist:[]};
+  const sv=emaArr(ml.slice(vs).map(v=>v??0),signal);
+  const out={macd:[],signal:[],hist:[]};
+  for(let i=vs;i<src.length;i++){
+    const m=ml[i]; if(m==null) continue; const sg=sv[i-vs]; if(sg==null) continue;
+    const t=src[i].time, h=m-sg;
+    out.macd.push({time:t,value:m}); out.signal.push({time:t,value:sg});
+    out.hist.push({time:t,value:h,color:h>=0?'rgba(38,166,154,0.6)':'rgba(239,83,80,0.6)'});
   }
-  if(existId==null){
-    if(!S.indicators)S.indicators={lines:[],vol:false};
-    S.indicators.lines.push({id,type,period,color,mult:mult||2});
-    save();
+  return out;
+}
+function calcStoch(src, kPeriod, smooth, dPeriod){
+  const rawK=[];
+  for(let i=kPeriod-1;i<src.length;i++){
+    let lo=src[i].low, hi=src[i].high;
+    for(let j=1;j<kPeriod;j++){ lo=Math.min(lo,src[i-j].low); hi=Math.max(hi,src[i-j].high); }
+    rawK.push({time:src[i].time,v:hi===lo?50:(src[i].close-lo)/(hi-lo)*100});
   }
-  renderIndList();
+  const smK=[];
+  for(let i=smooth-1;i<rawK.length;i++){ let s=0; for(let j=0;j<smooth;j++) s+=rawK[i-j].v; smK.push({time:rawK[i].time,value:s/smooth}); }
+  const outK=[],outD=[];
+  for(let i=dPeriod-1;i<smK.length;i++){ let s=0; for(let j=0;j<dPeriod;j++) s+=smK[i-j].value; outK.push(smK[i]); outD.push({time:smK[i].time,value:s/dPeriod}); }
+  return {k:outK,d:outD};
+}
+function calcATR(src, period){
+  const out=[]; let prev=null;
+  for(let i=1;i<src.length;i++){
+    const tr=Math.max(src[i].high-src[i].low,Math.abs(src[i].high-src[i-1].close),Math.abs(src[i].low-src[i-1].close));
+    if(i<period){ if(prev===null) prev=0; prev+=tr/period; continue; }
+    if(i===period) prev+=tr/period; else prev=(prev*(period-1)+tr)/period;
+    out.push({time:src[i].time,value:prev});
+  }
+  return out;
 }
 
-function removeIndicator(id){
-  const idx=indSeries.findIndex(x=>x.id===id);if(idx<0)return;
-  const ind=indSeries[idx];
-  ['series','seriesU','seriesM','seriesL'].forEach(k=>{if(ind[k])try{chart.removeSeries(ind[k]);}catch(e){}});
-  indSeries.splice(idx,1);
-  if(S.indicators)S.indicators.lines=S.indicators.lines.filter(x=>x.id!==id);
-  save();renderIndList();
+/* ---- 오실레이터 차트 ---- */
+function getOscChart(){
+  const el=document.getElementById('oscPane'); if(!el) return null;
+  if(oscChart) return oscChart;
+  oscChart=LightweightCharts.createChart(el,{
+    autoSize:true, layout:{background:{color:'#0b0e11'},textColor:'#848e9c',fontSize:11},
+    grid:{vertLines:{color:'#1b2026'},horzLines:{color:'#1b2026'}},
+    timeScale:{timeVisible:true,secondsVisible:false,borderColor:'#2a2f36',rightOffset:12,barSpacing:8},
+    rightPriceScale:{borderColor:'#2a2f36'}, crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+  });
+  let syncing=false;
+  chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{ if(!syncing&&r){ syncing=true; try{oscChart.timeScale().setVisibleLogicalRange(r);}catch(e){} syncing=false; } });
+  oscChart.timeScale().subscribeVisibleLogicalRangeChange(r=>{ if(!syncing&&r){ syncing=true; try{chart.timeScale().setVisibleLogicalRange(r);}catch(e){} syncing=false; } });
+  return oscChart;
+}
+function checkOscPane(){
+  const el=document.getElementById('oscPane'); if(!el) return;
+  const has=S.indicators.some(i=>{ const d=INDICATOR_DEFS.find(x=>x.type===i.type); return d&&!d.overlay; });
+  el.style.display=has?'block':'none';
 }
 
-function toggleVolume(on){
-  if(on){
-    if(!volSeries)volSeries=chart.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:'vol',scaleMargins:{top:0.8,bottom:0}});
-    const vd=candles.map(c=>({time:c.time,value:c.volume||0,color:c.close>=c.open?'rgba(14,203,129,0.4)':'rgba(246,70,93,0.4)'}));
-    volSeries.setData(vd);
-  }else{
-    if(volSeries){try{chart.removeSeries(volSeries);}catch(e){}volSeries=null;}
+/* ---- 시리즈 제거 ---- */
+function removeSeries(id){
+  const s=indSeriesMap.get(id); if(!s) return;
+  const rm=(ser,ch)=>{ try{ if(ch&&ser) ch.removeSeries(ser); }catch(e){} };
+  if(s.mid){ rm(s.mid,chart); rm(s.upper,chart); rm(s.lower,chart); }
+  else if(s.macd){ rm(s.macd,oscChart); rm(s.signal,oscChart); rm(s.hist,oscChart); }
+  else if(s.k){ rm(s.k,oscChart); rm(s.d,oscChart); }
+  else { const ind=S.indicators.find(i=>i.id===id); const def=ind?INDICATOR_DEFS.find(d=>d.type===ind.type):null; rm(s,def&&!def.overlay?oscChart:chart); }
+  indSeriesMap.delete(id);
+}
+
+/* ---- 단일 지표 렌더 ---- */
+function renderIndicator(ind){
+  removeSeries(ind.id);
+  if(!candles.length) return;
+  const def=INDICATOR_DEFS.find(d=>d.type===ind.type); if(!def) return;
+  const p=ind.params;
+  const lo={priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false};
+  if(def.overlay){
+    if(ind.type==='bb'){
+      const bd=calcBB(candles,p.period,p.mult);
+      const mid=chart.addLineSeries({...lo,color:p.colorMid,lineWidth:p.width||1});
+      const upper=chart.addLineSeries({...lo,color:p.colorBand,lineWidth:p.width||1});
+      const lower=chart.addLineSeries({...lo,color:p.colorBand,lineWidth:p.width||1});
+      mid.setData(bd.mid); upper.setData(bd.upper); lower.setData(bd.lower);
+      indSeriesMap.set(ind.id,{mid,upper,lower});
+    } else {
+      let data;
+      if(ind.type==='sma') data=calcSMA(candles,p.period);
+      else if(ind.type==='ema') data=calcEMA(candles,p.period);
+      else if(ind.type==='wma') data=calcWMA(candles,p.period);
+      else if(ind.type==='hma') data=calcHMA(candles,p.period);
+      const ser=chart.addLineSeries({...lo,color:p.color,lineWidth:p.width||1});
+      ser.setData(data||[]); indSeriesMap.set(ind.id,ser);
+    }
+  } else {
+    const oc=getOscChart(); if(!oc) return;
+    if(ind.type==='rsi'){
+      const ser=oc.addLineSeries({...lo,color:p.color,lineWidth:p.width||1});
+      ser.setData(calcRSI(candles,p.period)); indSeriesMap.set(ind.id,ser);
+    } else if(ind.type==='macd'){
+      const md=calcMACD(candles,p.fast,p.slow,p.signal);
+      const ms=oc.addLineSeries({...lo,color:p.colorMacd,lineWidth:1});
+      const ss=oc.addLineSeries({...lo,color:p.colorSignal,lineWidth:1});
+      const hs=oc.addHistogramSeries({priceLineVisible:false,lastValueVisible:false});
+      ms.setData(md.macd); ss.setData(md.signal); hs.setData(md.hist);
+      indSeriesMap.set(ind.id,{macd:ms,signal:ss,hist:hs});
+    } else if(ind.type==='stoch'){
+      const st=calcStoch(candles,p.kPeriod,p.smooth,p.dPeriod);
+      const ks=oc.addLineSeries({...lo,color:p.colorK,lineWidth:1});
+      const ds=oc.addLineSeries({...lo,color:p.colorD,lineWidth:1});
+      ks.setData(st.k); ds.setData(st.d); indSeriesMap.set(ind.id,{k:ks,d:ds});
+    } else if(ind.type==='atr'){
+      const ser=oc.addLineSeries({...lo,color:p.color,lineWidth:p.width||1});
+      ser.setData(calcATR(candles,p.period)); indSeriesMap.set(ind.id,ser);
+    }
   }
 }
 
-function restoreIndicators(){
-  indSeries.forEach(ind=>['series','seriesU','seriesM','seriesL'].forEach(k=>{if(ind[k])try{chart.removeSeries(ind[k]);}catch(e){}}));
-  indSeries=[];
-  if(!S.indicators)return;
-  // 저장된 ID 중 최댓값으로 카운터 초기화 → 새로 추가할 때 충돌 방지
-  const maxId=Math.max(0,...(S.indicators.lines||[]).map(x=>+(x.id)||0));
-  if(maxId>indIdCnt)indIdCnt=maxId;
-  (S.indicators.lines||[]).forEach(ind=>addIndicatorLine(ind.type,ind.period,ind.color,ind.mult,ind.id));
-  if(S.indicators.vol)toggleVolume(true);
-  const bbCb=document.getElementById('bbOn');
-  if(bbCb)bbCb.checked=!!(S.indicators.lines||[]).find(x=>x.type==='bb');
-  const volCb=document.getElementById('volOn');
-  if(volCb)volCb.checked=!!S.indicators.vol;
-  renderIndList();
-}
-
-function refreshAllIndicators(){
-  if(!candles.length)return;
-  const closes=candles.map(c=>c.close);
-  for(const ind of indSeries){
-    if(ind.type==='ema'){ind.series.setData(toLineData(calcEMA(closes,ind.period)));}
-    else if(ind.type==='sma'){ind.series.setData(toLineData(calcSMA(closes,ind.period)));}
-    else if(ind.type==='bb'){const bb=calcBB(closes,ind.period,ind.mult);ind.seriesU.setData(toLineData(bb.upper));ind.seriesM.setData(toLineData(bb.middle));ind.seriesL.setData(toLineData(bb.lower));}
+/* ---- 실시간: overlay 마지막 봉만 업데이트 ---- */
+function updateIndicatorsLast(){
+  if(!candles.length) return;
+  for(const ind of S.indicators){
+    const def=INDICATOR_DEFS.find(d=>d.type===ind.type); if(!def||!def.overlay) continue;
+    const s=indSeriesMap.get(ind.id); if(!s) continue;
+    const p=ind.params;
+    if(ind.type==='bb'){
+      const bd=calcBB(candles,p.period,p.mult);
+      if(bd.mid.length){ s.mid.update(bd.mid[bd.mid.length-1]); s.upper.update(bd.upper[bd.upper.length-1]); s.lower.update(bd.lower[bd.lower.length-1]); }
+    } else {
+      let data;
+      if(ind.type==='sma') data=calcSMA(candles,p.period);
+      else if(ind.type==='ema') data=calcEMA(candles,p.period);
+      else if(ind.type==='wma') data=calcWMA(candles,p.period);
+      else if(ind.type==='hma') data=calcHMA(candles,p.period);
+      if(data&&data.length){
+        s.update(data[data.length-1]);
+        if(ind.type==='hma'){
+          lastHmaValue=data[data.length-1].value;
+          const ap=document.getElementById('alarmPanel');
+          if(ap&&ap.style.display==='flex') refreshAlarmStatus();
+        }
+      }
+    }
   }
-  if(volSeries)toggleVolume(true);
 }
 
-function updateIndLast(){
-  if(!candles.length||!indSeries.length)return;
-  const closes=candles.map(c=>c.close);
-  const lt=candles[candles.length-1].time;
-  for(const ind of indSeries){
-    if(ind.type==='ema'){const v=calcEMA(closes,ind.period);const lv=v[v.length-1];if(lv!=null)ind.series.update({time:lt,value:lv});}
-    else if(ind.type==='sma'){const v=calcSMA(closes,ind.period);const lv=v[v.length-1];if(lv!=null)ind.series.update({time:lt,value:lv});}
-    else if(ind.type==='bb'){const bb=calcBB(closes,ind.period,ind.mult);const lu=bb.upper[bb.upper.length-1],lm=bb.middle[bb.middle.length-1],ll=bb.lower[bb.lower.length-1];if(lu!=null)ind.seriesU.update({time:lt,value:lu});if(lm!=null)ind.seriesM.update({time:lt,value:lm});if(ll!=null)ind.seriesL.update({time:lt,value:ll});}
-  }
-  if(volSeries&&candles.length){const c=candles[candles.length-1];volSeries.update({time:c.time,value:c.volume||0,color:c.close>=c.open?'rgba(14,203,129,0.4)':'rgba(246,70,93,0.4)'});}
+/* ---- 전체 지표 재렌더 ---- */
+function renderAllIndicators(){
+  for(const ind of S.indicators) removeSeries(ind.id);
+  if(!candles.length) return;
+  for(const ind of S.indicators) renderIndicator(ind);
+  checkOscPane();
 }
 
-function renderIndList(){
-  const el=document.getElementById('activeIndList');if(!el)return;
-  el.innerHTML=indSeries.map(ind=>{
-    const label=ind.type==='bb'?`BB(${ind.period},${ind.mult})`:(ind.type.toUpperCase()+ind.period);
-    return `<span class="ind-chip"><span class="ind-dot" style="background:${ind.color||'#fff'};"></span>${label}<span class="rm" onclick="removeIndicator(${ind.id})">✕</span></span>`;
+/* ---- 지표 칩 ---- */
+function renderIndicatorChips(){
+  const bar=document.getElementById('indBar'); if(!bar) return;
+  if(!S.indicators.length){ bar.innerHTML=''; return; }
+  bar.innerHTML=S.indicators.map(ind=>{
+    const def=INDICATOR_DEFS.find(d=>d.type===ind.type)||{name:ind.type};
+    const p=ind.params;
+    const lbl=ind.type==='bb'?`BB(${p.period},${p.mult})`
+      :ind.type==='macd'?`MACD(${p.fast},${p.slow},${p.signal})`
+      :ind.type==='stoch'?`Stoch(${p.kPeriod})`
+      :p.period!=null?`${def.name}(${p.period})`:def.name;
+    const col=p.color||p.colorMid||p.colorMacd||'#888';
+    return `<span class="ind-chip" onclick="openIndSettings('${ind.id}')"><span class="ind-dot" style="background:${col}"></span>${lbl}<span class="ind-x" onclick="event.stopPropagation();removeIndicator('${ind.id}')">×</span></span>`;
   }).join('');
 }
 
-/* ===== 그리기 도구 ===== */
-let drawMode='cursor',drawStep=0,drawTmpPt=null,userDrawings=[],drawIdCnt2=0;
-const DRAW_CLR=['#f0b90b','#2962ff','#e53935','#00897b','#9c27b0','#ff6d00'];
-let drawClrIdx=0;
+/* ---- 모달 / 검색 ---- */
+window.openIndModal=function(){ document.getElementById('indModal').classList.add('show'); };
+window.closeIndModal=function(){
+  document.getElementById('indModal').classList.remove('show');
+  const s=document.getElementById('indSearch'); if(s){s.value='';} filterIndSearch();
+};
+window.filterIndSearch=function(){
+  const q=(document.getElementById('indSearch').value||'').toLowerCase();
+  document.querySelectorAll('.ind-item').forEach(el=>{ el.style.display=(!q||el.dataset.name.toLowerCase().includes(q))?'':'none'; });
+  document.querySelectorAll('.ind-group').forEach(el=>{ el.style.display=Array.from(el.querySelectorAll('.ind-item')).some(i=>i.style.display!=='none')?'':'none'; });
+};
 
-function setDrawMode(mode){
-  drawMode=mode;drawStep=0;drawTmpPt=null;
-  document.querySelectorAll('.dtbtn[id^="dt-"]').forEach(b=>b.classList.remove('dt-active'));
-  const btn=document.getElementById('dt-'+mode);if(btn)btn.classList.add('dt-active');
-  const hints={cursor:'',hline:'클릭하면 수평선이 그려집니다',trendline:'시작점 클릭 → 끝점 클릭',fibonacci:'고점 클릭 → 저점 클릭 (또는 반대)'};
-  const hintEl=document.getElementById('drawHint');if(hintEl)hintEl.textContent=hints[mode]||'';
-  document.getElementById('chart').style.cursor=mode==='cursor'?'default':'crosshair';
-}
+/* ---- 추가 / 삭제 ---- */
+window.addIndicator=function(type){
+  const def=INDICATOR_DEFS.find(d=>d.type===type); if(!def) return;
+  const ind={id:String(uid()), type, params:{...def.defaults,...(S.indDefaults&&S.indDefaults[type]||{})}};
+  S.indicators.push(ind); save();
+  renderIndicator(ind); renderIndicatorChips(); checkOscPane();
+  closeIndModal(); openIndSettings(ind.id);
+};
+window.removeIndicator=function(id){
+  if(!id) return;
+  removeSeries(id); S.indicators=S.indicators.filter(i=>i.id!==id); save();
+  renderIndicatorChips(); checkOscPane(); closeIndSettings();
+};
 
-function clearDrawings(){
-  for(const d of userDrawings){
-    if(d.series)try{chart.removeSeries(d.series);}catch(e){}
-    if(d.priceLine&&candleSeries)try{candleSeries.removePriceLine(d.priceLine);}catch(e){}
-    if(d.priceLines)d.priceLines.forEach(l=>{try{candleSeries.removePriceLine(l);}catch(e){}});
+/* ---- 설정 패널 ---- */
+let settingsInd=null;
+window.openIndSettings=function(id){ settingsInd=S.indicators.find(i=>i.id===id); if(!settingsInd) return; renderSettingsPanel(); document.getElementById('indSettings').style.display='flex'; };
+window.closeIndSettings=function(){ settingsInd=null; document.getElementById('indSettings').style.display='none'; };
+window.applyIndSettings=function(){
+  if(!settingsInd) return;
+  document.getElementById('spFields').querySelectorAll('[data-param]').forEach(el=>{
+    const k=el.dataset.param;
+    if(el.type==='number'){ const v=parseFloat(el.value); if(!isNaN(v)) settingsInd.params[k]=v; }
+    else settingsInd.params[k]=el.value;
+  });
+  if(!S.indDefaults) S.indDefaults={};
+  S.indDefaults[settingsInd.type]={...settingsInd.params};
+  save(); renderIndicator(settingsInd); renderIndicatorChips(); closeIndSettings();
+};
+/* ============================================================
+   알람 시스템
+   ============================================================ */
+function checkHmaAlarm(price, hmaVal){
+  if(!hmaVal || !(price>0)) return;
+  const a = S.alarms && S.alarms.hmaProximity;
+  if(!a || !a.on) return;
+  const dist = Math.abs(price - hmaVal);
+  const threshold = a.dist || 200;
+  const isAbove = price > hmaVal;
+
+  // 방향 필터: 방향이 맞지 않으면 존 밖으로 처리
+  const dirOk = a.dir==='both' || (a.dir==='above' && isAbove) || (a.dir==='below' && !isAbove);
+  const isInside = dist <= threshold && dirOk;
+
+  if(hmaZoneState === null){
+    // 페이지 로드 / 알람 활성화 직후 첫 체크: 현재 상태만 기록, 발화 없음
+    hmaZoneState = isInside;
+    return;
   }
-  userDrawings=[];drawStep=0;drawTmpPt=null;
-}
 
-function snapTime(t){
-  if(!candles.length)return t;
-  let best=candles[0].time,bd=Math.abs(t-best);
-  for(const c of candles){const d=Math.abs(t-c.time);if(d<bd){bd=d;best=c.time;}}
-  return best;
-}
-
-function buildTrendPts(p1,p2){
-  if(!candles.length||p1.time===p2.time)return[{time:p1.time,value:p1.price},{time:p2.time,value:p2.price}];
-  const slope=(p2.price-p1.price)/(p2.time-p1.time);
-  const pa=t=>p1.price+slope*(t-p1.time);
-  const t0=candles[0].time,tN=candles[candles.length-1].time;
-  const seen=new Set();
-  const pts=[];
-  [[t0],[p1.time],[p2.time],[tN]].forEach(([t])=>{if(!seen.has(t)){seen.add(t);pts.push({time:t,value:pa(t)});}});
-  return pts.sort((a,b)=>a.time-b.time);
-}
-
-function onChartClick(param){
-  if(drawMode==='cursor')return;
-  if(!param.time||!param.point)return;
-  const price=candleSeries.coordinateToPrice(param.point.y);
-  if(price==null)return;
-  const time=snapTime(param.time);
-  const hintEl=document.getElementById('drawHint');
-  const color=DRAW_CLR[drawClrIdx%DRAW_CLR.length];
-
-  if(drawMode==='hline'){
-    drawClrIdx++;
-    const pl=candleSeries.createPriceLine({price,color,lineWidth:1,lineStyle:0,axisLabelVisible:true,title:''});
-    userDrawings.push({id:++drawIdCnt2,type:'hline',priceLine:pl});
-  }else if(drawMode==='trendline'){
-    if(drawStep===0){drawTmpPt={time,price};drawStep=1;if(hintEl)hintEl.textContent='끝점을 클릭하세요';}
-    else{
-      drawClrIdx++;
-      const s=chart.addLineSeries({color,lineWidth:1,priceLineVisible:false,lastValueVisible:false});
-      s.setData(buildTrendPts(drawTmpPt,{time,price}));
-      userDrawings.push({id:++drawIdCnt2,type:'trendline',series:s});
-      drawStep=0;drawTmpPt=null;if(hintEl)hintEl.textContent='시작점 클릭 → 끝점 클릭';
-    }
-  }else if(drawMode==='fibonacci'){
-    if(drawStep===0){drawTmpPt={time,price};drawStep=1;if(hintEl)hintEl.textContent='끝점을 클릭하세요';}
-    else{
-      const hi=Math.max(drawTmpPt.price,price),lo=Math.min(drawTmpPt.price,price),rng=hi-lo;
-      const fibLv=[0,0.236,0.382,0.5,0.618,0.786,1];
-      const fibCol=['#f6465d','#ff9800','#f0b90b','#2962ff','#0ecb81','#9c27b0','#f6465d'];
-      const pls=fibLv.map((lv,i)=>candleSeries.createPriceLine({
-        price:hi-lv*rng,color:fibCol[i],lineWidth:1,lineStyle:1,
-        axisLabelVisible:true,title:(lv*100).toFixed(1)+'%'
-      }));
-      userDrawings.push({id:++drawIdCnt2,type:'fibonacci',priceLines:pls});
-      drawStep=0;drawTmpPt=null;if(hintEl)hintEl.textContent='고점 클릭 → 저점 클릭 (또는 반대)';
-    }
+  if(isInside && !hmaZoneState){
+    // 존 밖 → 존 안 전환 시에만 1회 발화
+    hmaZoneState = true;
+    const side = isAbove ? '위 ↓' : '아래 ↑';
+    fireAlarm(`🔔 Hull MA 근접!  ${side}  HMA ${fmt(hmaVal,2)}  거리 $${fmt(dist,2)}`);
+  } else if(!isInside){
+    hmaZoneState = false;
   }
 }
 
-function addMarker(){
-  markers = S.history.slice(0,30).map(h=>{
-    const isBuy = h.side==="long";
-    let color="#0ecb81", shape="arrowUp", pos="belowBar", text="";
-    if(h.type==="강제청산"){ color="#f0b90b"; shape="circle"; pos="aboveBar"; text="청산"; }
-    else if(h.type==="진입"||h.type==="전환"){
-      color=isBuy?"#0ecb81":"#f6465d"; shape=isBuy?"arrowUp":"arrowDown";
-      pos=isBuy?"belowBar":"aboveBar"; text=isBuy?"롱":"숏";
-    } else { color="#848e9c"; shape="circle"; pos="aboveBar"; text="종료"; }
-    return {time:Math.floor(h.time/1000), position:pos, color, shape, text};
-  }).sort((a,b)=>a.time-b.time);
-  if(candleSeries) candleSeries.setMarkers(markers);
+let _toastTimer = null;
+function showAlarmToast(msg){
+  const el = document.getElementById('alarmToast');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  if(_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(()=>{ el.style.display='none'; }, 6000);
 }
+
+function fireAlarm(msg){
+  showAlarmToast(msg);
+  if(!soundOn) return;
+  try{
+    const audio = document.getElementById('alarmAudio');
+    if(audio){
+      audio.volume = Math.max(0, Math.min(1, ((S.alarms?.volume ?? 70) / 100)));
+      audio.currentTime = 0;
+      audio.play().catch(()=>{});
+    }
+  }catch(e){}
+}
+
+window.toggleAlarmPanel = function(){
+  const p = document.getElementById('alarmPanel');
+  if(!p) return;
+  if(p.style.display==='flex') closeAlarmPanel(); else openAlarmPanel();
+};
+
+window.openAlarmPanel = function(){
+  if(!S.alarms) S.alarms={};
+  if(!S.alarms.hmaProximity) S.alarms.hmaProximity={on:false,pct:0.3,dir:'both'};
+  const a = S.alarms.hmaProximity;
+  const cb=document.getElementById('alHmaOn'), distEl=document.getElementById('alHmaDist'), dirEl=document.getElementById('alHmaDir');
+  if(cb){ cb.checked=a.on; document.getElementById('alHmaOnLbl').textContent=a.on?'ON':'OFF'; }
+  if(distEl) distEl.value=a.dist??200;
+  const vol = S.alarms?.volume ?? 70;
+  const volEl=document.getElementById('alVolume'); if(volEl) volEl.value=vol;
+  const volLbl=document.getElementById('alVolumeLbl'); if(volLbl) volLbl.textContent=vol+'%';
+  if(dirEl) dirEl.value=a.dir;
+  refreshAlarmStatus();
+  document.getElementById('alarmPanel').style.display='flex';
+  document.getElementById('alarmBtn').classList.add('active');
+};
+
+window.closeAlarmPanel = function(){
+  document.getElementById('alarmPanel').style.display='none';
+  document.getElementById('alarmBtn').classList.toggle('active', !!(S.alarms&&S.alarms.hmaProximity&&S.alarms.hmaProximity.on));
+};
+
+window.saveAlarmSettings = function(){
+  if(!S.alarms) S.alarms={};
+  const cb=document.getElementById('alHmaOn'), distEl=document.getElementById('alHmaDist'), dirEl=document.getElementById('alHmaDir');
+  const on = cb?cb.checked:false;
+  S.alarms.hmaProximity={ on, dist:Math.max(1,parseFloat(distEl?distEl.value:200)||200), dir:dirEl?dirEl.value:'both' };
+  S.alarms.volume = Math.round(parseFloat(document.getElementById('alVolume')?.value??70)||70);
+  hmaZoneState = null;
+  save();
+  // ON으로 저장 시 현재 마감 가격으로 즉시 1회 체크
+  if(on && lastHmaValue && lastPrice>0) checkHmaAlarm(lastPrice, lastHmaValue);
+  document.getElementById('alarmBtn').classList.toggle('active', on);
+  refreshAlarmStatus();
+};
+
+function refreshAlarmStatus(){
+  const el = document.getElementById('alHmaStatus'); if(!el) return;
+  const hmaInd = S.indicators.find(i=>i.type==='hma');
+  if(!hmaInd){ el.style.color='var(--red)'; el.textContent='⚠ Hull MA 지표를 먼저 추가하세요'; return; }
+  if(!lastHmaValue){ el.style.color='var(--muted)'; el.textContent='Hull MA 계산 중...'; return; }
+  const dist = lastPrice>0 ? Math.abs(lastPrice-lastHmaValue) : 0;
+  const threshold = S.alarms&&S.alarms.hmaProximity ? (S.alarms.hmaProximity.dist||200) : 200;
+  el.style.color = dist<=threshold ? 'var(--yellow)' : 'var(--muted)';
+  el.textContent = `HMA ${fmt(lastHmaValue,2)}  |  현재 거리 $${fmt(dist,2)}`;
+}
+
+function renderSettingsPanel(){
+  if(!settingsInd) return;
+  const def=INDICATOR_DEFS.find(d=>d.type===settingsInd.type)||{name:settingsInd.type};
+  const p=settingsInd.params;
+  const N=(k,lbl,mn=1,mx=500)=>`<label class="sp-row"><span>${lbl}</span><input type="number" data-param="${k}" value="${p[k]??''}" min="${mn}" max="${mx}" class="sp-in"></label>`;
+  const C=(k,lbl)=>{ let col=(p[k]||'#888888'); if(col.startsWith('rgba')||col.startsWith('rgb')) col='#888888'; return `<label class="sp-row"><span>${lbl}</span><input type="color" data-param="${k}" value="${col}" class="sp-color"></label>`; };
+  let f='';
+  const t=settingsInd.type;
+  if(['sma','ema','wma','hma'].includes(t)) f=N('period','기간',2,500)+C('color','색상')+N('width','선 굵기',1,5);
+  else if(t==='bb')   f=N('period','기간',2,200)+N('mult','표준편차 배수',0.1,5)+C('colorMid','중심선 색상')+C('colorBand','밴드 색상')+N('width','선 굵기',1,5);
+  else if(t==='rsi')  f=N('period','기간',2,100)+N('obLevel','과매수 기준',50,100)+N('osLevel','과매도 기준',1,50)+C('color','색상')+N('width','선 굵기',1,5);
+  else if(t==='macd') f=N('fast','단기 EMA',2,100)+N('slow','장기 EMA',2,200)+N('signal','시그널',2,100)+C('colorMacd','MACD 색상')+C('colorSignal','시그널 색상');
+  else if(t==='stoch') f=N('kPeriod','%K 기간',2,100)+N('smooth','%K 평활화',1,20)+N('dPeriod','%D 기간',1,20)+N('obLevel','과매수',50,100)+N('osLevel','과매도',1,50)+C('colorK','%K 색상')+C('colorD','%D 색상');
+  else if(t==='atr')  f=N('period','기간',2,100)+C('color','색상')+N('width','선 굵기',1,5);
+  document.getElementById('spTitle').textContent=def.name+' 설정';
+  document.getElementById('spFields').innerHTML=f;
+}
+
+/* ---------- 실시간 캔들 (WS·REST 공통) ---------- */
+const IV_SEC = {'1m':60,'3m':180,'5m':300,'15m':900,'30m':1800,'1h':3600,'2h':7200,'4h':14400,'6h':21600,'8h':28800,'12h':43200,'1d':86400,'3d':259200,'1w':604800,'1M':2592000};
+function barStart(tsSec, iv){ const s=IV_SEC[iv]||60; return Math.floor(tsSec/s)*s; }
+
+function mergeCandle(c){
+  if(!candleSeries) return;
+  const last=candles[candles.length-1];
+  // 마감봉 알람: 새 봉 시작 직전에 직전 봉 종가·HMA 캡처
+  const isNewCandle = !!(last && c.time > last.time);
+  const prevClose = isNewCandle ? last.close : 0;
+  const prevHma   = isNewCandle ? lastHmaValue : 0;
+
+  if(last && last.time===c.time){ candles[candles.length-1]=c; }
+  else if(!last || c.time>last.time){ candles.push(c); if(candles.length>6000) candles.shift(); }
+  else { return; }                                  // 과거 봉은 무시
+  candleSeries.update(c);
+  volSeries.update({ time:c.time, value:c.volume, color: c.close>=c.open?'rgba(14,203,129,0.35)':'rgba(246,70,93,0.35)' });
+  updateIndicatorsLast();
+  if(isNewCandle && prevHma) checkHmaAlarm(prevClose, prevHma); // 마감봉 기준 알람 체크
+  checkPending(c.high, c.low);   // 봉 고/저가로 TP·SL·지정가 즉시 체크
+  if(drawCtx) redrawDrawings();
+}
+
+/* WS kline 스트림 → 캔들 */
+function updateCandle(k){
+  mergeCandle({ time:Math.floor(k.t/1000), open:+k.o, high:+k.h, low:+k.l, close:+k.c, volume:+k.v });
+}
+
+/* REST 실시간: 진행 중인 봉을 최신가로 갱신 (WS 미수신 시 차트·HMA가 멈추지 않도록) */
+function liveTick(price){
+  if(!candleSeries || !candles.length || !(price>0)) return;
+  const last=candles[candles.length-1];
+  const sec=IV_SEC[curInterval]||60;
+  if(sec<=86400){                       // 일봉 이하: UTC 정렬이 정확 → 새 봉 직접 롤
+    const bs=barStart(Math.floor(Date.now()/1000), curInterval);
+    if(bs>last.time){ mergeCandle({ time:bs, open:price, high:price, low:price, close:price, volume:0 }); return; }
+  }
+  // 진행 중 봉 갱신 (3일/주/월의 새 봉은 syncKlines가 정확히 추가)
+  mergeCandle({ time:last.time, open:last.open, high:Math.max(last.high,price), low:Math.min(last.low,price), close:price, volume:last.volume });
+}
+
+/* REST 실시간: 최근 봉 OHLC/거래량을 바이낸스 값으로 정확히 재동기화 */
+async function syncKlines(){
+  if(!candleSeries) return;
+  try{
+    const sym=curSymbol.toUpperCase();
+    const r=await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${curInterval}&limit=3`);
+    const raw=await r.json(); if(!Array.isArray(raw) || !candles.length) return;
+    raw.forEach(k=>{
+      const c={ time:Math.floor(k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5] };
+      const i=candles.findIndex(x=>x.time===c.time);
+      if(i>=0) candles[i]=c;
+      else if(c.time>candles[candles.length-1].time){ candles.push(c); if(candles.length>6000) candles.shift(); }
+    });
+    candleSeries.setData(candles);
+    volSeries.setData(candles.map(c=>({ time:c.time, value:c.volume, color: c.close>=c.open?'rgba(14,203,129,0.35)':'rgba(246,70,93,0.35)' })));
+    renderAllIndicators();
+  }catch(e){}
+}
+
+/* ---------- 차트 가격선 (진입/청산/TP/SL/지정가) ---------- */
+function drawPriceLines(){
+  if(!candleSeries) return;
+  priceLines.forEach(l=>{ try{ candleSeries.removePriceLine(l); }catch(e){} });
+  priceLines=[];
+  const add=(price,color,title)=>{ if(price>0) priceLines.push(candleSeries.createPriceLine({ price, color, lineWidth:1, lineStyle:0, axisLabelVisible:true, title })); };
+  const p=S.position;
+  if(p){ add(p.entry,'#f0b90b','진입'); const lq=curLiq(); if(lq) add(lq,'#ff9f43','청산'); }
+  S.pending.forEach(o=>{
+    if(o.kind==='tp') add(o.price,'#0ecb81','TP');
+    else if(o.kind==='sl') add(o.price,'#f6465d','SL');
+    else if(o.kind==='limit') add(o.price,'#2962ff', o.side==='long'?'지정 롱':'지정 숏');
+  });
+}
+
+
 
 /* ============================ 데이터 (Binance) ============================ */
 let ws=null, wsRetry=0;
-const intervalMap = {
-  "1m":"1m","3m":"3m","5m":"5m","15m":"15m","30m":"30m",
-  "1h":"1h","2h":"2h","4h":"4h","6h":"6h","8h":"8h","12h":"12h",
-  "1d":"1d","3d":"3d","1w":"1w","1M":"1M"
-};
-
-async function loadKlines(){
-  setConn("wait","데이터 로딩...");
-  try{
-    const sym = curSymbol.toUpperCase();
-    const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${intervalMap[curInterval]}&limit=500`;
-    const r = await fetch(url);
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const raw = await r.json();
-    candles = raw.map(k=>({time:Math.floor(k[0]/1000),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]}));
-    candleSeries.setData(candles);
-    if(candles.length){ lastPrice=candles[candles.length-1].close; if(!markPrice) markPrice=lastPrice; }
-    refreshHull(); restoreIndicators(); addMarker(); updatePriceLines();
-    // 최근 150봉만 보이도록 — fitContent()는 500봉 전체를 1~2픽셀로 압축해서 움직임이 안 보임
-    const visibleBars = 150;
-    chart.timeScale().setVisibleLogicalRange({
-      from: Math.max(0, candles.length - visibleBars),
-      to:   candles.length + 3,
-    });
-    setConn("ok","● 실시간 연결됨");
-    renderAll();
-  }catch(e){
-    setConn("bad","● 데이터 오류");
-    toast("바이낸스 데이터를 불러오지 못했습니다. 인터넷/접속을 확인하세요.");
-    console.error(e);
-  }
-}
 
 function connectWS(){
   if(ws){ try{ws.close();}catch(e){} ws=null; }
   const sym = curSymbol;
-  const streams = `${sym}@kline_${intervalMap[curInterval]}/${sym}@markPrice@1s/${sym}@ticker`;
+  const streams = `${sym}@kline_${curInterval}/${sym}@markPrice@1s/${sym}@ticker`;
   ws = new WebSocket(`wss://fstream.binance.com/stream?streams=${streams}`);
   ws.onopen = ()=>{ wsRetry=0; setConn("ok","● 실시간 연결됨"); };
   ws.onmessage = (ev)=>{
     lastWsTime = Date.now();
     const m = JSON.parse(ev.data); const d = m.data;
     if(!d) return;
-    if(d.e==="kline"){
-      const k = d.k;
-      const c = {time:Math.floor(k.t/1000),open:+k.o,high:+k.h,low:+k.l,close:+k.c,volume:+k.v};
-      lastPrice = +k.c;
-      const last = candles[candles.length-1];
-      if(last && last.time===c.time){ candles[candles.length-1]=c; }
-      else { candles.push(c); if(candles.length>800) candles.shift(); }
-      candleSeries.update(c);
-      if(k.x){ refreshHull(); refreshAllIndicators(); }
-      else { updateHullLast(); updateIndLast(); }
-      onTick();
-    } else if(d.e==="markPriceUpdate"){
-      markPrice=+d.p; fundingRate=+d.r; nextFundingT=+d.T;
+    if(d.e==="markPriceUpdate"){
+      markPrice=+d.p; lastPrice=markPrice; fundingRate=+d.r; nextFundingT=+d.T;
       onTick();
     } else if(d.e==="24hrTicker"){
       prevClose24=+d.o; high24=+d.h; low24=+d.l;
+      if(+d.c) lastPrice=+d.c;
+    } else if(d.e==="kline"){
+      updateCandle(d.k);
     }
   };
   ws.onclose = ()=>{
@@ -1275,16 +1751,13 @@ function connectWS(){
   ws.onerror = ()=>{ try{ws.close();}catch(e){} };
 }
 
-/* ---------- REST 폴백 (WS가 3초 이상 무응답 시 — 가격 + 차트 캔들 모두 갱신) ---------- */
-async function restPriceFallback(){
-  if(Date.now() - lastWsTime < 3000) return;
+/* ---------- REST 시장 조회 (WS 미수신 시 실시간 backbone) ---------- */
+async function fetchMarket(){
   try{
     const sym = curSymbol.toUpperCase();
-    const iv  = intervalMap[curInterval];
-    const [r1, r2, r3] = await Promise.all([
+    const [r1, r2] = await Promise.all([
       fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${sym}`),
-      fetch(`https://fapi.binance.com/fapi/v1/ticker/price?symbol=${sym}`),
-      fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${iv}&limit=3`),
+      fetch(`https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${sym}`),
     ]);
     if(r1.ok){
       const d = await r1.json();
@@ -1292,23 +1765,8 @@ async function restPriceFallback(){
     }
     if(r2.ok){
       const d = await r2.json();
-      if(+d.price) lastPrice = +d.price;
-    }
-    if(r3.ok && candleSeries){
-      const raw = await r3.json();
-      for(const k of raw){
-        const c = {time:Math.floor(k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5]};
-        lastPrice = c.close;
-        const last = candles[candles.length-1];
-        if(last && last.time === c.time){
-          candles[candles.length-1] = c;
-          candleSeries.update(c);
-        } else if(!last || c.time > last.time){
-          candles.push(c);
-          if(candles.length > 800) candles.shift();
-          candleSeries.update(c);
-        }
-      }
+      if(+d.lastPrice) lastPrice = +d.lastPrice;
+      if(+d.openPrice){ prevClose24=+d.openPrice; high24=+d.highPrice; low24=+d.lowPrice; }
     }
     onTick();
   }catch(e){}
@@ -1319,6 +1777,8 @@ function onTick(){
   checkPending();
   checkLiquidation();
   renderAll();
+  drawPriceLines();
+  redrawDrawings();
 }
 
 function setConn(cls,txt){
@@ -1331,40 +1791,23 @@ function changeSymbol(sym){
   curSymbol = sym;
   S.symbol = sym;
   lastPrice=0; markPrice=0; prevClose24=0; high24=0; low24=0; fundingRate=0; nextFundingT=0;
+  hmaZoneState = null;   // 새 심볼 기준으로 존 상태 재초기화
   save();
-  loadKlines().then(connectWS);
+  loadHistory();
+  drawings=loadDrawings(); selectedId=null; redrawDrawings();   // 심볼별 그림 전환
+  connectWS();
 }
 
 /* ============================ 이벤트 바인딩 ============================ */
 let orderType = "market";
 let tpSlMode = "price";
+let posTpSlMode = "price";   // 보유 포지션 TP/SL 입력 모드 (가격/%)
 
 function bindUI(){
   // 심볼 선택
   const symSel = document.getElementById("symbolSel");
   symSel.value = curSymbol;
   symSel.onchange = ()=> changeSymbol(symSel.value);
-
-  // 인터벌
-  document.querySelectorAll(".ivbtn").forEach(b=>{
-    if(b.dataset.iv===curInterval) b.classList.add("active");
-    b.onclick = ()=>{
-      document.querySelectorAll(".ivbtn").forEach(x=>x.classList.remove("active"));
-      b.classList.add("active");
-      curInterval=b.dataset.iv; S.interval=curInterval; save();
-      loadKlines(); connectWS();
-    };
-  });
-
-  // 헐 토글/기간
-  const hullToggle = document.getElementById("hullToggle");
-  const hullPeriod = document.getElementById("hullPeriod");
-  hullToggle.checked = S.hullOn; hullPeriod.value = S.hullPeriod;
-  hullToggle.onchange = ()=>{ S.hullOn=hullToggle.checked; save(); refreshHull(); };
-  hullPeriod.onchange = ()=>{
-    S.hullPeriod = Math.max(2,Math.min(400,parseInt(hullPeriod.value)||55));
-    hullPeriod.value = S.hullPeriod; save(); refreshHull();
-  };
 
   // 소리 토글
   const sndBtn = document.getElementById("soundBtn");
@@ -1373,6 +1816,11 @@ function bindUI(){
     sndBtn.textContent = soundOn ? "소리 ON" : "소리 OFF";
     sndBtn.className = soundOn ? "on" : "";
   };
+
+  // 알람 버튼 초기 상태
+  if(S.alarms&&S.alarms.hmaProximity&&S.alarms.hmaProximity.on){
+    document.getElementById('alarmBtn').classList.add('active');
+  }
 
   // 마진모드
   document.querySelectorAll("#marginModeSeg button").forEach(b=>{
@@ -1420,11 +1868,11 @@ function bindUI(){
     tpSlMode = mode;
     tpslPriceBtn.classList.toggle("active", mode==="price");
     tpslPctBtn.classList.toggle("active",   mode==="pct");
-    const unit = mode==="pct" ? "%" : "USDT";
+    const unit = mode==="pct" ? "ROE%" : "USDT";
     document.getElementById("tpUnit").textContent = unit;
     document.getElementById("slUnit").textContent = unit;
-    document.getElementById("tp").placeholder = mode==="pct" ? "예: 2" : "없음";
-    document.getElementById("sl").placeholder = mode==="pct" ? "예: 1" : "없음";
+    document.getElementById("tp").placeholder = mode==="pct" ? "예: 50" : "없음";
+    document.getElementById("sl").placeholder = mode==="pct" ? "예: 20" : "없음";
     document.getElementById("tp").value = "";
     document.getElementById("sl").value = "";
   };
@@ -1459,73 +1907,482 @@ function bindUI(){
     };
   });
 
-  // 지표 패널 토글
-  const indBtn=document.getElementById('indBtn');
-  const indPanel=document.getElementById('indPanel');
-  indBtn.onclick=()=>{
-    const show=!indPanel.classList.contains('show');
-    indPanel.classList.toggle('show',show);
-    indBtn.classList.toggle('on',show);
-  };
+  // 시간봉 선택
+  document.querySelectorAll("#intervalSeg button").forEach(b=>{
+    if(b.dataset.iv===curInterval) b.classList.add("active");
+    b.onclick = ()=>{
+      if(b.dataset.iv===curInterval) return;
+      document.querySelectorAll("#intervalSeg button").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      curInterval = b.dataset.iv; S.interval = curInterval; save();
+      hmaZoneState = null;   // 새 시간봉 기준으로 존 상태 재초기화
+      loadHistory();
+      connectWS();
+    };
+  });
 
-  // EMA 추가
-  document.getElementById('addEmaBtn').onclick=()=>{
-    const period=Math.max(2,Math.min(500,parseInt(document.getElementById('emaPeriod').value)||20));
-    const cnt=indSeries.filter(x=>x.type==='ema').length;
-    addIndicatorLine('ema',period,EMA_COLORS[cnt%EMA_COLORS.length]);
-  };
+  renderIndicatorChips();
 
-  // SMA 추가
-  document.getElementById('addSmaBtn').onclick=()=>{
-    const period=Math.max(2,Math.min(500,parseInt(document.getElementById('smaPeriod').value)||50));
-    const cnt=indSeries.filter(x=>x.type==='sma').length;
-    addIndicatorLine('sma',period,SMA_COLORS[cnt%SMA_COLORS.length]);
-  };
+}
 
-  // 볼린저밴드
-  const applyBB=()=>{
-    const period=Math.max(2,Math.min(500,parseInt(document.getElementById('bbPeriod').value)||20));
-    const mult=Math.max(0.1,parseFloat(document.getElementById('bbMult').value)||2);
-    indSeries.filter(x=>x.type==='bb').forEach(x=>removeIndicator(x.id));
-    addIndicatorLine('bb',period,'rgba(147,51,234,0.85)',mult);
-  };
-  document.getElementById('bbOn').onchange=(e)=>{
-    if(e.target.checked)applyBB();
-    else indSeries.filter(x=>x.type==='bb').forEach(x=>removeIndicator(x.id));
-  };
-  document.getElementById('bbPeriod').onchange=()=>{if(document.getElementById('bbOn').checked)applyBB();};
-  document.getElementById('bbMult').onchange=()=>{if(document.getElementById('bbOn').checked)applyBB();};
+/* ============================ 그리기 도구 ============================ */
+let drawTool='pan';                 // pan|select|trend|hline|vline|rect|fib|long|short
+let drawings=[];                    // [{id,type,pts:[{t,p}],color}]
+let drawLayer=null, drawCtx=null;
+let curDraft=null, selectedId=null, dragInfo=null;
 
-  // 거래량
-  document.getElementById('volOn').onchange=(e)=>{
-    if(!S.indicators)S.indicators={lines:[],vol:false};
-    S.indicators.vol=e.target.checked;
-    toggleVolume(e.target.checked);
-    save();
-  };
+function drawKey(){ return 'btcSimDrawings_'+curSymbol; }
+function loadDrawings(){
+  let arr=[];
+  try{ arr=JSON.parse(localStorage.getItem(drawKey())||'[]'); }catch(e){ arr=[]; }
+  arr.forEach(d=>{                                    // 구버전(2점) 롱/숏 → 3레벨 모델
+    if((d.type==='long'||d.type==='short') && d.pts && d.entry===undefined){
+      const pe=d.pts[0].p, px=(d.pts[1]?d.pts[1].p:pe), dist=Math.abs(px-pe)||pe*0.005;
+      d.t0=d.pts[0].t; d.t1=(d.pts[1]?d.pts[1].t:d.pts[0].t); d.entry=pe;
+      if(d.type==='long'){ d.target=pe+dist; d.stop=pe-dist; } else { d.target=pe-dist; d.stop=pe+dist; }
+      d.qty=d.qty || (pe>0?1000/pe:0); delete d.pts;
+    }
+  });
+  return arr;
+}
+function saveDrawings(){ try{ localStorage.setItem(drawKey(), JSON.stringify(drawings)); }catch(e){} }
 
-  // 그리기 도구 초기화
-  setDrawMode('cursor');
+function defColor(type){ return type==='long'?'#0ecb81': type==='short'?'#f6465d': type==='fib'?'#2962ff': type==='channel'?'#a855f7': type==='text'?'#e2e8f0':'#f0b90b'; }
+function mkShape(type, pts){ return { id:uid(), type, pts, color:defColor(type) }; }
+function oneClickTool(t){ return t==='hline'||t==='vline'; }
+function isPosTool(t){ return t==='long'||t==='short'; }
+
+/* 포지션 도구 수량(주문패널 증거금×레버리지 기준) */
+function planQty(entry){ const el=document.getElementById('margin'); const m=el?parseFloat(el.value):0; const lev=S.leverage||20; return (entry>0)?((m>0?m:100)*lev)/entry:0; }
+
+/* 포지션 도구 핸들 적중: target/stop/entry/left/right */
+function posHandleAt(d, mx, my){
+  const xa=tToX(d.t0), xb=tToX(d.t1); if(xa==null||xb==null) return null;
+  const Xa=Math.min(xa,xb), Xb=Math.max(xa,xb), cx=(Xa+Xb)/2;
+  const ye=pToY(d.entry), yt=pToY(d.target), ys=pToY(d.stop), th=9;
+  const near=(hx,hy)=> hx!=null&&hy!=null&&Math.abs(mx-hx)<=th&&Math.abs(my-hy)<=th;
+  if(near(cx,yt)) return 'target';
+  if(near(cx,ys)) return 'stop';
+  if(near(Xa,ye)) return 'left';
+  if(near(Xb,ye)) return 'right';
+  if(near(cx,ye)) return 'entry';
+  return null;
+}
+
+/* ---- 좌표 변환 (시간/가격 ↔ 픽셀) ---- */
+function tToX(t){
+  const ts=chart.timeScale();
+  let x=ts.timeToCoordinate(t);
+  if(x!==null) return x;
+  if(!candles.length) return null;
+  const lastT=candles[candles.length-1].time, xl=ts.timeToCoordinate(lastT);
+  if(xl===null) return null;
+  const bs=ts.options().barSpacing||6, sec=IV_SEC[curInterval]||60;
+  return xl + ((t-lastT)/sec)*bs;
+}
+function pToY(p){ const y=candleSeries.priceToCoordinate(p); return (y===null||y===undefined)?null:y; }
+function xToT(x){
+  const ts=chart.timeScale();
+  const t=ts.coordinateToTime(x);
+  if(t!==null) return t;
+  if(!candles.length) return Math.floor(Date.now()/1000);
+  const lastT=candles[candles.length-1].time, xl=ts.timeToCoordinate(lastT);
+  const bs=ts.options().barSpacing||6, sec=IV_SEC[curInterval]||60;
+  if(xl===null) return lastT;
+  return Math.round(lastT + ((x-xl)/bs)*sec);
+}
+function yToP(y){ const p=candleSeries.coordinateToPrice(y); return (p===null||p===undefined)?0:p; }
+
+function plotDims(){
+  let paW=0, taH=0;
+  try{ paW=chart.priceScale('right').width(); }catch(e){}
+  try{ taH=chart.timeScale().height(); }catch(e){}
+  return { w:(drawLayer.clientWidth-paW)||drawLayer.clientWidth, h:(drawLayer.clientHeight-taH)||drawLayer.clientHeight };
+}
+
+/* ---- 렌더링 ---- */
+function dLine(x0,y0,x1,y1){ const c=drawCtx; c.beginPath(); c.moveTo(x0,y0); c.lineTo(x1,y1); c.stroke(); }
+function dHandle(x,y){ const c=drawCtx; c.save(); c.fillStyle='#fff'; c.strokeStyle='#2962ff'; c.lineWidth=1.5;
+  c.beginPath(); c.arc(x,y,4,0,Math.PI*2); c.fill(); c.stroke(); c.restore(); }
+function dTag(x,y,text,align){ const c=drawCtx; c.save(); c.font='10px sans-serif'; c.textBaseline='middle';
+  const tw=c.measureText(text).width, pad=3; const bx= align==='right'? x-tw-pad*2 : x;
+  c.fillStyle='rgba(0,0,0,0.6)'; c.fillRect(bx, y-7, tw+pad*2, 14);
+  c.fillStyle='#eaecef'; c.textAlign= align==='right'?'right':'left'; c.fillText(text, align==='right'? x-pad : x+pad, y); c.restore(); }
+
+function renderShape(d, pw, ph, sel){
+  const c=drawCtx, P=d.pts;
+  c.lineWidth = sel?2:1.4; c.strokeStyle=d.color; c.fillStyle=d.color; c.setLineDash([]);
+  if(d.type==='trend'){
+    const x0=tToX(P[0].t),y0=pToY(P[0].p),x1=tToX(P[1].t),y1=pToY(P[1].p);
+    if([x0,y0,x1,y1].some(v=>v==null)) return;
+    dLine(x0,y0,x1,y1); if(sel){ dHandle(x0,y0); dHandle(x1,y1); }
+  }else if(d.type==='hline'){
+    const y=pToY(P[0].p); if(y==null) return;
+    dLine(0,y,pw,y); dTag(pw-2,y,fmtPrice(P[0].p),'right'); if(sel) dHandle(pw/2,y);
+  }else if(d.type==='vline'){
+    const x=tToX(P[0].t); if(x==null) return;
+    dLine(x,0,x,ph); if(sel) dHandle(x,ph/2);
+  }else if(d.type==='rect'){
+    const x0=tToX(P[0].t),y0=pToY(P[0].p),x1=tToX(P[1].t),y1=pToY(P[1].p);
+    if([x0,y0,x1,y1].some(v=>v==null)) return;
+    const X=Math.min(x0,x1),Y=Math.min(y0,y1),W=Math.abs(x1-x0),H=Math.abs(y1-y0);
+    c.globalAlpha=0.12; c.fillRect(X,Y,W,H); c.globalAlpha=1; c.strokeRect(X,Y,W,H);
+    if(sel){ dHandle(x0,y0); dHandle(x1,y1); }
+  }else if(d.type==='fib'){
+    const x0=tToX(P[0].t),x1=tToX(P[1].t),pa=P[0].p,pb=P[1].p;
+    if(x0==null||x1==null) return;
+    const xa=Math.min(x0,x1),xb=Math.max(x0,x1);
+    [0,0.236,0.382,0.5,0.618,0.786,1].forEach(L=>{
+      const price=pa+(pb-pa)*L, y=pToY(price); if(y==null) return;
+      dLine(xa,y,xb,y); dTag(xb-2,y,(L*100).toFixed(1)+'%  '+fmtPrice(price),'right');
+    });
+    if(sel){ dHandle(x0,pToY(pa)); dHandle(x1,pToY(pb)); }
+  }else if(d.type==='channel'){
+    const x0=tToX(P[0].t),y0=pToY(P[0].p),x1=tToX(P[1].t),y1=pToY(P[1].p);
+    const x2=tToX(P[2].t),y2=pToY(P[2].p);
+    if([x0,y0,x1,y1,x2,y2].some(v=>v==null)) return;
+    const dx=x1-x0, dy=y1-y0, len=Math.hypot(dx,dy); if(len<1) return;
+    const nx=-dy/len, ny=dx/len;
+    const cross=(( x2-x0)*dy-(y2-y0)*dx)/len;
+    const EXT=pw*3;
+    const dirX=dx/len, dirY=dy/len;
+    // 기준선 (연장)
+    const a0x=x0-dirX*EXT, a0y=y0-dirY*EXT, a1x=x0+dirX*EXT, a1y=y0+dirY*EXT;
+    // 평행선 (연장)
+    const b0x=x0+nx*cross-dirX*EXT, b0y=y0+ny*cross-dirY*EXT;
+    const b1x=x0+nx*cross+dirX*EXT, b1y=y0+ny*cross+dirY*EXT;
+    // 채우기
+    c.globalAlpha=0.08; c.beginPath();
+    c.moveTo(a0x,a0y); c.lineTo(a1x,a1y); c.lineTo(b1x,b1y); c.lineTo(b0x,b0y);
+    c.closePath(); c.fill(); c.globalAlpha=1;
+    // 두 선
+    dLine(a0x,a0y,a1x,a1y); dLine(b0x,b0y,b1x,b1y);
+    // 기준 세그먼트 핸들 / 너비 핸들
+    if(sel){ dHandle(x0,y0); dHandle(x1,y1); dHandle(x2,y2); }
+  }else if(d.type==='arrow'){
+    const x0=tToX(P[0].t),y0=pToY(P[0].p),x1=tToX(P[1].t),y1=pToY(P[1].p);
+    if([x0,y0,x1,y1].some(v=>v==null)) return;
+    dLine(x0,y0,x1,y1);
+    const ang=Math.atan2(y1-y0,x1-x0), aLen=13, aAng=Math.PI/6;
+    c.beginPath();
+    c.moveTo(x1,y1);
+    c.lineTo(x1-aLen*Math.cos(ang-aAng), y1-aLen*Math.sin(ang-aAng));
+    c.lineTo(x1-aLen*Math.cos(ang+aAng), y1-aLen*Math.sin(ang+aAng));
+    c.closePath(); c.fill();
+    if(sel){ dHandle(x0,y0); dHandle(x1,y1); }
+  }else if(d.type==='text'){
+    const x=tToX(P[0].t), y=pToY(P[0].p);
+    if(x==null||y==null) return;
+    c.save(); c.font='bold 13px sans-serif'; c.fillStyle=d.color;
+    c.textBaseline='middle'; c.textAlign='left';
+    c.fillText(d.label||'텍스트', x+4, y);
+    c.restore();
+    if(sel) dHandle(x,y);
+  }else if(d.type==='long'||d.type==='short'){
+    const xa0=tToX(d.t0),xb0=tToX(d.t1); if(xa0==null||xb0==null) return;
+    const Xa=Math.min(xa0,xb0),Xb=Math.max(xa0,xb0),cx=(Xa+Xb)/2,W=Xb-Xa;
+    const ye=pToY(d.entry),yt=pToY(d.target),ys=pToY(d.stop);
+    if(ye==null||yt==null||ys==null) return;
+    // 목표 존(초록) / 손절 존(빨강)
+    c.globalAlpha=0.13;
+    c.fillStyle='#0ecb81'; c.fillRect(Xa,Math.min(ye,yt),W,Math.abs(yt-ye));
+    c.fillStyle='#f6465d'; c.fillRect(Xa,Math.min(ye,ys),W,Math.abs(ys-ye));
+    c.globalAlpha=1; c.lineWidth=1;
+    c.strokeStyle='#0ecb81'; c.strokeRect(Xa,Math.min(ye,yt),W,Math.abs(yt-ye));
+    c.strokeStyle='#f6465d'; c.strokeRect(Xa,Math.min(ye,ys),W,Math.abs(ys-ye));
+    // 진입선(노랑 실선)
+    c.strokeStyle='#f0b90b'; c.lineWidth=1.4; dLine(Xa,ye,Xb,ye);
+    // 지표 계산
+    const rDist=Math.abs(d.entry-d.stop), wDist=Math.abs(d.target-d.entry);
+    const rr = rDist>0 ? (wDist/rDist) : 0;
+    const tPct=d.entry?(d.target-d.entry)/d.entry*100:0, sPct=d.entry?(d.stop-d.entry)/d.entry*100:0;
+    const qty=d.qty||0, rewardAmt=qty*wDist, riskAmt=qty*rDist;
+    const pnl=qty*(markPrice-d.entry)*(d.type==='long'?1:-1);
+    // 레이블
+    dTag(Xa+2, yt, '목표 '+fmtPrice(d.target)+' ('+(tPct>=0?'+':'')+tPct.toFixed(2)+'%) 금액 +'+fmt(rewardAmt,1), 'left');
+    dTag(Xa+2, ys, '손절 '+fmtPrice(d.stop)+' ('+sPct.toFixed(2)+'%) 금액 -'+fmt(riskAmt,1), 'left');
+    dTag(Xa+2, ye-9, (d.type==='long'?'롱':'숏')+' · 손익비 1:'+rr.toFixed(2)+' · 수량 '+fmtQty(qty)+' · PnL '+(pnl>=0?'+':'')+fmt(pnl,1), 'left');
+    if(sel){ dHandle(Xa,ye); dHandle(Xb,ye); dHandle(cx,ye); dHandle(cx,yt); dHandle(cx,ys); }
+  }
+}
+
+function redrawDrawings(){
+  if(!drawCtx||!chart||!candleSeries) return;
+  const W=drawLayer.clientWidth, H=drawLayer.clientHeight;
+  drawCtx.clearRect(0,0,W,H);
+  const pd=plotDims();
+  drawCtx.save(); drawCtx.beginPath(); drawCtx.rect(0,0,pd.w,pd.h); drawCtx.clip();
+  const list = curDraft ? drawings.concat([curDraft]) : drawings;
+  list.forEach(d=>{ try{ renderShape(d, pd.w, pd.h, d.id===selectedId); }catch(e){} });
+  drawCtx.restore();
+}
+
+/* ---- 적중 판정 ---- */
+function distToSeg(px,py,x0,y0,x1,y1){ const dx=x1-x0,dy=y1-y0,l2=dx*dx+dy*dy;
+  let t=l2? ((px-x0)*dx+(py-y0)*dy)/l2:0; t=Math.max(0,Math.min(1,t));
+  return Math.hypot(px-(x0+t*dx), py-(y0+t*dy)); }
+function hitTest(mx,my){
+  const th=6;
+  for(let i=drawings.length-1;i>=0;i--){
+    const d=drawings[i], P=d.pts;
+    if(d.type==='hline'){ const y=pToY(P[0].p); if(y!=null&&Math.abs(my-y)<=th) return d; }
+    else if(d.type==='vline'){ const x=tToX(P[0].t); if(x!=null&&Math.abs(mx-x)<=th) return d; }
+    else if(d.type==='trend'){ const x0=tToX(P[0].t),y0=pToY(P[0].p),x1=tToX(P[1].t),y1=pToY(P[1].p);
+      if([x0,y0,x1,y1].every(v=>v!=null)&&distToSeg(mx,my,x0,y0,x1,y1)<=th) return d; }
+    else if(d.type==='rect'){ const x0=tToX(P[0].t),y0=pToY(P[0].p),x1=tToX(P[1].t),y1=pToY(P[1].p);
+      if([x0,y0,x1,y1].some(v=>v==null)) continue;
+      const xa=Math.min(x0,x1),xb=Math.max(x0,x1),ya=Math.min(y0,y1),yb=Math.max(y0,y1);
+      if(mx>=xa-th&&mx<=xb+th&&my>=ya-th&&my<=yb+th) return d; }
+    else if(d.type==='long'||d.type==='short'){ const xa0=tToX(d.t0),xb0=tToX(d.t1);
+      if(xa0==null||xb0==null) continue;
+      const Xa=Math.min(xa0,xb0),Xb=Math.max(xa0,xb0);
+      const ye=pToY(d.entry),yt=pToY(d.target),ys=pToY(d.stop);
+      if(ye==null||yt==null||ys==null) continue;
+      const ya=Math.min(yt,ys),yb=Math.max(yt,ys);
+      if(mx>=Xa-th&&mx<=Xb+th&&my>=ya-th&&my<=yb+th) return d; }
+    else if(d.type==='fib'){ const x0=tToX(P[0].t),x1=tToX(P[1].t),pa=P[0].p,pb=P[1].p;
+      if(x0==null||x1==null) continue; const xa=Math.min(x0,x1),xb=Math.max(x0,x1);
+      for(const L of [0,0.236,0.382,0.5,0.618,0.786,1]){ const y=pToY(pa+(pb-pa)*L);
+        if(y!=null&&mx>=xa-th&&mx<=xb+th&&Math.abs(my-y)<=th) return d; } }
+    else if(d.type==='arrow'){ const x0=tToX(P[0].t),y0=pToY(P[0].p),x1=tToX(P[1].t),y1=pToY(P[1].p);
+      if([x0,y0,x1,y1].every(v=>v!=null)&&distToSeg(mx,my,x0,y0,x1,y1)<=th) return d; }
+    else if(d.type==='channel'){
+      const x0=tToX(P[0].t),y0=pToY(P[0].p),x1=tToX(P[1].t),y1=pToY(P[1].p),x2=tToX(P[2].t),y2=pToY(P[2].p);
+      if([x0,y0,x1,y1,x2,y2].some(v=>v==null)) continue;
+      const dx=x1-x0,dy=y1-y0,len=Math.hypot(dx,dy); if(len<1) continue;
+      const nx=-dy/len,ny=dx/len,cross=((x2-x0)*dy-(y2-y0)*dx)/len;
+      const EXT=3000, dirX=dx/len, dirY=dy/len;
+      if(distToSeg(mx,my,x0-dirX*EXT,y0-dirY*EXT,x0+dirX*EXT,y0+dirY*EXT)<=th) return d;
+      if(distToSeg(mx,my,x0+nx*cross-dirX*EXT,y0+ny*cross-dirY*EXT,x0+nx*cross+dirX*EXT,y0+ny*cross+dirY*EXT)<=th) return d; }
+    else if(d.type==='text'){ const x=tToX(P[0].t),y=pToY(P[0].p);
+      if(x!=null&&y!=null&&Math.hypot(mx-x,my-y)<=20) return d; }
+  }
+  return null;
+}
+
+/* ---- 마우스 작도 ---- */
+function evtXY(e){ const r=drawLayer.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
+function onDrawDown(e){
+  if(!drawLayer || e.button!==0 || drawTool==='pan') return;     // pan → 차트가 처리
+  const {x,y}=evtXY(e), pd=plotDims();
+  if(x<0||y<0||x>pd.w||y>pd.h) return;                            // 가격/시간축 영역 무시
+  if(drawTool==='select'){
+    // 1) 선택된 포지션 도구의 핸들 우선 잡기
+    if(selectedId!=null){
+      const s=drawings.find(z=>z.id===selectedId);
+      if(s && isPosTool(s.type)){
+        const h=posHandleAt(s,x,y);
+        if(h){ dragInfo={ kind:'poshandle', handle:h, id:s.id, orig:{t0:s.t0,t1:s.t1,entry:s.entry,target:s.target,stop:s.stop} };
+          e.stopPropagation(); e.preventDefault(); redrawDrawings(); return; }
+      }
+    }
+    // 2) 도형 선택
+    const hit=hitTest(x,y);
+    if(hit){
+      selectedId=hit.id;
+      if(isPosTool(hit.type)){
+        const h2=posHandleAt(hit,x,y);
+        if(h2) dragInfo={ kind:'poshandle', handle:h2, id:hit.id, orig:{t0:hit.t0,t1:hit.t1,entry:hit.entry,target:hit.target,stop:hit.stop} };
+        else   dragInfo={ kind:'posbody', id:hit.id, t0:xToT(x), p0:yToP(y), orig:{t0:hit.t0,t1:hit.t1,entry:hit.entry,target:hit.target,stop:hit.stop} };
+      }else{
+        dragInfo={ kind:'shape', t0:xToT(x), p0:yToP(y), orig:hit.pts.map(p=>({t:p.t,p:p.p})) };
+      }
+      e.stopPropagation(); e.preventDefault(); redrawDrawings();
+    }else{ selectedId=null; redrawDrawings(); }                  // 빈 곳 → 차트 패닝 허용
+    return;
+  }
+  // 채널 2단계: 클릭으로 너비 확정
+  if(curDraft && curDraft.phase===2){
+    drawings.push(curDraft); selectedId=curDraft.id; curDraft=null;
+    saveDrawings(); setTool('select');
+    e.stopPropagation(); e.preventDefault(); redrawDrawings(); return;
+  }
+  e.stopPropagation(); e.preventDefault();
+  const t=xToT(x), p=yToP(y);
+  if(drawTool==='text'){
+    startTextInput(x, y, t, p); return;
+  }
+  if(oneClickTool(drawTool)){ drawings.push(mkShape(drawTool,[{t,p}])); saveDrawings(); setTool('select'); }
+  else if(isPosTool(drawTool)){ curDraft={ id:uid(), type:drawTool, t0:t, t1:t, entry:p, target:p, stop:p, qty:planQty(p) }; }
+  else if(drawTool==='channel'){ const sh=mkShape('channel',[{t,p},{t,p},{t,p}]); sh.phase=1; curDraft=sh; }
+  else { curDraft=mkShape(drawTool,[{t,p},{t,p}]); }
+  redrawDrawings();
+}
+function startTextInput(x, y, t, p){
+  const host=document.getElementById('chart');
+  const inp=document.createElement('input');
+  inp.type='text'; inp.placeholder='텍스트 입력 후 Enter';
+  inp.style.cssText=`position:absolute;left:${x+4}px;top:${y-12}px;background:#1e2329;color:#f0f0f0;`+
+    `border:1px solid #2962ff;padding:2px 8px;font-size:13px;z-index:100;min-width:120px;outline:none;border-radius:3px;`;
+  host.appendChild(inp); inp.focus();
+  function finish(){
+    const label=inp.value.trim();
+    if(host.contains(inp)) host.removeChild(inp);
+    if(label){ const sh=mkShape('text',[{t,p}]); sh.label=label; drawings.push(sh); selectedId=sh.id; saveDrawings(); }
+    setTool('select'); redrawDrawings();
+  }
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); finish(); }
+    if(e.key==='Escape'){ if(host.contains(inp)) host.removeChild(inp); setTool('select'); } });
+  inp.addEventListener('blur',finish);
+}
+function onDrawMove(e){
+  if(!drawLayer) return;
+  const {x,y}=evtXY(e);
+  if(curDraft){
+    if(isPosTool(curDraft.type)){
+      curDraft.t1=xToT(x);
+      const dist=Math.abs(yToP(y)-curDraft.entry) || curDraft.entry*0.002;
+      if(curDraft.type==='long'){ curDraft.target=curDraft.entry+dist; curDraft.stop=curDraft.entry-dist; }
+      else { curDraft.target=curDraft.entry-dist; curDraft.stop=curDraft.entry+dist; }
+    }else if(curDraft.phase===2){
+      curDraft.pts[2]={t:xToT(x),p:yToP(y)};
+    }else{
+      curDraft.pts[1]={t:xToT(x),p:yToP(y)};
+    }
+    e.stopPropagation(); e.preventDefault(); redrawDrawings(); return;
+  }
+  if(dragInfo && selectedId!=null){
+    const d=drawings.find(z=>z.id===selectedId);
+    if(d){
+      if(dragInfo.kind==='poshandle'){
+        const np=yToP(y), nt=xToT(x), o=dragInfo.orig, hh=dragInfo.handle;
+        if(hh==='target') d.target=np;
+        else if(hh==='stop') d.stop=np;
+        else if(hh==='left') d.t0=nt;
+        else if(hh==='right') d.t1=nt;
+        else if(hh==='entry'){ const sh=np-o.entry; d.entry=np; d.target=o.target+sh; d.stop=o.stop+sh; }
+      }else if(dragInfo.kind==='posbody'){
+        const dT=xToT(x)-dragInfo.t0, dP=yToP(y)-dragInfo.p0, o=dragInfo.orig;
+        d.t0=o.t0+dT; d.t1=o.t1+dT; d.entry=o.entry+dP; d.target=o.target+dP; d.stop=o.stop+dP;
+      }else{
+        const dT=xToT(x)-dragInfo.t0, dP=yToP(y)-dragInfo.p0;
+        d.pts=dragInfo.orig.map(p=>({t:p.t+dT, p:p.p+dP}));
+      }
+    }
+    e.stopPropagation(); e.preventDefault(); redrawDrawings(); return;
+  }
+}
+function onDrawUp(){
+  if(curDraft){
+    // 채널 1단계 완료 → 2단계(너비)로 전환
+    if(curDraft.phase===1){ curDraft.phase=2; return; }
+    if(isPosTool(curDraft.type)){
+      const sec=IV_SEC[curInterval]||60;
+      if(Math.abs(curDraft.t1-curDraft.t0) < sec) curDraft.t1 = curDraft.t0 + sec*30;          // 클릭만 → 기본 폭
+      if(Math.abs(curDraft.target-curDraft.entry) < curDraft.entry*1e-5){                        // 클릭만 → 기본 손익폭
+        const dist=curDraft.entry*0.005;
+        if(curDraft.type==='long'){ curDraft.target=curDraft.entry+dist; curDraft.stop=curDraft.entry-dist; }
+        else { curDraft.target=curDraft.entry-dist; curDraft.stop=curDraft.entry+dist; }
+      }
+    }
+    drawings.push(curDraft); selectedId=curDraft.id; curDraft=null; saveDrawings(); setTool('select'); redrawDrawings();
+  } else if(dragInfo){ dragInfo=null; saveDrawings(); }
+}
+function deleteSelected(){ if(selectedId==null) return; drawings=drawings.filter(d=>d.id!==selectedId); selectedId=null; saveDrawings(); redrawDrawings(); }
+function clearDrawings(){ if(!drawings.length){ return; } if(!confirm('모든 그림을 삭제할까요?')) return; drawings=[]; selectedId=null; saveDrawings(); redrawDrawings(); }
+
+function setTool(t){
+  drawTool=t; curDraft=null;
+  if(t!=='select') selectedId=null;
+  document.querySelectorAll('#drawbar button[data-tool]').forEach(b=>b.classList.toggle('active', b.dataset.tool===t));
+  const host=document.getElementById('chart');
+  if(host) host.style.cursor = (t==='pan')?'default':'crosshair';
+  redrawDrawings();
+}
+
+function sizeDrawLayer(){
+  if(!drawLayer) return;
+  const dpr=window.devicePixelRatio||1, w=drawLayer.clientWidth, h=drawLayer.clientHeight;
+  drawLayer.width=Math.max(1,Math.round(w*dpr)); drawLayer.height=Math.max(1,Math.round(h*dpr));
+  drawCtx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+function setupDrawing(){
+  const host=document.getElementById('chart');
+  drawLayer=document.createElement('canvas');
+  drawLayer.style.cssText='position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:3;';
+  host.appendChild(drawLayer);
+  drawCtx=drawLayer.getContext('2d');
+  sizeDrawLayer();
+  drawings=loadDrawings();
+  new ResizeObserver(()=>{ sizeDrawLayer(); redrawDrawings(); }).observe(host);
+  chart.timeScale().subscribeVisibleLogicalRangeChange((range)=>{
+    redrawDrawings();
+    if(!range || !candleSeries) return;
+    const bi = candleSeries.barsInLogicalRange(range);   // 보이는 영역 왼쪽에 남은 봉 수
+    if(bi && bi.barsBefore < 10) loadOlder();
+  });
+  host.addEventListener('mousedown', onDrawDown, true);
+  window.addEventListener('mousemove', onDrawMove, true);
+  window.addEventListener('mouseup', onDrawUp, true);
+  document.querySelectorAll('#drawbar button[data-tool]').forEach(b=>{ b.onclick=()=>setTool(b.dataset.tool); });
+  document.getElementById('drawDelBtn').onclick=deleteSelected;
+  document.getElementById('drawClearBtn').onclick=clearDrawings;
+  window.addEventListener('keydown', e=>{
+    const typing = document.activeElement && document.activeElement.tagName==='INPUT';
+    if((e.key==='Delete'||e.key==='Backspace') && selectedId!=null && !typing){ e.preventDefault(); deleteSelected(); }
+    else if(e.key==='Escape'){ curDraft=null; setTool('pan'); }
+  });
+  redrawDrawings();
 }
 
 /* ============================ 시작 ============================ */
 window.closePosition    = closePosition;
 window.cancelOrder      = cancelOrder;
 window.closePositionPct = window.closePositionPct;
-window.removeIndicator  = removeIndicator;
-window.setDrawMode      = setDrawMode;
-window.clearDrawings    = clearDrawings;
 
 initChart();
+setupDrawing();
 bindUI();
 renderAll();
-loadKlines().then(connectWS);
+connectWS();
 
-// 1초마다 항상 UI 갱신 (조건 없음) + REST 폴백
-setInterval(()=>{
-  renderAll();
-  restPriceFallback();
-}, 1000);
+/* ---------- 시간봉 마감 카운트다운 ---------- */
+function fmtCountdown(iv){
+  const s = IV_SEC[iv] || 60;
+  let rem;
+  if(iv === '1M'){
+    const now = new Date();
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth()+1, 1));
+    rem = Math.max(0, Math.floor((next - now)/1000));
+  } else {
+    const nowSec = Math.floor(Date.now()/1000);
+    rem = s - (nowSec % s);
+    if(rem === s) rem = 0;
+  }
+  if(rem >= 86400){
+    const d = Math.floor(rem/86400);
+    const h = Math.floor((rem%86400)/3600);
+    const m = Math.floor((rem%3600)/60);
+    return `${d}일 ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  } else if(rem >= 3600){
+    const h = Math.floor(rem/3600);
+    const m = Math.floor((rem%3600)/60);
+    const sec = rem % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  } else {
+    const m = Math.floor(rem/60);
+    const sec = rem % 60;
+    return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+}
+function updateCandleTimers(){
+  document.querySelectorAll('#intervalSeg button').forEach(btn=>{
+    const cd = btn.querySelector('.iv-cd');
+    if(cd) cd.textContent = fmtCountdown(btn.dataset.iv);
+  });
+}
+
+// 1초 루프: WS가 살아있으면 WS가 주도, 무응답이면 REST가 가격·캔들·HMA를 실시간 구동
+async function pollLoop(){
+  renderAll();                                   // 시계/잔여시간 등 항상 갱신
+  updateCandleTimers();                          // 봉마감 카운트다운 갱신
+  if(Date.now() - lastWsTime < 2500) return;     // WS 정상 → REST 생략
+  await fetchMarket();                            // 가격·마크·펀딩·24h + onTick
+  liveTick(lastPrice);                           // 진행 중 캔들 + HMA 실시간
+  if(Date.now() - lastKlineSync > 8000){ lastKlineSync = Date.now(); syncKlines(); }
+}
+setInterval(pollLoop, 1000);
 </script>
 </body>
 </html>
