@@ -479,7 +479,7 @@
       <span>볼륨</span>
       <div style="display:flex;align-items:center;gap:6px;">
         <input type="range" id="alVolume" min="0" max="100" value="70" step="5"
-          style="width:88px;accent-color:var(--yellow);cursor:pointer;"
+          style="width:130px;accent-color:var(--yellow);cursor:pointer;"
           oninput="document.getElementById('alVolumeLbl').textContent=this.value+'%'">
         <span id="alVolumeLbl" style="font-size:11px;color:var(--text);width:30px;text-align:right;">70%</span>
       </div>
@@ -487,6 +487,7 @@
     <div id="alHmaStatus" style="font-size:11px;color:var(--muted);min-height:14px;"></div>
   </div>
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:2px;">
+    <button class="closebtn" onclick="testAlarmSound()">소리 테스트</button>
     <button class="closebtn go" onclick="saveAlarmSettings()">저장</button>
   </div>
 </div>
@@ -1579,6 +1580,16 @@ function showAlarmToast(msg){
   _toastTimer = setTimeout(()=>{ el.style.display='none'; }, 6000);
 }
 
+// 브라우저 오토플레이 정책 해제 — 첫 사용자 클릭 시 오디오 미리 unlock
+let _audioUnlocked = false;
+document.addEventListener('click', function _unlockOnce(){
+  if(_audioUnlocked) return;
+  const a = document.getElementById('alarmAudio');
+  if(!a){ _audioUnlocked=true; return; }
+  a.muted = true;
+  a.play().then(()=>{ a.pause(); a.currentTime=0; a.muted=false; _audioUnlocked=true; }).catch(()=>{ a.muted=false; });
+}, {once:true});
+
 function fireAlarm(msg){
   showAlarmToast(msg);
   if(!soundOn) return;
@@ -1591,6 +1602,15 @@ function fireAlarm(msg){
     }
   }catch(e){}
 }
+
+window.testAlarmSound = function(){
+  const audio = document.getElementById('alarmAudio');
+  if(!audio){ alert('오디오 요소를 찾을 수 없습니다.'); return; }
+  audio.volume = Math.max(0, Math.min(1, ((S.alarms?.volume ?? 70) / 100)));
+  audio.currentTime = 0;
+  audio.play().catch(e=>{ alert('소리 재생 실패: ' + e.message + '\n\n브라우저 설정 → 이 사이트 소리 허용이 필요할 수 있습니다.'); });
+  _audioUnlocked = true;
+};
 
 window.toggleAlarmPanel = function(){
   const p = document.getElementById('alarmPanel');
