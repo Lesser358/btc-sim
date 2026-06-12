@@ -1580,36 +1580,67 @@ function showAlarmToast(msg){
   _toastTimer = setTimeout(()=>{ el.style.display='none'; }, 6000);
 }
 
-// 브라우저 오토플레이 정책 해제 — 첫 사용자 클릭 시 오디오 미리 unlock
-let _audioUnlocked = false;
-document.addEventListener('click', function _unlockOnce(){
-  if(_audioUnlocked) return;
-  const a = document.getElementById('alarmAudio');
-  if(!a){ _audioUnlocked=true; return; }
-  a.muted = true;
-  a.play().then(()=>{ a.pause(); a.currentTime=0; a.muted=false; _audioUnlocked=true; }).catch(()=>{ a.muted=false; });
-}, {once:true});
+// ── 알람 오디오 시스템 (Web Audio API) ──────────────────────────────────────
+// <audio>.play() 는 배경탭에서 브라우저가 차단함.
+// AudioContext + AudioBuffer 방식은 한 번 unlock 되면 배경탭에서도 재생 가능.
+let _alarmCtx = null;
+let _alarmBuffer = null;
+
+async function _initAlarmAudio(){
+  if(_alarmCtx) return;
+  try{
+    _alarmCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const resp = await fetch('핑구 알림음.mp3.mp4');
+    const arr  = await resp.arrayBuffer();
+    _alarmBuffer = await _alarmCtx.decodeAudioData(arr);
+  }catch(e){ _alarmCtx=null; _alarmBuffer=null; }
+}
+
+// 첫 클릭 시 AudioContext 생성 + 버퍼 로드 (오토플레이 정책 해제)
+document.addEventListener('click', _initAlarmAudio, {once:true});
+
+// 뒷탭→앞탭 전환 시 suspended 된 AudioContext 재개
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden && _alarmCtx && _alarmCtx.state==='suspended')
+    _alarmCtx.resume().catch(()=>{});
+});
+
+function _playAlarmBuffer(){
+  const vol = (S.alarms?.volume ?? 70) / 100;
+  if(_alarmCtx && _alarmBuffer){
+    if(_alarmCtx.state==='suspended') _alarmCtx.resume().catch(()=>{});
+    try{
+      const src  = _alarmCtx.createBufferSource();
+      src.buffer = _alarmBuffer;
+      const gain = _alarmCtx.createGain();
+      gain.gain.value = vol * 3;   // 슬라이더 100% = 원본 3배 증폭
+      src.connect(gain);
+      gain.connect(_alarmCtx.destination);
+      src.start(0);
+    }catch(e){}
+    return true;
+  }
+  // fallback: <audio> 요소 (배경탭에선 안 될 수 있음)
+  try{
+    const a = document.getElementById('alarmAudio');
+    if(a){ a.volume=Math.min(1,vol); a.currentTime=0; a.play().catch(()=>{}); }
+  }catch(e){}
+  return false;
+}
 
 function fireAlarm(msg){
   showAlarmToast(msg);
   if(!soundOn) return;
-  try{
-    const audio = document.getElementById('alarmAudio');
-    if(audio){
-      audio.volume = Math.max(0, Math.min(1, ((S.alarms?.volume ?? 70) / 100)));
-      audio.currentTime = 0;
-      audio.play().catch(()=>{});
-    }
-  }catch(e){}
+  _playAlarmBuffer();
 }
 
 window.testAlarmSound = function(){
-  const audio = document.getElementById('alarmAudio');
-  if(!audio){ alert('오디오 요소를 찾을 수 없습니다.'); return; }
-  audio.volume = Math.max(0, Math.min(1, ((S.alarms?.volume ?? 70) / 100)));
-  audio.currentTime = 0;
-  audio.play().catch(e=>{ alert('소리 재생 실패: ' + e.message + '\n\n브라우저 설정 → 이 사이트 소리 허용이 필요할 수 있습니다.'); });
-  _audioUnlocked = true;
+  // testAlarmSound 는 직접 클릭이므로 AudioContext 즉시 초기화 후 재생
+  _initAlarmAudio().then(()=>{
+    const ok = _playAlarmBuffer();
+    if(!_alarmCtx)
+      alert('오디오 초기화 실패.\n브라우저 설정에서 이 사이트의 소리를 허용해 주세요.');
+  });
 };
 
 window.toggleAlarmPanel = function(){
