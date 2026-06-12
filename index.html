@@ -947,8 +947,16 @@ function checkPending(checkHi, checkLo){
 
 /* ---------- 리셋 ---------- */
 function resetAccount(){
-  S = defaultState();
-  S.symbol = curSymbol;
+  const keep = {
+    indicators: S.indicators,
+    indDefaults: S.indDefaults,
+    leverage: S.leverage,
+    marginMode: S.marginMode,
+    interval: S.interval,
+    symbol: S.symbol,
+    alarms: S.alarms,
+  };
+  S = Object.assign(defaultState(), keep);
   save(); renderAll();
   toast("계좌가 초기화되었습니다. 5,000 USDT 지급 완료");
 }
