@@ -353,16 +353,28 @@
         <div class="row" style="gap:8px;">
           <div style="flex:1;">
             <label class="fl">TP (익절)</label>
-            <div style="display:flex;gap:3px;">
-              <div class="field" style="flex:1;min-width:0;"><input id="tp" type="number" placeholder="없음"><span class="unit" id="tpUnit">USDT</span></div>
-              <div class="field" style="width:58px;flex-shrink:0;"><input id="tpPct" type="number" placeholder="100" min="1" max="100" style="text-align:right;"><span class="unit">%</span></div>
-            </div>
+            <div class="field"><input id="tp" type="number" placeholder="없음"><span class="unit" id="tpUnit">USDT</span></div>
           </div>
           <div style="flex:1;">
             <label class="fl">SL (손절)</label>
-            <div style="display:flex;gap:3px;">
-              <div class="field" style="flex:1;min-width:0;"><input id="sl" type="number" placeholder="없음"><span class="unit" id="slUnit">USDT</span></div>
-              <div class="field" style="width:58px;flex-shrink:0;"><input id="slPct" type="number" placeholder="100" min="1" max="100" style="text-align:right;"><span class="unit">%</span></div>
+            <div class="field"><input id="sl" type="number" placeholder="없음"><span class="unit" id="slUnit">USDT</span></div>
+          </div>
+        </div>
+        <div class="row" style="gap:8px;margin-top:5px;">
+          <div style="flex:1;">
+            <label class="fl">익절 청산량</label>
+            <div style="display:flex;gap:3px;align-items:center;">
+              <div class="field" style="flex:1;min-width:0;"><input id="tpPct" type="number" placeholder="100" min="0.01"></div>
+              <button id="tpCloseUnitBtn" onclick="toggleCloseUnit('tp')"
+                style="background:var(--yellow);border:none;color:#000;border-radius:5px;padding:6px 8px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap;">%</button>
+            </div>
+          </div>
+          <div style="flex:1;">
+            <label class="fl">손절 청산량</label>
+            <div style="display:flex;gap:3px;align-items:center;">
+              <div class="field" style="flex:1;min-width:0;"><input id="slPct" type="number" placeholder="100" min="0.01"></div>
+              <button id="slCloseUnitBtn" onclick="toggleCloseUnit('sl')"
+                style="background:var(--yellow);border:none;color:#000;border-radius:5px;padding:6px 8px;font-size:10px;font-weight:700;cursor:pointer;flex-shrink:0;white-space:nowrap;">%</button>
             </div>
           </div>
         </div>
@@ -784,16 +796,17 @@ function openOrder(side){
 
   const tpRaw = parseFloat(document.getElementById("tp").value) || 0;
   const slRaw = parseFloat(document.getElementById("sl").value) || 0;
-  const tpPct = Math.min(100, Math.max(1, parseFloat(document.getElementById("tpPct").value) || 100));
-  const slPct = Math.min(100, Math.max(1, parseFloat(document.getElementById("slPct").value) || 100));
+  const tpCloseAmt = Math.max(0.01, parseFloat(document.getElementById("tpPct").value) || (tpCloseMode==='pct'?100:0));
+  const slCloseAmt = Math.max(0.01, parseFloat(document.getElementById("slPct").value) || (slCloseMode==='pct'?100:0));
 
   if(ot==="limit"){
-    S.pending.push({id:uid(), kind:"limit", side, qty, price, tpRaw, slRaw, tpMode:tpSlMode, tpPct, slPct});
+    S.pending.push({id:uid(), kind:"limit", side, qty, price, tpRaw, slRaw, tpMode:tpSlMode,
+      tpCloseAmt, slCloseAmt, tpCloseMode, slCloseMode});
     toast(`지정가 ${side==="long"?"롱":"숏"} 주문 등록 (${fmtPrice(price)})`);
   } else {
     applyFill(side, qty, price, TAKER);
     playBeep('fill');
-    if(tpRaw>0 || slRaw>0){ const ts=makeTpSl(side, price, tpRaw, slRaw, tpSlMode); applyTpSlOrders(side, ts.tp, ts.sl, tpPct, slPct); }
+    if(tpRaw>0 || slRaw>0){ const ts=makeTpSl(side, price, tpRaw, slRaw, tpSlMode); applyTpSlOrders(side, ts.tp, ts.sl, tpCloseAmt, slCloseAmt, tpCloseMode, slCloseMode); }
     toast(`${side==="long"?"롱":"숏"} 진입 체결 @ ${fmtPrice(price)}`);
   }
   document.getElementById("tp").value=""; document.getElementById("sl").value="";
@@ -817,23 +830,26 @@ function makeTpSl(side, refPrice, tpRaw, slRaw, mode){
 }
 
 /* 방향 검증 후 TP/SL 주문 객체 생성 (부작용 없음 · 100% 청산형) */
-function buildTpSlOrders(side, tp, sl, tpPct=100, slPct=100){
+function buildTpSlOrders(side, tp, sl, tpCloseAmt=100, slCloseAmt=100, tpCloseMode='pct', slCloseMode='pct'){
   const out=[];
   const ref = lastPrice || markPrice;
   if(tp>0){
-    if((side==="long"&&tp>ref)||(side==="short"&&tp<ref)) out.push({id:uid(), kind:"tp", side, price:tp, pct:Math.min(100,Math.max(1,tpPct||100))});
+    if((side==="long"&&tp>ref)||(side==="short"&&tp<ref))
+      out.push({id:uid(), kind:"tp", side, price:tp, closeAmt:tpCloseAmt, closeMode:tpCloseMode});
     else toast("TP 가격 방향이 올바르지 않아 무시했습니다 (롱: 현재가보다 높게 / 숏: 낮게).");
   }
   if(sl>0){
-    if((side==="long"&&sl<ref)||(side==="short"&&sl>ref)) out.push({id:uid(), kind:"sl", side, price:sl, pct:Math.min(100,Math.max(1,slPct||100))});
+    if((side==="long"&&sl<ref)||(side==="short"&&sl>ref))
+      out.push({id:uid(), kind:"sl", side, price:sl, closeAmt:slCloseAmt, closeMode:slCloseMode});
     else toast("SL 가격 방향이 올바르지 않아 무시했습니다 (롱: 현재가보다 낮게 / 숏: 높게).");
   }
   return out;
 }
 
 /* 기존 TP/SL 주문을 교체 */
-function applyTpSlOrders(side, tp, sl, tpPct=100, slPct=100){
-  S.pending = S.pending.filter(o=>o.kind!=="tp"&&o.kind!=="sl").concat(buildTpSlOrders(side, tp, sl, tpPct, slPct));
+function applyTpSlOrders(side, tp, sl, tpCloseAmt=100, slCloseAmt=100, tpCloseMode='pct', slCloseMode='pct'){
+  S.pending = S.pending.filter(o=>o.kind!=="tp"&&o.kind!=="sl")
+    .concat(buildTpSlOrders(side, tp, sl, tpCloseAmt, slCloseAmt, tpCloseMode, slCloseMode));
   updatePriceLines();
 }
 
@@ -884,12 +900,16 @@ window.applyPosTpSl = function(){
   const p = S.position;
   const tpv = parseFloat(document.getElementById('posTpIn').value) || 0;
   const slv = parseFloat(document.getElementById('posSlIn').value) || 0;
+  const tpCA = Math.max(0.01, parseFloat(document.getElementById('posTpCloseAmt')?.value) || 100);
+  const slCA = Math.max(0.01, parseFloat(document.getElementById('posSlCloseAmt')?.value) || 100);
+  let tp, sl;
   if(posTpSlMode==='pct'){
-    const ts = makeTpSl(p.side, p.entry, tpv, slv, 'pct');   // 진입가 기준 %
-    applyTpSlOrders(p.side, ts.tp, ts.sl);
+    const ts = makeTpSl(p.side, p.entry, tpv, slv, 'pct');
+    tp = ts.tp; sl = ts.sl;
   }else{
-    applyTpSlOrders(p.side, tpv>0?tpv:null, slv>0?slv:null);
+    tp = tpv>0?tpv:null; sl = slv>0?slv:null;
   }
+  applyTpSlOrders(p.side, tp, sl, tpCA, slCA, posTpCloseMode, posSlCloseMode);
   save(); renderAll();
   toast('TP/SL이 설정되었습니다.');
 };
@@ -994,7 +1014,9 @@ function checkPending(checkHi, checkLo){
         toast(`지정가 체결 @ ${fmtPrice(o.price)}`);
         if((o.tpRaw>0 || o.slRaw>0) && S.position){
           const ts = makeTpSl(o.side, o.price, o.tpRaw, o.slRaw, o.tpMode);
-          toAdd.push(...buildTpSlOrders(o.side, ts.tp, ts.sl, o.tpPct??100, o.slPct??100));
+          toAdd.push(...buildTpSlOrders(o.side, ts.tp, ts.sl,
+            o.tpCloseAmt??o.tpPct??100, o.slCloseAmt??o.slPct??100,
+            o.tpCloseMode??'pct', o.slCloseMode??'pct'));
         }
         continue;
       }
@@ -1009,10 +1031,17 @@ function checkPending(checkHi, checkLo){
     if(fill){
       const _px = lastPrice || markPrice;
       if(!(_px > 0)){ remain.push(o); continue; }
-      const frac = Math.min(1, Math.max(0.01, (o.pct ?? 100) / 100));
-      const pctLabel = frac < 1 ? ` (${Math.round(frac*100)}%)` : '';
+      const cm  = o.closeMode ?? 'pct';
+      const amt = o.closeAmt  ?? o.pct ?? 100;
+      let frac;
+      if(cm === 'usdt' && amt > 0 && S.position){
+        frac = Math.min(1, Math.max(0.001, amt / (S.position.qty * _px)));
+      } else {
+        frac = Math.min(1, Math.max(0.001, amt / 100));
+      }
+      const lbl = frac < 0.999 ? ` (${cm==='usdt'?'$'+fmt(amt,0):Math.round(frac*100)+'%'})` : '';
       playBeep(o.kind);
-      closePosition(frac, o.kind==="tp" ? `TP 익절${pctLabel}` : `SL 손절${pctLabel}`);
+      closePosition(frac, o.kind==="tp" ? `TP 익절${lbl}` : `SL 손절${lbl}`);
       if(!S.position) closed = true;
       continue;
     }
@@ -1154,6 +1183,19 @@ function renderPositions(){
         <button class="closebtn go" onclick="applyPosTpSl()">적용</button>
         <button class="closebtn" onclick="clearPosTpSl()">해제</button>
       </div>
+      <div class="pc-row" style="flex-wrap:wrap;gap:4px;">
+        <span class="pc-lb">청산량</span>
+        <span style="font-size:10px;color:var(--muted);">익절</span>
+        <input id="posTpCloseAmt" type="number" placeholder="${posTpCloseMode==='pct'?'100':'USDT금액'}" class="pc-in2"
+          value="${tpO&&(tpO.closeAmt!=null)&&(tpO.closeMode==='usdt'||tpO.closeAmt<100)?tpO.closeAmt:''}">
+        <button id="posTpCloseUnitBtn" onclick="togglePosCloseUnit('tp')"
+          style="background:var(--yellow);border:none;color:#000;border-radius:4px;padding:3px 7px;font-size:10px;font-weight:700;cursor:pointer;">${posTpCloseMode==='pct'?'%':'USDT'}</button>
+        <span style="font-size:10px;color:var(--muted);margin-left:4px;">손절</span>
+        <input id="posSlCloseAmt" type="number" placeholder="${posSlCloseMode==='pct'?'100':'USDT금액'}" class="pc-in2"
+          value="${slO&&(slO.closeAmt!=null)&&(slO.closeMode==='usdt'||slO.closeAmt<100)?slO.closeAmt:''}">
+        <button id="posSlCloseUnitBtn" onclick="togglePosCloseUnit('sl')"
+          style="background:var(--yellow);border:none;color:#000;border-radius:4px;padding:3px 7px;font-size:10px;font-weight:700;cursor:pointer;">${posSlCloseMode==='pct'?'%':'USDT'}</button>
+      </div>
     </div>`;
   // 표(라이브)는 매번 갱신, 제어판(입력칸)은 포지션 생성/모드변경 때만 → 입력 중 값 보존
   if(!posCtlRendered || posCtlModeShown!==posTpSlMode){
@@ -1177,12 +1219,18 @@ function renderOrders(){
       let tpStr='-', slStr='-';
       if(o.kind==='limit'){
         const ts = makeTpSl(o.side, o.price, o.tpRaw||0, o.slRaw||0, o.tpMode||'price');
-        if(ts.tp) tpStr = fmtPrice(ts.tp) + ((o.tpPct??100)<100 ? `<br><span style="font-size:10px;color:var(--muted)">${o.tpPct}%청산</span>` : '');
-        if(ts.sl) slStr = fmtPrice(ts.sl) + ((o.slPct??100)<100 ? `<br><span style="font-size:10px;color:var(--muted)">${o.slPct}%청산</span>` : '');
+        const tpCA = o.tpCloseAmt??o.tpPct??100, tpCM = o.tpCloseMode??'pct';
+        const slCA = o.slCloseAmt??o.slPct??100, slCM = o.slCloseMode??'pct';
+        const _lbl = (ca,cm)=> cm==='usdt'&&ca>0 ? `<br><span style="font-size:10px;color:var(--muted)">$${fmt(ca,0)}청산</span>`
+          : cm==='pct'&&ca<100 ? `<br><span style="font-size:10px;color:var(--muted)">${ca}%청산</span>` : '';
+        if(ts.tp) tpStr = fmtPrice(ts.tp)+_lbl(tpCA,tpCM);
+        if(ts.sl) slStr = fmtPrice(ts.sl)+_lbl(slCA,slCM);
       } else {
-        const pctLabel = (o.pct??100)<100 ? `<br><span style="font-size:10px;color:var(--muted)">${o.pct}%</span>` : '';
-        if(o.kind==='tp') tpStr = fmtPrice(o.price)+pctLabel;
-        if(o.kind==='sl') slStr = fmtPrice(o.price)+pctLabel;
+        const ca = o.closeAmt??o.pct??100, cm = o.closeMode??'pct';
+        const sub = cm==='usdt'&&ca>0 ? `<br><span style="font-size:10px;color:var(--muted)">$${fmt(ca,0)}청산</span>`
+          : cm==='pct'&&ca<100 ? `<br><span style="font-size:10px;color:var(--muted)">${ca}%청산</span>` : '';
+        if(o.kind==='tp') tpStr = fmtPrice(o.price)+sub;
+        if(o.kind==='sl') slStr = fmtPrice(o.price)+sub;
       }
       const sideLabel = o.kind==='limit'?(o.side==='long'?'롱':'숏'):'청산';
       const qtyLabel  = o.kind==='limit' ? fmtQty(o.qty) : ((o.pct??100)<100?`${o.pct}%`:'전량');
@@ -1970,6 +2018,41 @@ function changeSymbol(sym){
 let orderType = "market";
 let tpSlMode = "price";
 let posTpSlMode = "price";   // 보유 포지션 TP/SL 입력 모드 (가격/%)
+let tpCloseMode = "pct";     // 주문폼 익절 청산량 단위 (pct=% / usdt=USDT)
+let slCloseMode = "pct";     // 주문폼 손절 청산량 단위
+let posTpCloseMode = "pct";  // 포지션탭 익절 청산량 단위
+let posSlCloseMode = "pct";  // 포지션탭 손절 청산량 단위
+
+window.toggleCloseUnit = function(which){
+  if(which==='tp'){
+    tpCloseMode = tpCloseMode==='pct' ? 'usdt' : 'pct';
+    const btn = document.getElementById('tpCloseUnitBtn');
+    const inp = document.getElementById('tpPct');
+    if(btn){ btn.textContent = tpCloseMode==='pct'?'%':'USDT'; }
+    if(inp){ inp.placeholder = tpCloseMode==='pct'?'100':'USDT금액'; inp.value=''; }
+  } else {
+    slCloseMode = slCloseMode==='pct' ? 'usdt' : 'pct';
+    const btn = document.getElementById('slCloseUnitBtn');
+    const inp = document.getElementById('slPct');
+    if(btn){ btn.textContent = slCloseMode==='pct'?'%':'USDT'; }
+    if(inp){ inp.placeholder = slCloseMode==='pct'?'100':'USDT금액'; inp.value=''; }
+  }
+};
+window.togglePosCloseUnit = function(which){
+  if(which==='tp'){
+    posTpCloseMode = posTpCloseMode==='pct' ? 'usdt' : 'pct';
+    const btn = document.getElementById('posTpCloseUnitBtn');
+    const inp = document.getElementById('posTpCloseAmt');
+    if(btn){ btn.textContent = posTpCloseMode==='pct'?'%':'USDT'; }
+    if(inp){ inp.placeholder = posTpCloseMode==='pct'?'100':'USDT금액'; inp.value=''; }
+  } else {
+    posSlCloseMode = posSlCloseMode==='pct' ? 'usdt' : 'pct';
+    const btn = document.getElementById('posSlCloseUnitBtn');
+    const inp = document.getElementById('posSlCloseAmt');
+    if(btn){ btn.textContent = posSlCloseMode==='pct'?'%':'USDT'; }
+    if(inp){ inp.placeholder = posSlCloseMode==='pct'?'100':'USDT금액'; inp.value=''; }
+  }
+};
 
 function bindUI(){
   // 심볼 선택
