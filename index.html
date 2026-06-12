@@ -1774,6 +1774,7 @@ function connectWS(){
     if(!d) return;
     if(d.e==="markPriceUpdate"){
       markPrice=+d.p; lastPrice=markPrice; fundingRate=+d.r; nextFundingT=+d.T;
+      liveTick(lastPrice);  // kline 스트림 불안정 대비 — 봉 고/저가 누적 + checkPending
       onTick();
     } else if(d.e==="24hrTicker"){
       prevClose24=+d.o; high24=+d.h; low24=+d.l;
