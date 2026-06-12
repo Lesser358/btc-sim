@@ -705,22 +705,24 @@ function applyFill(side, qty, price, feeRate){
       S.walletBalance += realized;
       p.qty -= qty;
       p.margin = (p.qty*p.entry)/S.leverage;
-      logHist("감소", side, qty, price, realized, fee);
+      logHist("감소", side, qty, price, realized, fee, (qty*p.entry/S.leverage)>0?(realized/(qty*p.entry/S.leverage)*100):0);
       finishFill(); return;
     } else if(Math.abs(qty-p.qty)<1e-9){
       const realized = p.side==="long" ? (price-p.entry)*qty : (p.entry-price)*qty;
       S.walletBalance += realized;
+      const _roe2 = (qty*p.entry/S.leverage)>0?(realized/(qty*p.entry/S.leverage)*100):0;
       S.position = null;
       cancelReduceOnly();
-      logHist("종료", side, qty, price, realized, fee);
+      logHist("종료", side, qty, price, realized, fee, _roe2);
       finishFill(); return;
     } else {
       const closeQty = p.qty;
       const realized = p.side==="long" ? (price-p.entry)*closeQty : (p.entry-price)*closeQty;
       S.walletBalance += realized;
+      const _roe3 = (closeQty*p.entry/S.leverage)>0?(realized/(closeQty*p.entry/S.leverage)*100):0;
       const rem = qty - closeQty;
       S.position = {side, qty:rem, entry:price, margin:(rem*price)/S.leverage, openTime:Date.now()};
-      logHist("전환", side, qty, price, realized, fee);
+      logHist("전환", side, qty, price, realized, fee, _roe3);
       finishFill(); return;
     }
   }
@@ -809,7 +811,8 @@ function closePosition(fraction, label){
   p.qty -= qty;
   if(p.qty<1e-8){ S.position=null; cancelReduceOnly(); }
   else p.margin = (p.qty*p.entry)/S.leverage;
-  logHist(frac>=1?"종료":"부분종료", p.side==="long"?"short":"long", qty, price, realized, fee);
+  const _roe = (qty*p.entry/S.leverage)>0?(realized/(qty*p.entry/S.leverage)*100):0;
+  logHist(frac>=1?"종료":"부분종료", p.side==="long"?"short":"long", qty, price, realized, fee, _roe);
   addMarker(); updatePriceLines(); save(); renderAll();
   toast(`${label||'청산'} @ ${fmtPrice(price)} · 손익 ${fmtUsd(realized)} USDT`);
 }
@@ -859,8 +862,8 @@ window.clearPosTpSl = function(){
 function cancelReduceOnly(){ S.pending = S.pending.filter(o=>o.kind==="limit"); }
 function cancelOrder(id){ S.pending = S.pending.filter(o=>o.id!==id); updatePriceLines(); save(); renderAll(); }
 
-function logHist(type, side, qty, price, pnl, fee){
-  S.history.unshift({time:Date.now(), type, side, qty, price, pnl, fee});
+function logHist(type, side, qty, price, pnl, fee, roe=0){
+  S.history.unshift({time:Date.now(), type, side, qty, price, pnl, fee, roe});
   if(S.history.length>200) S.history.length=200;
 }
 
@@ -890,7 +893,7 @@ function checkLiquidation(){
     const lostMargin = (S.marginMode==="cross") ? S.walletBalance : p.margin;
     if(S.marginMode==="cross") S.walletBalance = 0;
     else S.walletBalance -= p.margin;
-    logHist("강제청산", p.side==="long"?"short":"long", p.qty, liq, -lostMargin, 0);
+    logHist("강제청산", p.side==="long"?"short":"long", p.qty, liq, -lostMargin, 0, -100);
     S.position = null;
     cancelReduceOnly();
     playBeep('liq');
@@ -929,6 +932,8 @@ function checkPending(checkHi, checkLo){
     if(o.kind==="tp") fill = ps==="long" ? hi>=o.price : lo<=o.price;
     else if(o.kind==="sl") fill = ps==="long" ? lo<=o.price : hi>=o.price;
     if(fill){
+      const _px = lastPrice || markPrice;
+      if(!(_px > 0)){ remain.push(o); continue; }
       playBeep(o.kind);
       closePosition(1, o.kind==="tp" ? "TP 익절" : "SL 손절");
       closed = true;
@@ -1027,11 +1032,14 @@ function renderPositions(){
   const tpO = S.pending.find(o=>o.kind==='tp');
   const slO = S.pending.find(o=>o.kind==='sl');
   const notional = p.qty*markPrice;
+  const _ot = p.openTime ? new Date(p.openTime) : null;
+  const otStr = _ot ? `${String(_ot.getMonth()+1).padStart(2,'0')}/${String(_ot.getDate()).padStart(2,'0')} ${String(_ot.getHours()).padStart(2,'0')}:${String(_ot.getMinutes()).padStart(2,'0')}` : '-';
   const tableHtml = `<div class="tblwrap"><table><thead><tr>
-    <th>방향</th><th>수량</th><th>가치(USDT)</th><th>진입가</th><th>마크가</th><th>청산가</th>
+    <th>방향</th><th>진입시간</th><th>수량</th><th>가치(USDT)</th><th>진입가</th><th>마크가</th><th>청산가</th>
     <th>증거금</th><th>손익(USDT)</th><th>ROE</th><th>TP</th><th>SL</th></tr></thead><tbody>
     <tr>
       <td class="${p.side==='long'?'green':'red'}">${p.side==='long'?'롱':'숏'} ${S.leverage}x</td>
+      <td class="muted">${otStr}</td>
       <td>${fmtQty(p.qty)}</td><td>${fmt(notional,2)}</td>
       <td>${fmtPrice(p.entry)}</td><td>${fmtPrice(markPrice)}</td>
       <td class="yellow">${liq?fmtPrice(liq):'-'}</td>
@@ -1116,15 +1124,18 @@ function renderHistory(){
   }
   el.innerHTML = statsHtml +
     `<div class="tblwrap"><table><thead><tr>
-      <th>시간</th><th>구분</th><th>수량</th><th>가격</th><th>실현손익</th><th>수수료</th>
+      <th>날짜·시간</th><th>구분</th><th>수량</th><th>가격</th><th>실현손익</th><th>ROE</th><th>수수료</th>
     </tr></thead><tbody>`+
     S.history.map(h=>{
       const t = new Date(h.time);
-      const ts = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
+      const ts = `${String(t.getMonth()+1).padStart(2,'0')}/${String(t.getDate()).padStart(2,'0')} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
       const col = h.type==="강제청산"?"red":(h.pnl>0?"green":h.pnl<0?"red":"");
+      const roe = h.roe ?? 0;
+      const roeStr = h.pnl!==0 ? `${roe>=0?'+':''}${fmt(roe,1)}%` : '-';
       return `<tr><td>${ts}</td><td class="${col}">${h.type}</td>
         <td>${fmtQty(h.qty)}</td><td>${fmtPrice(h.price)}</td>
         <td class="${h.pnl>=0?'green':'red'}">${h.pnl!==undefined&&h.pnl!==0?fmtUsd(h.pnl):'-'}</td>
+        <td class="${roe>=0?'green':'red'}">${roeStr}</td>
         <td class="muted">${fmt(h.fee,3)}</td></tr>`;
     }).join("")+`</tbody></table></div>`;
 }
