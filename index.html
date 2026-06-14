@@ -2166,6 +2166,7 @@ function connectWS(){
     clearTimeout(wsMsgTimer);
     wsRetry++;
     if(wsRetry <= 3){
+      setConn("wait","● 재연결 중...");
       setTimeout(connectWS, Math.min(6000, 1500*wsRetry));
     } else {
       wsGaveUp = true;
@@ -2392,7 +2393,7 @@ function loadDrawings(){
   });
   return arr;
 }
-function saveDrawings(){ try{ localStorage.setItem(drawKey(), JSON.stringify(drawings)); }catch(e){} }
+function saveDrawings(){ try{ localStorage.setItem(drawKey(), JSON.stringify(drawings)); }catch(e){} scheduleSyncSave(); }
 
 function defColor(type){ return type==='long'?'#0ecb81': type==='short'?'#f6465d': type==='fib'?'#2962ff': type==='channel'?'#a855f7': type==='text'?'#e2e8f0':'#f0b90b'; }
 function mkShape(type, pts){ return { id:uid(), type, pts, color:defColor(type) }; }
@@ -2855,7 +2856,7 @@ const fbAuth = firebase.auth();
 const fbDb   = firebase.firestore();
 
 const ADMIN_USERNAME = 'admin';
-let fbUser = null, fbUsername = '', fbIsAdmin = false, _syncTimer = null;
+let fbUser = null, fbUsername = '', fbIsAdmin = false, _syncTimer = null, _cloudListener = null, _lastSelfSaveTime = 0;
 
 function toFbEmail(id){ return id.toLowerCase().replace(/[^a-z0-9_]/g,'')+'@btcsim.local'; }
 
@@ -2949,6 +2950,7 @@ async function doSyncSave(){
       const k=localStorage.key(i);
       if(k && k.startsWith('btcSim_drawings_')) drawings[k]=localStorage.getItem(k);
     }
+    _lastSelfSaveTime = Date.now();
     await fbDb.collection('users').doc(fbUser.uid).collection('data').doc('state').set({
       state   : JSON.stringify(S),
       drawings: JSON.stringify(drawings),
@@ -2959,31 +2961,37 @@ async function doSyncSave(){
   } catch(e){ setSyncStatus('저장 실패'); }
 }
 
-/* ---- 클라우드에서 불러오기 ---- */
-async function loadFromCloud(){
+/* ---- 클라우드 데이터 적용 (공통) ---- */
+function applyCloudData(d){
+  if(d.state){
+    localStorage.setItem('btcSimState', d.state);
+    const loaded = JSON.parse(d.state);
+    Object.assign(S, defaultState(), loaded);
+  }
+  if(d.drawings){
+    Object.entries(JSON.parse(d.drawings)).forEach(([k,v])=>localStorage.setItem(k,v));
+    drawings = loadDrawings();
+    redrawDrawings();
+  }
+  renderAll();
+  renderAllIndicators();
+  renderIndicatorChips();
+}
+
+/* ---- 실시간 클라우드 리스너 (로그인 시 시작, 로그아웃 시 해제) ---- */
+function startCloudListener(){
+  if(_cloudListener){ _cloudListener(); _cloudListener = null; }
   if(!fbUser) return;
-  try{
-    setSyncStatus('불러오는 중...');
-    const doc = await fbDb.collection('users').doc(fbUser.uid).collection('data').doc('state').get();
-    if(doc.exists){
-      const d = doc.data();
-      if(d.state){
-        localStorage.setItem('btcSimState', d.state);
-        const loaded = JSON.parse(d.state);
-        Object.assign(S, defaultState(), loaded);
-      }
-      if(d.drawings){
-        Object.entries(JSON.parse(d.drawings)).forEach(([k,v])=>localStorage.setItem(k,v));
-        drawings = loadDrawings();
-        redrawDrawings();
-      }
-      renderAll();
-      renderAllIndicators();
-      renderIndicatorChips();
-      setSyncStatus('✓ 불러옴');
+  setSyncStatus('불러오는 중...');
+  _cloudListener = fbDb.collection('users').doc(fbUser.uid).collection('data').doc('state')
+    .onSnapshot(doc => {
+      if(!doc.exists){ setSyncStatus(''); return; }
+      // 내 기기가 방금 저장한 것이면 무시 (6초 이내)
+      if(Date.now() - _lastSelfSaveTime < 6000){ setSyncStatus('✓ 저장됨'); setTimeout(()=>setSyncStatus(''),3000); return; }
+      applyCloudData(doc.data());
+      setSyncStatus('✓ 동기화됨');
       setTimeout(()=>setSyncStatus(''), 3000);
-    } else { setSyncStatus(''); }
-  } catch(e){ setSyncStatus('불러오기 실패'); }
+    }, err=>{ setSyncStatus('동기화 오류'); });
 }
 
 function setSyncStatus(msg){ const el=document.getElementById('syncStatus'); if(el) el.textContent=msg; }
@@ -3035,8 +3043,9 @@ fbAuth.onAuthStateChanged(async (user)=>{
     fbIsAdmin  = doc.exists && doc.data().role === 'admin';
     hideAuth();
     renderUserBadge();
-    await loadFromCloud();
+    startCloudListener();
   } else {
+    if(_cloudListener){ _cloudListener(); _cloudListener=null; }
     fbUser=null; fbUsername=''; fbIsAdmin=false;
     renderUserBadge();
     showAuth();
