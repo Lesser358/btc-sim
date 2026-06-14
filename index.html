@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>선물 모의투자 (바이낸스 기준)</title>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
   :root{
     --bg:#0b0e11; --panel:#161a1e; --panel2:#1e2329; --line:#2a2f36;
@@ -219,9 +222,70 @@
     border-radius:8px;font-size:13px;z-index:200;opacity:0;transition:.3s;pointer-events:none;}
   #toast.show{opacity:1;}
   .hint{font-size:11px;color:var(--muted);padding:0 12px 12px;line-height:1.5;}
+
+  /* ===== 인증 모달 ===== */
+  #authOverlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:10000;display:flex;align-items:center;justify-content:center;}
+  #authBox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:32px 28px;width:340px;max-width:92vw;}
+  .auth-logo{text-align:center;font-size:22px;font-weight:700;color:var(--yellow);margin-bottom:4px;}
+  .auth-sub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:22px;}
+  .auth-field{margin-bottom:13px;}
+  .auth-field label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;}
+  .auth-field input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:10px 12px;font-size:13px;outline:none;}
+  .auth-field input:focus{border-color:var(--yellow);}
+  .auth-btn{width:100%;padding:11px;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:9px;transition:opacity .15s;}
+  .auth-btn:disabled{opacity:.5;cursor:default;}
+  .auth-btn.primary{background:var(--yellow);color:#000;}
+  .auth-btn.secondary{background:var(--panel2);border:1px solid var(--line);color:var(--text);}
+  .auth-err{color:var(--red);font-size:11px;text-align:center;margin-bottom:10px;min-height:15px;}
+  .auth-toggle{font-size:11px;color:var(--muted);text-align:center;}
+  .auth-toggle span{color:var(--yellow);cursor:pointer;text-decoration:underline;}
+  /* 헤더 유저 뱃지 */
+  #userBadge{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+  #userBadge .uname{font-size:11px;color:var(--text);}
+  #userBadge .admin-tag{background:var(--yellow);color:#000;border-radius:3px;padding:1px 5px;font-size:10px;font-weight:700;}
+  #userBadge .sync-st{font-size:10px;color:var(--muted);}
+  #userBadge button{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:4px;padding:3px 8px;font-size:10px;cursor:pointer;}
+  #userBadge button:hover{color:var(--text);}
+  /* 관리자 패널 */
+  #adminOverlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:10000;display:none;align-items:center;justify-content:center;}
+  #adminBox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;width:520px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;}
+  #adminUserList{overflow-y:auto;flex:1;}
+  .adm-row{display:grid;grid-template-columns:1fr 70px 90px 60px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--line);font-size:12px;gap:8px;}
+  .adm-head{font-size:11px;color:var(--muted);font-weight:600;}
 </style>
 </head>
 <body>
+
+<!-- ===== 로그인 / 회원가입 모달 ===== -->
+<div id="authOverlay">
+  <div id="authBox">
+    <div class="auth-logo">🪙 BTC 선물 모의투자</div>
+    <div class="auth-sub" id="authSubtitle">계정에 로그인하세요</div>
+    <div class="auth-err" id="authErr"></div>
+    <div class="auth-field">
+      <label>아이디</label>
+      <input id="authId" type="text" placeholder="아이디 입력" autocomplete="username" spellcheck="false">
+    </div>
+    <div class="auth-field">
+      <label>비밀번호</label>
+      <input id="authPw" type="password" placeholder="6자 이상" autocomplete="current-password">
+    </div>
+    <button class="auth-btn primary" id="authSubmitBtn">로그인</button>
+    <div class="auth-toggle">계정이 없으신가요? <span id="authToggleLink">회원가입</span></div>
+  </div>
+</div>
+
+<!-- ===== 관리자 패널 ===== -->
+<div id="adminOverlay" onclick="if(event.target===this)closeAdminPanel()">
+  <div id="adminBox">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <span style="font-size:15px;font-weight:700;">👑 관리자 패널</span>
+      <button onclick="closeAdminPanel()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;">✕</button>
+    </div>
+    <div class="adm-row adm-head"><span>아이디</span><span>등급</span><span>가입일</span><span></span></div>
+    <div id="adminUserList"><div style="color:var(--muted);font-size:12px;padding:12px 0;">불러오는 중...</div></div>
+  </div>
+</div>
 
 <header>
   <div class="sym">
@@ -242,6 +306,7 @@
   <div class="stat"><span class="l">펀딩 / 남은시간</span><span class="v" id="funding">-</span></div>
   <div class="spacer"></div>
   <div class="stat"><span class="l">총 자산(USDT)</span><span class="v yellow" id="equityTop">-</span></div>
+  <div id="userBadge"></div>
   <div id="conn" class="wait">● 연결 중...</div>
 </header>
 
@@ -639,7 +704,10 @@ function loadState(){
   }catch(e){}
   return defaultState();
 }
-function save(){ try{ localStorage.setItem("btcSimState", JSON.stringify(S)); }catch(e){} }
+function save(){
+  try{ localStorage.setItem("btcSimState", JSON.stringify(S)); }catch(e){}
+  scheduleSyncSave();
+}
 
 /* ---------- 심볼 ---------- */
 let curSymbol = S.symbol || "btcusdt";
@@ -2772,6 +2840,206 @@ async function pollLoop(){
 setInterval(pollLoop, 1000);
 // 200ms마다 forming candle 갱신 — 추가 API 없이 이미 받은 lastPrice로 차트 부드럽게
 setInterval(()=>{ if(lastPrice>0) liveTick(lastPrice); }, 200);
+
+/* ===================== Firebase 인증 ===================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyB10Z2rdVwlJSGAH818sgPn-VSC78isJtc",
+  authDomain: "btc-sim.firebaseapp.com",
+  projectId: "btc-sim",
+  storageBucket: "btc-sim.firebasestorage.app",
+  messagingSenderId: "802643041993",
+  appId: "1:802643041993:web:b93faf2b9b5adcf90bf718"
+};
+firebase.initializeApp(firebaseConfig);
+const fbAuth = firebase.auth();
+const fbDb   = firebase.firestore();
+
+const ADMIN_USERNAME = 'admin';
+let fbUser = null, fbUsername = '', fbIsAdmin = false, _syncTimer = null;
+
+function toFbEmail(id){ return id.toLowerCase().replace(/[^a-z0-9_]/g,'')+'@btcsim.local'; }
+
+/* ---- 모달 표시/숨김 ---- */
+function showAuth(){ document.getElementById('authOverlay').style.display='flex'; }
+function hideAuth(){ document.getElementById('authOverlay').style.display='none'; }
+
+/* ---- 헤더 뱃지 렌더링 ---- */
+function renderUserBadge(){
+  const el = document.getElementById('userBadge');
+  if(!el) return;
+  if(!fbUser){ el.innerHTML=''; return; }
+  el.innerHTML = `
+    <span class="uname">👤 ${fbUsername}</span>
+    ${fbIsAdmin ? '<span class="admin-tag">관리자</span>' : ''}
+    ${fbIsAdmin ? '<button onclick="openAdminPanel()">관리자 패널</button>' : ''}
+    <button onclick="fbLogout()">로그아웃</button>
+    <span class="sync-st" id="syncStatus"></span>
+  `;
+}
+
+/* ---- 로그인/회원가입 모드 전환 ---- */
+let authMode = 'login';
+document.getElementById('authToggleLink').onclick = ()=>{
+  authMode = authMode==='login' ? 'register' : 'login';
+  document.getElementById('authSubtitle').textContent  = authMode==='login' ? '계정에 로그인하세요' : '새 계정을 만드세요';
+  document.getElementById('authSubmitBtn').textContent = authMode==='login' ? '로그인' : '회원가입';
+  document.getElementById('authToggleLink').textContent= authMode==='login' ? '회원가입' : '로그인으로 돌아가기';
+  document.getElementById('authErr').textContent = '';
+};
+document.getElementById('authId').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('authPw').focus(); });
+document.getElementById('authPw').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('authSubmitBtn').click(); });
+
+/* ---- 제출 처리 ---- */
+document.getElementById('authSubmitBtn').onclick = async ()=>{
+  const id  = document.getElementById('authId').value.trim();
+  const pw  = document.getElementById('authPw').value;
+  const err = document.getElementById('authErr');
+  err.textContent = '';
+  if(!id || id.length < 2){ err.textContent = '아이디는 2자 이상이어야 합니다.'; return; }
+  if(!pw || pw.length < 6){ err.textContent = '비밀번호는 6자 이상이어야 합니다.'; return; }
+  const btn = document.getElementById('authSubmitBtn');
+  btn.disabled = true; btn.textContent = '처리 중...';
+  try{
+    const email = toFbEmail(id);
+    if(authMode === 'register'){
+      const dup = await fbDb.collection('users').where('username','==',id.toLowerCase()).get();
+      if(!dup.empty){ err.textContent = '이미 사용 중인 아이디입니다.'; return; }
+      const cred = await fbAuth.createUserWithEmailAndPassword(email, pw);
+      await fbDb.collection('users').doc(cred.user.uid).set({
+        username: id.toLowerCase(),
+        role: id.toLowerCase()===ADMIN_USERNAME ? 'admin' : 'user',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } else {
+      await fbAuth.signInWithEmailAndPassword(email, pw);
+    }
+  } catch(e){
+    const msgs = {
+      'auth/user-not-found'      :'아이디 또는 비밀번호가 올바르지 않습니다.',
+      'auth/wrong-password'      :'아이디 또는 비밀번호가 올바르지 않습니다.',
+      'auth/invalid-credential'  :'아이디 또는 비밀번호가 올바르지 않습니다.',
+      'auth/email-already-in-use':'이미 사용 중인 아이디입니다.',
+      'auth/too-many-requests'   :'잠시 후 다시 시도해주세요.',
+    };
+    err.textContent = msgs[e.code] || '오류: '+e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = authMode==='login' ? '로그인' : '회원가입';
+  }
+};
+
+/* ---- 로그아웃 ---- */
+window.fbLogout = async function(){
+  if(!confirm('로그아웃 하시겠습니까?')) return;
+  await fbAuth.signOut();
+};
+
+/* ---- 클라우드 저장 (2초 디바운스) ---- */
+function scheduleSyncSave(){
+  if(!fbUser) return;
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(doSyncSave, 2000);
+}
+async function doSyncSave(){
+  if(!fbUser) return;
+  try{
+    setSyncStatus('저장 중...');
+    const drawings = {};
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k && k.startsWith('btcSim_drawings_')) drawings[k]=localStorage.getItem(k);
+    }
+    await fbDb.collection('users').doc(fbUser.uid).collection('data').doc('state').set({
+      state   : JSON.stringify(S),
+      drawings: JSON.stringify(drawings),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    setSyncStatus('✓ 저장됨');
+    setTimeout(()=>setSyncStatus(''), 3000);
+  } catch(e){ setSyncStatus('저장 실패'); }
+}
+
+/* ---- 클라우드에서 불러오기 ---- */
+async function loadFromCloud(){
+  if(!fbUser) return;
+  try{
+    setSyncStatus('불러오는 중...');
+    const doc = await fbDb.collection('users').doc(fbUser.uid).collection('data').doc('state').get();
+    if(doc.exists){
+      const d = doc.data();
+      if(d.state){
+        localStorage.setItem('btcSimState', d.state);
+        const loaded = JSON.parse(d.state);
+        Object.assign(S, defaultState(), loaded);
+      }
+      if(d.drawings){
+        Object.entries(JSON.parse(d.drawings)).forEach(([k,v])=>localStorage.setItem(k,v));
+        drawings = loadDrawings();
+        redrawDrawings();
+      }
+      renderAll();
+      setSyncStatus('✓ 불러옴');
+      setTimeout(()=>setSyncStatus(''), 3000);
+    } else { setSyncStatus(''); }
+  } catch(e){ setSyncStatus('불러오기 실패'); }
+}
+
+function setSyncStatus(msg){ const el=document.getElementById('syncStatus'); if(el) el.textContent=msg; }
+
+/* ---- 관리자 패널 ---- */
+window.openAdminPanel = async function(){
+  document.getElementById('adminOverlay').style.display='flex';
+  const listEl = document.getElementById('adminUserList');
+  listEl.innerHTML = '';
+  try{
+    const snap = await fbDb.collection('users').orderBy('createdAt','desc').get();
+    if(snap.empty){ listEl.innerHTML='<div style="color:var(--muted);padding:12px 0;font-size:12px;">등록된 회원이 없습니다.</div>'; return; }
+    listEl.innerHTML = `<div style="font-size:11px;color:var(--muted);padding:4px 0 10px;">총 ${snap.size}명</div>`;
+    snap.forEach(doc=>{
+      const u  = doc.data();
+      const dt = u.createdAt ? u.createdAt.toDate().toLocaleDateString('ko-KR') : '-';
+      const row = document.createElement('div');
+      row.className='adm-row';
+      row.innerHTML = `
+        <span>${u.username}</span>
+        <span style="color:${u.role==='admin'?'var(--yellow)':'var(--muted)'}">${u.role==='admin'?'관리자':'일반'}</span>
+        <span style="color:var(--muted)">${dt}</span>
+        ${u.role!=='admin'
+          ? `<button onclick="adminDeleteUser('${doc.id}','${u.username}',this)" style="background:transparent;border:1px solid var(--red);color:var(--red);border-radius:3px;padding:2px 7px;font-size:10px;cursor:pointer;">삭제</button>`
+          : '<span></span>'}
+      `;
+      listEl.appendChild(row);
+    });
+  } catch(e){ listEl.innerHTML='<div style="color:var(--red);font-size:12px;">불러오기 실패</div>'; }
+};
+window.closeAdminPanel = function(){ document.getElementById('adminOverlay').style.display='none'; };
+window.adminDeleteUser = async function(uid, username, btn){
+  if(!confirm(`'${username}' 계정을 삭제하시겠습니까?`)) return;
+  btn.disabled=true; btn.textContent='삭제 중...';
+  try{
+    await fbDb.collection('users').doc(uid).collection('data').doc('state').delete().catch(()=>{});
+    await fbDb.collection('users').doc(uid).delete();
+    btn.closest('.adm-row').remove();
+    toast(`'${username}' 삭제 완료`);
+  } catch(e){ toast('삭제 실패'); btn.disabled=false; btn.textContent='삭제'; }
+};
+
+/* ---- 인증 상태 감지 (핵심) ---- */
+fbAuth.onAuthStateChanged(async (user)=>{
+  if(user){
+    fbUser = user;
+    const doc = await fbDb.collection('users').doc(user.uid).get();
+    fbUsername = doc.exists ? doc.data().username : user.email;
+    fbIsAdmin  = doc.exists && doc.data().role === 'admin';
+    hideAuth();
+    renderUserBadge();
+    await loadFromCloud();
+  } else {
+    fbUser=null; fbUsername=''; fbIsAdmin=false;
+    renderUserBadge();
+    showAuth();
+  }
+});
 </script>
 </body>
 </html>
