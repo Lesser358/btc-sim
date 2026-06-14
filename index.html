@@ -2978,6 +2978,8 @@ async function loadFromCloud(){
         redrawDrawings();
       }
       renderAll();
+      renderAllIndicators();
+      renderIndicatorChips();
       setSyncStatus('✓ 불러옴');
       setTimeout(()=>setSyncStatus(''), 3000);
     } else { setSyncStatus(''); }
