@@ -2540,9 +2540,13 @@ function hitTest(mx,my){
 }
 
 /* ---- 마우스 작도 ---- */
-function evtXY(e){ const r=drawLayer.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
+function evtXY(e){
+  const r=drawLayer.getBoundingClientRect();
+  const src = e.touches ? (e.touches[0]||e.changedTouches[0]) : e;
+  return { x:src.clientX-r.left, y:src.clientY-r.top };
+}
 function onDrawDown(e){
-  if(!drawLayer || e.button!==0 || drawTool==='pan') return;     // pan → 차트가 처리
+  if(!drawLayer || (e.type==='mousedown' && e.button!==0) || drawTool==='pan') return;  // pan → 차트가 처리
   const {x,y}=evtXY(e), pd=plotDims();
   if(x<0||y<0||x>pd.w||y>pd.h) return;                            // 가격/시간축 영역 무시
   if(drawTool==='select'){
@@ -2695,6 +2699,9 @@ function setupDrawing(){
   host.addEventListener('mousedown', onDrawDown, true);
   window.addEventListener('mousemove', onDrawMove, true);
   window.addEventListener('mouseup', onDrawUp, true);
+  host.addEventListener('touchstart', onDrawDown, {capture:true, passive:false});
+  window.addEventListener('touchmove', onDrawMove, {capture:true, passive:false});
+  window.addEventListener('touchend', onDrawUp, true);
   document.querySelectorAll('#drawbar button[data-tool]').forEach(b=>{ b.onclick=()=>setTool(b.dataset.tool); });
   document.getElementById('drawDelBtn').onclick=deleteSelected;
   document.getElementById('drawClearBtn').onclick=clearDrawings;
