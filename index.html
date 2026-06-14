@@ -343,39 +343,18 @@
           <button data-p="50">50%</button><button data-p="75">75%</button><button data-p="100">100%</button>
         </div>
 
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-          <span style="font-size:11px;color:var(--muted);">TP / SL · 선택</span>
-          <div style="display:flex;gap:3px;">
-            <button id="tpslPriceBtn" class="tpsl-btn active">가격</button>
-            <button id="tpslPctBtn" class="tpsl-btn">ROE%</button>
-          </div>
-        </div>
         <div class="row" style="gap:8px;">
           <div style="flex:1;">
-            <label class="fl">TP (익절)</label>
+            <button id="tpModeBtn" onclick="event.stopPropagation();showTpSlModeDD('tp',this)" style="width:100%;display:flex;justify-content:space-between;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:5px 8px;font-size:11px;cursor:pointer;margin-bottom:3px;">
+              <span style="color:var(--muted);">TP (익절)</span><span id="tpModeLbl" style="color:var(--text);font-size:10px;">Price ▾</span>
+            </button>
             <div class="field"><input id="tp" type="number" placeholder="없음"><span class="unit" id="tpUnit">USDT</span></div>
           </div>
           <div style="flex:1;">
-            <label class="fl">SL (손절)</label>
+            <button id="slModeBtn" onclick="event.stopPropagation();showTpSlModeDD('sl',this)" style="width:100%;display:flex;justify-content:space-between;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:5px 8px;font-size:11px;cursor:pointer;margin-bottom:3px;">
+              <span style="color:var(--muted);">SL (손절)</span><span id="slModeLbl" style="color:var(--text);font-size:10px;">Price ▾</span>
+            </button>
             <div class="field"><input id="sl" type="number" placeholder="없음"><span class="unit" id="slUnit">USDT</span></div>
-          </div>
-        </div>
-        <div class="row" style="gap:8px;margin-top:5px;">
-          <div style="flex:1;">
-            <label class="fl">TP 청산량</label>
-            <div style="display:flex;gap:3px;align-items:center;">
-              <div class="field" style="flex:1;min-width:0;"><input id="tpPct" type="number" placeholder="100" min="0.01"></div>
-              <button id="tpCloseUnitBtn" onclick="event.stopPropagation();showCloseUnitDropdown('tp', this)"
-                style="background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:5px;padding:6px 8px;font-size:10px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;">%</button>
-            </div>
-          </div>
-          <div style="flex:1;">
-            <label class="fl">SL 청산량</label>
-            <div style="display:flex;gap:3px;align-items:center;">
-              <div class="field" style="flex:1;min-width:0;"><input id="slPct" type="number" placeholder="100" min="0.01"></div>
-              <button id="slCloseUnitBtn" onclick="event.stopPropagation();showCloseUnitDropdown('sl', this)"
-                style="background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:5px;padding:6px 8px;font-size:10px;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;">%</button>
-            </div>
           </div>
         </div>
 
@@ -796,17 +775,15 @@ function openOrder(side){
 
   const tpRaw = parseFloat(document.getElementById("tp").value) || 0;
   const slRaw = parseFloat(document.getElementById("sl").value) || 0;
-  const tpCloseAmt = Math.max(0.01, parseFloat(document.getElementById("tpPct").value) || (tpCloseMode==='pct'?100:0));
-  const slCloseAmt = Math.max(0.01, parseFloat(document.getElementById("slPct").value) || (slCloseMode==='pct'?100:0));
 
   if(ot==="limit"){
-    S.pending.push({id:uid(), kind:"limit", side, qty, price, tpRaw, slRaw, tpMode:tpSlMode,
-      tpCloseAmt, slCloseAmt, tpCloseMode, slCloseMode});
+    S.pending.push({id:uid(), kind:"limit", side, qty, price, tpRaw, slRaw,
+      tpMode, slMode, tpCloseAmt:100, slCloseAmt:100, tpCloseMode:'pct', slCloseMode:'pct'});
     toast(`지정가 ${side==="long"?"롱":"숏"} 주문 등록 (${fmtPrice(price)})`);
   } else {
     applyFill(side, qty, price, TAKER);
     playBeep('fill');
-    if(tpRaw>0 || slRaw>0){ const ts=makeTpSl(side, price, tpRaw, slRaw, tpSlMode); applyTpSlOrders(side, ts.tp, ts.sl, tpCloseAmt, slCloseAmt, tpCloseMode, slCloseMode); }
+    if(tpRaw>0 || slRaw>0){ const ts=makeTpSl(side, price, tpRaw, slRaw, tpMode, slMode, qty); applyTpSlOrders(side, ts.tp, ts.sl); }
     toast(`${side==="long"?"롱":"숏"} 진입 체결 @ ${fmtPrice(price)}`);
   }
   document.getElementById("tp").value=""; document.getElementById("sl").value="";
@@ -816,15 +793,32 @@ function openOrder(side){
 function uid(){ return Date.now()+Math.random(); }
 
 /* TP/SL 입력값 → 절대가격 변환 (pct/가격 모드) */
-function makeTpSl(side, refPrice, tpRaw, slRaw, mode){
+function makeTpSl(side, refPrice, tpRaw, slRaw, tpM, slM, qty){
+  // 하위호환: 단일 mode 문자열로 호출된 경우
+  if(slM===undefined){ slM=tpM; }
+  if(tpM==='pct') tpM='roi';
+  if(slM==='pct') slM='roi';
+  const lev = S.leverage || 1;
+  const q = qty || 0;
   let tp=null, sl=null;
-  if(mode==="pct"){
-    const lev = S.leverage || 1;
-    if(tpRaw>0) tp = side==="long" ? refPrice*(1+tpRaw/lev/100) : refPrice*(1-tpRaw/lev/100);
-    if(slRaw>0) sl = side==="long" ? refPrice*(1-slRaw/lev/100) : refPrice*(1+slRaw/lev/100);
-  }else{
-    if(tpRaw>0) tp=tpRaw;
-    if(slRaw>0) sl=slRaw;
+
+  if(tpRaw>0){
+    if(tpM==='roi'){
+      tp = side==="long" ? refPrice*(1+tpRaw/lev/100) : refPrice*(1-tpRaw/lev/100);
+    } else if(tpM==='pnl'){
+      if(q>0) tp = side==="long" ? refPrice+tpRaw/q : refPrice-tpRaw/q;
+    } else {
+      tp = tpRaw;
+    }
+  }
+  if(slRaw>0){
+    if(slM==='roi'){
+      sl = side==="long" ? refPrice*(1-slRaw/lev/100) : refPrice*(1+slRaw/lev/100);
+    } else if(slM==='pnl'){
+      if(q>0) sl = side==="long" ? refPrice-slRaw/q : refPrice+slRaw/q;
+    } else {
+      sl = slRaw;
+    }
   }
   return {tp, sl};
 }
@@ -957,6 +951,50 @@ window.showCloseModeDropdown = function(btn){
   _posDD(dd,btn); dd.style.display='block';
 };
 
+window.showTpSlModeDD = function(which, btn){
+  const ddId = which==='tp' ? 'tpModeDropdown' : 'slModeDropdown';
+  let dd = document.getElementById(ddId);
+  if(!dd){
+    dd = document.createElement('div'); dd.id = ddId; dd.style.cssText = _DDcss+'min-width:110px;';
+    const hdr = document.createElement('div'); hdr.style.cssText = _DDhdr;
+    hdr.innerHTML = 'TP/SL Settings <span style="width:13px;height:13px;border:1px solid #4a4f5a;border-radius:50%;font-size:9px;display:inline-flex;align-items:center;justify-content:center;">i</span>';
+    dd.appendChild(hdr);
+    const dotCls = which+'md-dot';
+    [['Price','price'],['PnL','pnl'],['ROI','roi']].forEach(([label,val])=>{
+      const opt = _DDopt(label, dotCls); opt.dataset.val = val;
+      opt.addEventListener('click', e=>{
+        e.stopPropagation();
+        _setTpSlEntryMode(which, val);
+        _DDrefresh(ddId, dotCls, which==='tp'?tpMode:slMode);
+        dd.style.display = 'none';
+      });
+      dd.appendChild(opt);
+    });
+    document.body.appendChild(dd);
+    document.addEventListener('click', e=>{ if(dd&&!dd.contains(e.target)) dd.style.display='none'; });
+  }
+  if(dd.style.display!=='none'){ dd.style.display='none'; return; }
+  _DDrefresh(ddId, which+'md-dot', which==='tp'?tpMode:slMode);
+  _posDD(dd, btn); dd.style.display = 'block';
+};
+
+function _setTpSlEntryMode(which, val){
+  const lbl = val==='price'?'Price':val==='pnl'?'PnL':'ROI';
+  const unit = val==='roi'?'%':'USDT';
+  const ph   = val==='price'?'없음':val==='pnl'?'수익 USDT':'ROI %';
+  if(which==='tp'){
+    tpMode = val;
+    const b=document.getElementById('tpModeLbl'); if(b) b.textContent=lbl+' ▾';
+    const u=document.getElementById('tpUnit');    if(u) u.textContent=unit;
+    const i=document.getElementById('tp');        if(i){ i.placeholder=ph; i.value=''; }
+  } else {
+    slMode = val;
+    const b=document.getElementById('slModeLbl'); if(b) b.textContent=lbl+' ▾';
+    const u=document.getElementById('slUnit');    if(u) u.textContent=unit;
+    const i=document.getElementById('sl');        if(i){ i.placeholder=ph; i.value=''; }
+  }
+}
+
 window.showTpSlModeDropdown = function(btn){
   let dd=document.getElementById('tpSlModeDropdown');
   if(!dd){
@@ -989,7 +1027,7 @@ window.applyPosTpSl = function(){
   const slCA = Math.max(0.01, parseFloat(document.getElementById('posSlCloseAmt')?.value) || 100);
   let tp, sl;
   if(posTpSlMode==='pct'){
-    const ts = makeTpSl(p.side, p.entry, tpv, slv, 'pct');
+    const ts = makeTpSl(p.side, p.entry, tpv, slv, 'roi', 'roi');
     tp = ts.tp; sl = ts.sl;
   }else{
     tp = tpv>0?tpv:null; sl = slv>0?slv:null;
@@ -1014,7 +1052,7 @@ window.openPendingEdit = function(id){
   const o = S.pending.find(x=>x.id===id);
   if(!o || o.kind!=='limit') return;
   _peId = id;
-  const ts = makeTpSl(o.side, o.price, o.tpRaw||0, o.slRaw||0, o.tpMode||'price');
+  const ts = makeTpSl(o.side, o.price, o.tpRaw||0, o.slRaw||0, o.tpMode||'price', o.slMode||'price', o.qty);
   document.getElementById('peInfo').textContent =
     `${o.side==='long'?'롱 🟢':'숏 🔴'}  수량 ${fmtQty(o.qty)}  @  ${fmtPrice(o.price)}`;
   document.getElementById('peTP').value    = ts.tp ? fmt(ts.tp,2) : '';
@@ -1098,9 +1136,9 @@ function checkPending(checkHi, checkLo){
         applyFill(o.side, o.qty, o.price, MAKER);
         toast(`지정가 체결 @ ${fmtPrice(o.price)}`);
         if((o.tpRaw>0 || o.slRaw>0) && S.position){
-          const ts = makeTpSl(o.side, o.price, o.tpRaw, o.slRaw, o.tpMode);
+          const ts = makeTpSl(o.side, o.price, o.tpRaw, o.slRaw, o.tpMode||'price', o.slMode||'price', o.qty);
           toAdd.push(...buildTpSlOrders(o.side, ts.tp, ts.sl,
-            o.tpCloseAmt??o.tpPct??100, o.slCloseAmt??o.slPct??100,
+            o.tpCloseAmt??100, o.slCloseAmt??100,
             o.tpCloseMode??'pct', o.slCloseMode??'pct'));
         }
         continue;
@@ -1289,9 +1327,9 @@ function renderOrders(){
     S.pending.map(o=>{
       let tpStr='-', slStr='-';
       if(o.kind==='limit'){
-        const ts = makeTpSl(o.side, o.price, o.tpRaw||0, o.slRaw||0, o.tpMode||'price');
-        const tpCA = o.tpCloseAmt??o.tpPct??100, tpCM = o.tpCloseMode??'pct';
-        const slCA = o.slCloseAmt??o.slPct??100, slCM = o.slCloseMode??'pct';
+        const ts = makeTpSl(o.side, o.price, o.tpRaw||0, o.slRaw||0, o.tpMode||'price', o.slMode||'price', o.qty);
+        const tpCA = o.tpCloseAmt??100, tpCM = o.tpCloseMode??'pct';
+        const slCA = o.slCloseAmt??100, slCM = o.slCloseMode??'pct';
         const _lbl = (ca,cm)=> cm==='usdt'&&ca>0 ? `<br><span style="font-size:10px;color:var(--muted)">$${fmt(ca,0)}청산</span>`
           : cm==='coin'&&ca>0 ? `<br><span style="font-size:10px;color:var(--muted)">${fmt(ca,4)}코인청산</span>`
           : cm==='pct'&&ca<100 ? `<br><span style="font-size:10px;color:var(--muted)">${ca}%청산</span>` : '';
@@ -2025,21 +2063,29 @@ function updateHighLow(){
 
 
 /* ============================ 데이터 (Binance) ============================ */
-let ws=null, wsRetry=0;
+let ws=null, wsRetry=0, wsGaveUp=false, wsMsgTimer=null;
 
 function connectWS(){
+  if(wsGaveUp) return;
   if(ws){ try{ws.close();}catch(e){} ws=null; }
+  clearTimeout(wsMsgTimer);
   const sym = curSymbol;
   const streams = `${sym}@kline_${curInterval}/${sym}@markPrice@1s/${sym}@ticker`;
   ws = new WebSocket(`wss://fstream.binance.com/stream?streams=${streams}`);
-  ws.onopen = ()=>{ wsRetry=0; setConn("ok","● 실시간 연결됨"); };
+  ws.onopen = ()=>{
+    // 5초 내 메시지 없으면 강제 닫기 → onclose → 재시도 카운트
+    wsMsgTimer = setTimeout(()=>{ try{ws.close();}catch(e){} }, 5000);
+  };
   ws.onmessage = (ev)=>{
+    clearTimeout(wsMsgTimer);
     lastWsTime = Date.now();
+    wsRetry = 0;
+    setConn("ok","● 실시간 연결됨");
     const m = JSON.parse(ev.data); const d = m.data;
     if(!d) return;
     if(d.e==="markPriceUpdate"){
       markPrice=+d.p; lastPrice=markPrice; fundingRate=+d.r; nextFundingT=+d.T;
-      liveTick(lastPrice);  // kline 스트림 불안정 대비 — 봉 고/저가 누적 + checkPending
+      liveTick(lastPrice);
       onTick();
     } else if(d.e==="24hrTicker"){
       prevClose24=+d.o; high24=+d.h; low24=+d.l;
@@ -2049,12 +2095,12 @@ function connectWS(){
     }
   };
   ws.onclose = ()=>{
+    clearTimeout(wsMsgTimer);
     wsRetry++;
     if(wsRetry <= 3){
-      setConn("bad","● 재연결 중...");
-      setTimeout(connectWS, Math.min(8000, 1000*wsRetry));
+      setTimeout(connectWS, Math.min(6000, 1500*wsRetry));
     } else {
-      setConn("ok","● REST 연결");
+      wsGaveUp = true;
     }
   };
   ws.onerror = ()=>{ try{ws.close();}catch(e){} };
@@ -2077,8 +2123,11 @@ async function fetchMarket(){
       if(+d.lastPrice) lastPrice = +d.lastPrice;
       if(+d.openPrice){ prevClose24=+d.openPrice; high24=+d.highPrice; low24=+d.lowPrice; }
     }
+    if(wsGaveUp) setConn("ok","● REST 연결");
     onTick();
-  }catch(e){}
+  }catch(e){
+    if(wsGaveUp) setConn("bad","● 연결 오류");
+  }
 }
 
 function onTick(){
@@ -2109,25 +2158,16 @@ function changeSymbol(sym){
 
 /* ============================ 이벤트 바인딩 ============================ */
 let orderType = "market";
-let tpSlMode = "price";
+let tpMode = "price";        // 주문폼 TP 모드 (price/pnl/roi)
+let slMode = "price";        // 주문폼 SL 모드 (price/pnl/roi)
 let posTpSlMode = "price";   // 보유 포지션 TP/SL 입력 모드 (가격/%)
-let tpCloseMode = "pct";     // 주문폼 익절 청산량 단위 (pct=% / usdt=USDT)
-let slCloseMode = "pct";     // 주문폼 손절 청산량 단위
 let posTpCloseMode = "pct";  // 포지션탭 익절 청산량 단위
 let posSlCloseMode = "pct";  // 포지션탭 손절 청산량 단위
 
 function _setCloseUnit(which, val){
   const lbl = val==='pct'?'%':val==='usdt'?'USDT':'코인';
   const ph  = val==='pct'?'100':val==='usdt'?'USDT금액':'수량';
-  if(which==='tp'){
-    tpCloseMode=val;
-    const b=document.getElementById('tpCloseUnitBtn'), i=document.getElementById('tpPct');
-    if(b)b.textContent=lbl; if(i){i.placeholder=ph;i.value='';}
-  } else if(which==='sl'){
-    slCloseMode=val;
-    const b=document.getElementById('slCloseUnitBtn'), i=document.getElementById('slPct');
-    if(b)b.textContent=lbl; if(i){i.placeholder=ph;i.value='';}
-  } else if(which==='postp'){
+  if(which==='postp'){
     posTpCloseMode=val;
     const b=document.getElementById('posTpCloseUnitBtn'), i=document.getElementById('posTpCloseAmt');
     if(b)b.textContent=lbl; if(i){i.placeholder=ph;i.value='';}
@@ -2156,12 +2196,9 @@ window.showCloseUnitDropdown = function(which, btn){
   }
   if(dd._which===which && dd.style.display!=='none'){ dd.style.display='none'; return; }
   dd._which = which;
-  _DDrefresh('closeUnitDropdown','cu-dot',_curMode(which));
+  _DDrefresh('closeUnitDropdown','cu-dot', which==='postp'?posTpCloseMode:posSlCloseMode);
   _posDD(dd, btn); dd.style.display='block';
 };
-function _curMode(which){
-  return which==='tp'?tpCloseMode:which==='sl'?slCloseMode:which==='postp'?posTpCloseMode:posSlCloseMode;
-}
 
 function bindUI(){
   // 심볼 선택
@@ -2220,24 +2257,6 @@ function bindUI(){
       renderPreview();
     };
   });
-
-  // TP/SL 가격 / % 모드
-  const tpslPriceBtn = document.getElementById("tpslPriceBtn");
-  const tpslPctBtn   = document.getElementById("tpslPctBtn");
-  const setTpSlMode = (mode)=>{
-    tpSlMode = mode;
-    tpslPriceBtn.classList.toggle("active", mode==="price");
-    tpslPctBtn.classList.toggle("active",   mode==="pct");
-    const unit = mode==="pct" ? "ROE%" : "USDT";
-    document.getElementById("tpUnit").textContent = unit;
-    document.getElementById("slUnit").textContent = unit;
-    document.getElementById("tp").placeholder = mode==="pct" ? "예: 50" : "없음";
-    document.getElementById("sl").placeholder = mode==="pct" ? "예: 20" : "없음";
-    document.getElementById("tp").value = "";
-    document.getElementById("sl").value = "";
-  };
-  tpslPriceBtn.onclick = ()=> setTpSlMode("price");
-  tpslPctBtn.onclick   = ()=> setTpSlMode("pct");
 
   // % 버튼
   document.querySelectorAll(".pcts button").forEach(b=>{
