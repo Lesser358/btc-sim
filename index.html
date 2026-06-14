@@ -257,7 +257,7 @@
 <body>
 
 <!-- ===== 로그인 / 회원가입 모달 ===== -->
-<div id="authOverlay">
+<div id="authOverlay" style="display:none">
   <div id="authBox">
     <div class="auth-logo">🪙 BTC 선물 모의투자</div>
     <div class="auth-sub" id="authSubtitle">계정에 로그인하세요</div>
@@ -2131,7 +2131,7 @@ function updateHighLow(){
 
 
 /* ============================ 데이터 (Binance) ============================ */
-let ws=null, wsRetry=0, wsGaveUp=false, wsMsgTimer=null;
+let ws=null, wsRetry=0, wsGaveUp=false, wsMsgTimer=null, wsStableTimer=null;
 
 function connectWS(){
   if(wsGaveUp) return;
@@ -2141,14 +2141,17 @@ function connectWS(){
   const streams = `${sym}@kline_${curInterval}/${sym}@markPrice@1s/${sym}@ticker`;
   ws = new WebSocket(`wss://fstream.binance.com/stream?streams=${streams}`);
   ws.onopen = ()=>{
-    // 5초 내 메시지 없으면 강제 닫기 → onclose → 재시도 카운트
-    wsMsgTimer = setTimeout(()=>{ try{ws.close();}catch(e){} }, 5000);
+    // 3초 내 메시지 없으면 강제 닫기 → onclose → 재시도 카운트
+    wsMsgTimer = setTimeout(()=>{ try{ws.close();}catch(e){} }, 3000);
   };
   ws.onmessage = (ev)=>{
     clearTimeout(wsMsgTimer);
     lastWsTime = Date.now();
-    wsRetry = 0;
     setConn("ok","● 실시간 연결됨");
+    // 60초 안정 연결 유지 시에만 wsRetry 초기화 (메시지 1개마다 초기화 시 wsGaveUp 불가 버그 방지)
+    if(!wsStableTimer){
+      wsStableTimer = setTimeout(()=>{ wsRetry=0; wsStableTimer=null; }, 60000);
+    }
     const m = JSON.parse(ev.data); const d = m.data;
     if(!d) return;
     if(d.e==="markPriceUpdate"){
@@ -2164,12 +2167,14 @@ function connectWS(){
   };
   ws.onclose = ()=>{
     clearTimeout(wsMsgTimer);
+    clearTimeout(wsStableTimer); wsStableTimer=null;
     wsRetry++;
-    if(wsRetry <= 3){
+    if(wsRetry <= 1){
       setConn("wait","● 재연결 중...");
-      setTimeout(connectWS, Math.min(6000, 1500*wsRetry));
+      setTimeout(connectWS, 2000);
     } else {
       wsGaveUp = true;
+      lastWsTime = 0;
     }
   };
   ws.onerror = ()=>{ try{ws.close();}catch(e){} };
@@ -2192,10 +2197,11 @@ async function fetchMarket(){
       if(+d.lastPrice) lastPrice = +d.lastPrice;
       if(+d.openPrice){ prevClose24=+d.openPrice; high24=+d.highPrice; low24=+d.lowPrice; }
     }
-    if(wsGaveUp) setConn("ok","● REST 연결");
+    // WS가 최근 3초 내 메시지 없으면 REST 상태 표시 (wsGaveUp 기다릴 필요 없음)
+    if(Date.now() - lastWsTime > 3000) setConn("ok","● REST 연결");
     onTick();
   }catch(e){
-    if(wsGaveUp) setConn("bad","● 연결 오류");
+    if(Date.now() - lastWsTime > 3000) setConn("bad","● 연결 오류");
   }
 }
 
