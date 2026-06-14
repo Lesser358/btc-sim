@@ -88,16 +88,17 @@
   .ind-item{background:var(--panel2);border:1px solid var(--line);border-radius:5px;
     padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;}
   .ind-item:hover{border-color:var(--yellow);color:var(--yellow);}
-  /* 지표 설정 패널 */
-  #indSettings{position:fixed;bottom:24px;right:24px;background:var(--panel);
-    border:1px solid var(--line);border-radius:10px;padding:16px;z-index:150;
-    display:none;flex-direction:column;gap:10px;min-width:240px;max-width:300px;
-    box-shadow:0 4px 24px rgba(0,0,0,.5);}
-  .sp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;}
+  /* 지표 설정 패널 — indBar 바로 아래 인라인 바 */
+  #indSettings{background:var(--panel2);border-bottom:1px solid var(--line);
+    padding:6px 12px;display:none;flex-direction:row;flex-wrap:wrap;
+    align-items:center;gap:10px;}
+  #spTitle{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap;}
+  #spFields{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1;}
+  .sp-row{display:flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap;}
   .sp-row span{color:var(--muted);}
-  .sp-in{width:64px;background:var(--panel2);border:1px solid var(--line);color:var(--text);
-    border-radius:4px;padding:3px 5px;text-align:right;font-size:12px;}
-  .sp-color{width:36px;height:24px;border:1px solid var(--line);border-radius:4px;
+  .sp-in{width:58px;background:var(--panel);border:1px solid var(--line);color:var(--text);
+    border-radius:4px;padding:2px 5px;text-align:right;font-size:12px;}
+  .sp-color{width:32px;height:22px;border:1px solid var(--line);border-radius:4px;
     background:none;cursor:pointer;padding:1px;}
   .panelpad{padding:12px;display:flex;flex-direction:column;gap:10px;}
   .row{display:flex;align-items:center;gap:8px;}
@@ -201,6 +202,9 @@
 
   /* 그리기 도구 툴바 */
   .drawbar{display:flex;align-items:center;gap:3px;padding:5px 8px;border-bottom:1px solid var(--line);flex-wrap:wrap;background:var(--panel);}
+  .db-label{color:var(--muted);font-size:11px;white-space:nowrap;}
+  .draw-color-pick{width:26px;height:22px;padding:1px 2px;border:1px solid var(--line);border-radius:3px;background:transparent;cursor:pointer;vertical-align:middle;}
+  .draw-width-sel{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:3px;padding:1px 4px;font-size:11px;height:22px;width:52px;text-align:center;}
   .drawbar button{background:transparent;border:1px solid transparent;color:var(--muted);
     padding:4px 8px;font-size:11px;border-radius:4px;font-weight:600;white-space:nowrap;}
   .drawbar button:hover{color:var(--text);background:var(--panel2);}
@@ -337,6 +341,16 @@
         <button id="alarmBtn" onclick="toggleAlarmPanel()">알람</button>
       </div>
       <div id="indBar"></div>
+      <!-- 지표 설정 패널 — indBar 바로 아래 인라인 -->
+      <div id="indSettings">
+        <b id="spTitle">설정</b>
+        <div id="spFields"></div>
+        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+          <button class="closebtn go" onclick="applyIndSettings()">적용</button>
+          <button class="closebtn" onclick="removeIndicator(settingsInd&&settingsInd.id)">삭제</button>
+          <button onclick="closeIndSettings()" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;line-height:1;padding:0 4px;">×</button>
+        </div>
+      </div>
       <div class="drawbar" id="drawbar">
         <button data-tool="pan" class="active" title="차트 이동/확대">이동</button>
         <button data-tool="select" title="선택·이동·삭제">선택</button>
@@ -354,6 +368,11 @@
         <span class="db-sep"></span>
         <button id="drawDelBtn" title="선택한 도형 삭제">삭제</button>
         <button id="drawClearBtn" title="모든 도형 삭제">전체삭제</button>
+        <span class="db-sep"></span>
+        <span class="db-label">색상</span>
+        <input type="color" id="drawColorPick" value="#f0b90b" title="선 색상" class="draw-color-pick">
+        <span class="db-label">굵기</span>
+        <input type="number" id="drawWidthSel" title="선 굵기 (키보드 입력 가능)" class="draw-width-sel" min="0.5" max="20" step="0.5" value="1.5">
       </div>
       <div id="chart" style="height:600px;position:relative;"></div>
       <div id="oscPane" style="height:160px;display:none;border-top:1px solid var(--line);"></div>
@@ -479,6 +498,12 @@
       <input id="indSearch" type="text" placeholder="지표 검색..." oninput="filterIndSearch()">
     </div>
     <div id="indList" style="overflow-y:auto;flex:1;">
+      <div class="ind-group" data-group="기타">
+        <div class="ind-group-title">기타</div>
+        <div class="ind-items">
+          <button class="ind-item" data-name="거래량 Volume" onclick="addIndicator('vol')">거래량 (Volume)</button>
+        </div>
+      </div>
       <div class="ind-group" data-group="이동평균">
         <div class="ind-group-title">이동평균</div>
         <div class="ind-items">
@@ -588,18 +613,6 @@
   </div>
 </div>
 
-<!-- 지표 설정 패널 -->
-<div id="indSettings">
-  <div style="display:flex;justify-content:space-between;align-items:center;">
-    <b id="spTitle" style="font-size:13px;">설정</b>
-    <button onclick="closeIndSettings()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;">×</button>
-  </div>
-  <div id="spFields" style="display:flex;flex-direction:column;gap:7px;"></div>
-  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
-    <button class="closebtn" onclick="removeIndicator(settingsInd&&settingsInd.id)">삭제</button>
-    <button class="closebtn go" onclick="applyIndSettings()">적용</button>
-  </div>
-</div>
 
 <script>
 "use strict";
@@ -1487,7 +1500,7 @@ function toast(msg){
 
 /* ============================ TV 위젯 ============================ */
 /* ============================ 차트 (Lightweight Charts v4.2.3) ============================ */
-let chart=null, candleSeries=null, volSeries=null;
+let chart=null, candleSeries=null;
 let oscChart=null;                  // 오실레이터 전용 차트
 const indSeriesMap = new Map();     // ind.id → series 또는 {mid,upper,lower} 등
 let candles=[];                       // {time, open, high, low, close, volume}
@@ -1512,27 +1525,45 @@ function initChart(){
     upColor:'#0ecb81', downColor:'#f6465d', borderVisible:false,
     wickUpColor:'#0ecb81', wickDownColor:'#f6465d',
   });
-  volSeries = chart.addHistogramSeries({ priceFormat:{type:'volume'}, priceScaleId:'' });
-  volSeries.priceScale().applyOptions({ scaleMargins:{ top:0.85, bottom:0 } });
-
   loadHistory();
 }
 
-async function loadHistory(){
+async function loadHistory(retry=0){
   if(!candleSeries) return;
   loadingMore=false; noMoreHistory=false;       // 심볼/시간봉 바뀌면 지연로딩 상태 초기화
   try{
     const sym = curSymbol.toUpperCase();
-    const r = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${curInterval}&limit=1000`);
+    // 10초 타임아웃 — 무응답 hang 방지
+    const ctrl=new AbortController(); const tid=setTimeout(()=>ctrl.abort(), 10000);
+    const r = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${curInterval}&limit=1000`, {signal:ctrl.signal});
+    clearTimeout(tid);
     const raw = await r.json();
-    if(!Array.isArray(raw)) return;
+    if(!Array.isArray(raw)) throw new Error('invalid response: '+JSON.stringify(raw).slice(0,80));
     candles = raw.map(k=>({ time:Math.floor(k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5] }));
     candleSeries.setData(candles);
-    volSeries.setData(candles.map(c=>({ time:c.time, value:c.volume, color: c.close>=c.open?'rgba(14,203,129,0.35)':'rgba(246,70,93,0.35)' })));
     renderAllIndicators();
     showLatestView();
     setTimeout(updateHighLow, 100);
-  }catch(e){ console.warn('klines 로드 실패', e); }
+    _setChartMsg('');                           // 성공 시 메시지 제거
+  }catch(e){
+    console.warn(`klines 로드 실패 (시도 ${retry+1})`, e);
+    const max=4, delay=Math.min(1500*(retry+1), 6000);
+    if(retry < max){
+      _setChartMsg(`차트 로딩 중… (재시도 ${retry+1}/${max})`);
+      setTimeout(()=>loadHistory(retry+1), delay);
+    } else {
+      _setChartMsg('데이터 로드 실패 — 새로고침 또는 인터넷을 확인하세요');
+    }
+  }
+}
+function _setChartMsg(msg){
+  let el=document.getElementById('chartMsg');
+  if(!el){
+    el=document.createElement('div'); el.id='chartMsg';
+    el.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:#848e9c;pointer-events:none;z-index:2;';
+    const host=document.getElementById('chart'); if(host) host.appendChild(el);
+  }
+  el.textContent=msg; el.style.display=msg?'flex':'none';
 }
 
 /* 최신 봉 위주 + 오른쪽 여백을 화면 너비에 맞춰 결정적으로 표시 (애니메이션 X) */
@@ -1568,7 +1599,6 @@ async function loadOlder(){
     const oldRange = chart.timeScale().getVisibleLogicalRange();
     candles = older.concat(candles);
     candleSeries.setData(candles);
-    volSeries.setData(candles.map(c=>({ time:c.time, value:c.volume, color: c.close>=c.open?'rgba(14,203,129,0.35)':'rgba(246,70,93,0.35)' })));
     renderAllIndicators();
     if(oldRange) chart.timeScale().setVisibleLogicalRange({ from: oldRange.from+added, to: oldRange.to+added });  // 보던 위치 유지
   }catch(e){ /* 무시 */ }
@@ -1596,7 +1626,10 @@ function calcHMA(src, period){
    지표 시스템
    ============================================================ */
 
+function toRgba(hex, a){ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${a})`; }
+
 const INDICATOR_DEFS = [
+  {type:'vol', name:'거래량', label:'거래량 (Volume)',        group:'기타',       overlay:true,  isVol:true, defaults:{colorUp:'#0ecb81', colorDown:'#f6465d'}},
   {type:'sma', name:'SMA',    label:'단순이동평균 (SMA)',    group:'이동평균',   overlay:true,  defaults:{period:20, color:'#2962ff', width:1}},
   {type:'ema', name:'EMA',    label:'지수이동평균 (EMA)',    group:'이동평균',   overlay:true,  defaults:{period:20, color:'#f48fb1', width:1}},
   {type:'wma', name:'WMA',    label:'가중이동평균 (WMA)',    group:'이동평균',   overlay:true,  defaults:{period:20, color:'#80cbc4', width:1}},
@@ -1731,6 +1764,12 @@ function renderIndicator(ind){
   const def=INDICATOR_DEFS.find(d=>d.type===ind.type); if(!def) return;
   const p=ind.params;
   const lo={priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false};
+  if(ind.type==='vol'){
+    const ser=chart.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:'',priceLineVisible:false,lastValueVisible:false});
+    ser.priceScale().applyOptions({scaleMargins:{top:0.85,bottom:0}});
+    ser.setData(candles.map(c=>({time:c.time,value:c.volume,color:c.close>=c.open?toRgba(p.colorUp,0.5):toRgba(p.colorDown,0.5)})));
+    indSeriesMap.set(ind.id,ser); return;
+  }
   if(def.overlay){
     if(ind.type==='bb'){
       const bd=calcBB(candles,p.period,p.mult);
@@ -1776,6 +1815,12 @@ function renderIndicator(ind){
 function updateIndicatorsLast(){
   if(!candles.length) return;
   for(const ind of S.indicators){
+    if(ind.type==='vol'){
+      const s=indSeriesMap.get(ind.id); if(!s) continue;
+      const c=candles[candles.length-1], p=ind.params;
+      s.update({time:c.time,value:c.volume,color:c.close>=c.open?toRgba(p.colorUp,0.5):toRgba(p.colorDown,0.5)});
+      continue;
+    }
     const def=INDICATOR_DEFS.find(d=>d.type===ind.type); if(!def||!def.overlay) continue;
     const s=indSeriesMap.get(ind.id); if(!s) continue;
     const p=ind.params;
@@ -2029,7 +2074,8 @@ function renderSettingsPanel(){
   const C=(k,lbl)=>{ let col=(p[k]||'#888888'); if(col.startsWith('rgba')||col.startsWith('rgb')) col='#888888'; return `<label class="sp-row"><span>${lbl}</span><input type="color" data-param="${k}" value="${col}" class="sp-color"></label>`; };
   let f='';
   const t=settingsInd.type;
-  if(['sma','ema','wma','hma'].includes(t)) f=N('period','기간',2,500)+C('color','색상')+N('width','선 굵기',1,5);
+  if(t==='vol') f=C('colorUp','상승봉 색상')+C('colorDown','하락봉 색상');
+  else if(['sma','ema','wma','hma'].includes(t)) f=N('period','기간',2,500)+C('color','색상')+N('width','선 굵기',1,5);
   else if(t==='bb')   f=N('period','기간',2,200)+N('mult','표준편차 배수',0.1,5)+C('colorMid','중심선 색상')+C('colorBand','밴드 색상')+N('width','선 굵기',1,5);
   else if(t==='rsi')  f=N('period','기간',2,100)+N('obLevel','과매수 기준',50,100)+N('osLevel','과매도 기준',1,50)+C('color','색상')+N('width','선 굵기',1,5);
   else if(t==='macd') f=N('fast','단기 EMA',2,100)+N('slow','장기 EMA',2,200)+N('signal','시그널',2,100)+C('colorMacd','MACD 색상')+C('colorSignal','시그널 색상');
@@ -2055,7 +2101,6 @@ function mergeCandle(c){
   else if(!last || c.time>last.time){ candles.push(c); if(candles.length>6000) candles.shift(); }
   else { return; }                                  // 과거 봉은 무시
   candleSeries.update(c);
-  volSeries.update({ time:c.time, value:c.volume, color: c.close>=c.open?'rgba(14,203,129,0.35)':'rgba(246,70,93,0.35)' });
   updateIndicatorsLast();
   if(isNewCandle && prevHma) checkHmaAlarm(prevClose, prevHma); // 마감봉 기준 알람 체크
   checkPending(c.high, c.low);   // 봉 고/저가로 TP·SL·지정가 즉시 체크
@@ -2080,6 +2125,23 @@ function liveTick(price){
   mergeCandle({ time:last.time, open:last.open, high:Math.max(last.high,price), low:Math.min(last.low,price), close:price, volume:last.volume });
 }
 
+/* ---- 가격 부드러운 애니메이션 (RAF 보간) ---- */
+let _chartPrice=0, _chartTarget=0, _chartAnimFrom=0, _chartAnimStart=0, _chartAnimRaf=0;
+function smoothPriceTo(newPrice){
+  if(!(newPrice>0)) return;
+  if(!(_chartPrice>0)){ _chartPrice=newPrice; liveTick(newPrice); return; }
+  _chartAnimFrom=_chartPrice; _chartTarget=newPrice; _chartAnimStart=performance.now();
+  if(!_chartAnimRaf) _chartAnimRaf=requestAnimationFrame(_chartAnimStep);
+}
+function _chartAnimStep(now){
+  const t=Math.min(1,(now-_chartAnimStart)/160);
+  const ease=1-Math.pow(1-t,3);                     // ease-out cubic
+  _chartPrice=_chartAnimFrom+(_chartTarget-_chartAnimFrom)*ease;
+  liveTick(_chartPrice);
+  if(t<1){ _chartAnimRaf=requestAnimationFrame(_chartAnimStep); }
+  else{ _chartPrice=_chartTarget; _chartAnimRaf=0; }
+}
+
 /* REST 실시간: 최근 봉 OHLC/거래량을 바이낸스 값으로 정확히 재동기화 */
 async function syncKlines(){
   if(!candleSeries) return;
@@ -2094,7 +2156,6 @@ async function syncKlines(){
       else if(c.time>candles[candles.length-1].time){ candles.push(c); if(candles.length>6000) candles.shift(); }
     });
     candleSeries.setData(candles);
-    volSeries.setData(candles.map(c=>({ time:c.time, value:c.volume, color: c.close>=c.open?'rgba(14,203,129,0.35)':'rgba(246,70,93,0.35)' })));
     renderAllIndicators();
   }catch(e){}
 }
@@ -2138,7 +2199,7 @@ function connectWS(){
   if(ws){ try{ws.close();}catch(e){} ws=null; }
   clearTimeout(wsMsgTimer);
   const sym = curSymbol;
-  const streams = `${sym}@kline_${curInterval}/${sym}@markPrice@1s/${sym}@ticker`;
+  const streams = `${sym}@kline_${curInterval}/${sym}@markPrice/${sym}@ticker`;
   ws = new WebSocket(`wss://fstream.binance.com/stream?streams=${streams}`);
   ws.onopen = ()=>{
     // 3초 내 메시지 없으면 강제 닫기 → onclose → 재시도 카운트
@@ -2156,7 +2217,7 @@ function connectWS(){
     if(!d) return;
     if(d.e==="markPriceUpdate"){
       markPrice=+d.p; lastPrice=markPrice; fundingRate=+d.r; nextFundingT=+d.T;
-      liveTick(lastPrice);
+      smoothPriceTo(lastPrice);
       onTick();
     } else if(d.e==="24hrTicker"){
       prevClose24=+d.o; high24=+d.h; low24=+d.l;
@@ -2401,8 +2462,9 @@ function loadDrawings(){
 }
 function saveDrawings(){ try{ localStorage.setItem(drawKey(), JSON.stringify(drawings)); }catch(e){} scheduleSyncSave(); }
 
-function defColor(type){ return type==='long'?'#0ecb81': type==='short'?'#f6465d': type==='fib'?'#2962ff': type==='channel'?'#a855f7': type==='text'?'#e2e8f0':'#f0b90b'; }
-function mkShape(type, pts){ return { id:uid(), type, pts, color:defColor(type) }; }
+let drawColor='#f0b90b', drawWidth=1.5;
+function defColor(type){ return type==='long'?'#0ecb81': type==='short'?'#f6465d':'#f0b90b'; }
+function mkShape(type, pts){ return { id:uid(), type, pts, color:isPosTool(type)?defColor(type):drawColor, lineWidth:drawWidth }; }
 function oneClickTool(t){ return t==='hline'||t==='vline'; }
 function isPosTool(t){ return t==='long'||t==='short'; }
 
@@ -2465,7 +2527,7 @@ function dTag(x,y,text,align){ const c=drawCtx; c.save(); c.font='10px sans-seri
 
 function renderShape(d, pw, ph, sel){
   const c=drawCtx, P=d.pts;
-  c.lineWidth = sel?2:1.4; c.strokeStyle=d.color; c.fillStyle=d.color; c.setLineDash([]);
+  const lw=d.lineWidth??1.5; c.lineWidth=sel?Math.max(lw+0.6,2):lw; c.strokeStyle=d.color; c.fillStyle=d.color; c.setLineDash([]);
   if(d.type==='trend'){
     const x0=tToX(P[0].t),y0=pToY(P[0].p),x1=tToX(P[1].t),y1=pToY(P[1].p);
     if([x0,y0,x1,y1].some(v=>v==null)) return;
@@ -2571,6 +2633,15 @@ function redrawDrawings(){
   drawCtx.restore();
 }
 
+/* ---- 선택된 도형의 핸들 적중 판정 (개별 끝점 드래그용) ---- */
+function shapeHandleAt(d, mx, my){
+  const R=9;
+  if(d.type==='hline'){ const y=pToY(d.pts[0].p); if(y!=null&&Math.abs(my-y)<=R) return 0; }
+  else if(d.type==='vline'){ const x=tToX(d.pts[0].t); if(x!=null&&Math.abs(mx-x)<=R) return 0; }
+  else if(d.pts){ for(let i=0;i<d.pts.length;i++){ const hx=tToX(d.pts[i].t),hy=pToY(d.pts[i].p); if(hx!=null&&hy!=null&&Math.hypot(mx-hx,my-hy)<=R) return i; } }
+  return -1;
+}
+
 /* ---- 적중 판정 ---- */
 function distToSeg(px,py,x0,y0,x1,y1){ const dx=x1-x0,dy=y1-y0,l2=dx*dx+dy*dy;
   let t=l2? ((px-x0)*dx+(py-y0)*dy)/l2:0; t=Math.max(0,Math.min(1,t));
@@ -2643,9 +2714,13 @@ function onDrawDown(e){
         if(h2) dragInfo={ kind:'poshandle', handle:h2, id:hit.id, orig:{t0:hit.t0,t1:hit.t1,entry:hit.entry,target:hit.target,stop:hit.stop} };
         else   dragInfo={ kind:'posbody', id:hit.id, t0:xToT(x), p0:yToP(y), orig:{t0:hit.t0,t1:hit.t1,entry:hit.entry,target:hit.target,stop:hit.stop} };
       }else{
-        dragInfo={ kind:'shape', t0:xToT(x), p0:yToP(y), orig:hit.pts.map(p=>({t:p.t,p:p.p})) };
+        const hi=shapeHandleAt(hit,x,y);
+        if(hi>=0) dragInfo={ kind:'handle', id:hit.id, idx:hi };
+        else dragInfo={ kind:'shape', t0:xToT(x), p0:yToP(y), orig:hit.pts.map(p=>({t:p.t,p:p.p})) };
       }
-      e.stopPropagation(); e.preventDefault(); redrawDrawings();
+      e.stopPropagation(); e.preventDefault();
+      if(!isPosTool(hit.type)){ const cp=document.getElementById('drawColorPick'),ws=document.getElementById('drawWidthSel'); if(cp)cp.value=hit.color||'#f0b90b'; if(ws)ws.value=hit.lineWidth??1.5; }
+      redrawDrawings();
     }else{ selectedId=null; redrawDrawings(); }                  // 빈 곳 → 차트 패닝 허용
     return;
   }
@@ -2666,13 +2741,13 @@ function onDrawDown(e){
   else { curDraft=mkShape(drawTool,[{t,p},{t,p}]); }
   redrawDrawings();
 }
-function startTextInput(x, y, t, p){
+function startTextInput(x, y, t, p, initialValue=''){
   const host=document.getElementById('chart');
   const inp=document.createElement('input');
-  inp.type='text'; inp.placeholder='텍스트 입력 후 Enter';
+  inp.type='text'; inp.placeholder='텍스트 입력 후 Enter'; inp.value=initialValue;
   inp.style.cssText=`position:absolute;left:${x+4}px;top:${y-12}px;background:#1e2329;color:#f0f0f0;`+
     `border:1px solid #2962ff;padding:2px 8px;font-size:13px;z-index:100;min-width:120px;outline:none;border-radius:3px;`;
-  host.appendChild(inp); inp.focus();
+  host.appendChild(inp); inp.focus(); inp.select();
   function finish(){
     const label=inp.value.trim();
     if(host.contains(inp)) host.removeChild(inp);
@@ -2712,6 +2787,11 @@ function onDrawMove(e){
       }else if(dragInfo.kind==='posbody'){
         const dT=xToT(x)-dragInfo.t0, dP=yToP(y)-dragInfo.p0, o=dragInfo.orig;
         d.t0=o.t0+dT; d.t1=o.t1+dT; d.entry=o.entry+dP; d.target=o.target+dP; d.stop=o.stop+dP;
+      }else if(dragInfo.kind==='handle'){
+        const nt=xToT(x), np=yToP(y);
+        if(d.type==='hline') d.pts[0].p=np;
+        else if(d.type==='vline') d.pts[0].t=nt;
+        else d.pts[dragInfo.idx]={t:nt, p:np};
       }else{
         const dT=xToT(x)-dragInfo.t0, dP=yToP(y)-dragInfo.p0;
         d.pts=dragInfo.orig.map(p=>({t:p.t+dT, p:p.p+dP}));
@@ -2777,9 +2857,32 @@ function setupDrawing(){
   host.addEventListener('touchstart', onDrawDown, {capture:true, passive:false});
   window.addEventListener('touchmove', onDrawMove, {capture:true, passive:false});
   window.addEventListener('touchend', onDrawUp, true);
+  // 텍스트 더블클릭 재편집
+  host.addEventListener('dblclick', e=>{
+    if(drawTool!=='select') return;
+    const {x,y}=evtXY(e); const hit=hitTest(x,y);
+    if(hit && hit.type==='text'){
+      e.stopPropagation(); e.preventDefault();
+      const lbl=hit.label||'';
+      drawings=drawings.filter(d=>d!==hit);
+      const tx=tToX(hit.pts[0].t), ty=pToY(hit.pts[0].p);
+      startTextInput(tx!=null?tx:x, ty!=null?ty:y, hit.pts[0].t, hit.pts[0].p, lbl);
+    }
+  }, true);
   document.querySelectorAll('#drawbar button[data-tool]').forEach(b=>{ b.onclick=()=>setTool(b.dataset.tool); });
   document.getElementById('drawDelBtn').onclick=deleteSelected;
   document.getElementById('drawClearBtn').onclick=clearDrawings;
+  const colorPick=document.getElementById('drawColorPick');
+  const widthSel=document.getElementById('drawWidthSel');
+  colorPick.addEventListener('input',()=>{
+    drawColor=colorPick.value;
+    if(selectedId!=null){ const d=drawings.find(z=>z.id===selectedId); if(d&&!isPosTool(d.type)){ d.color=drawColor; saveDrawings(); redrawDrawings(); } }
+  });
+  widthSel.addEventListener('input',()=>{
+    const v=parseFloat(widthSel.value); if(!(v>0)) return;
+    drawWidth=v;
+    if(selectedId!=null){ const d=drawings.find(z=>z.id===selectedId); if(d&&!isPosTool(d.type)){ d.lineWidth=drawWidth; saveDrawings(); redrawDrawings(); } }
+  });
   window.addEventListener('keydown', e=>{
     const typing = document.activeElement && document.activeElement.tagName==='INPUT';
     if((e.key==='Delete'||e.key==='Backspace') && selectedId!=null && !typing){ e.preventDefault(); deleteSelected(); }
@@ -2841,12 +2944,20 @@ async function pollLoop(){
   updateCandleTimers();                          // 봉마감 카운트다운 갱신
   if(Date.now() - lastWsTime < 2500) return;     // WS 정상 → REST 생략
   await fetchMarket();                            // 가격·마크·펀딩·24h + onTick
-  liveTick(lastPrice);                           // 진행 중 캔들 + HMA 실시간
+  smoothPriceTo(lastPrice);                      // 진행 중 캔들 + HMA 부드럽게 갱신
   if(Date.now() - lastKlineSync > 8000){ lastKlineSync = Date.now(); syncKlines(); }
 }
 setInterval(pollLoop, 1000);
-// 200ms마다 forming candle 갱신 — 추가 API 없이 이미 받은 lastPrice로 차트 부드럽게
-setInterval(()=>{ if(lastPrice>0) liveTick(lastPrice); }, 200);
+// 200ms마다 forming candle 유지 — 애니메이션 미실행 중에만 (RAF가 이미 처리 중이면 생략)
+setInterval(()=>{ if(_chartPrice>0 && !_chartAnimRaf) liveTick(_chartPrice); }, 200);
+// 300ms 경량 가격 폴링 — WS 비활성 시 1s 폴링보다 3배 빠른 가격 반영
+setInterval(async ()=>{
+  if(Date.now()-lastWsTime<2500) return;
+  try{
+    const r=await fetch(`https://fapi.binance.com/fapi/v1/ticker/price?symbol=${curSymbol.toUpperCase()}`);
+    if(r.ok){ const d=await r.json(); if(+d.price){ lastPrice=+d.price; smoothPriceTo(lastPrice); } }
+  }catch(e){}
+}, 300);
 
 /* ===================== Firebase 인증 ===================== */
 const firebaseConfig = {
