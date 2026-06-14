@@ -2954,7 +2954,7 @@ async function doSyncSave(){
     const drawings = {};
     for(let i=0;i<localStorage.length;i++){
       const k=localStorage.key(i);
-      if(k && k.startsWith('btcSim_drawings_')) drawings[k]=localStorage.getItem(k);
+      if(k && k.startsWith('btcSimDrawings_')) drawings[k]=localStorage.getItem(k);
     }
     _lastSelfSaveTime = Date.now();
     await fbDb.collection('users').doc(fbUser.uid).collection('data').doc('state').set({
