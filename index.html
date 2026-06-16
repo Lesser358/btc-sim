@@ -2850,6 +2850,14 @@ function updateCandle(k){
 function liveTick(price){
   if(!candleSeries || !candles.length || !(price>0)) return;
   const last=candles[candles.length-1];
+  // ★ 오염 차단 단일 지점: candles[]는 항상 현재 심볼을 반영하므로, 들어온 price가
+  //   현재 봉 종가와 극단적으로 다르면(이전 코인 가격 잔재·심볼 전환 레이스) 무시한다.
+  //   _chartPrice 기반 가드는 reset 직후 _chartPrice=0이면 우회되는 구멍이 있어,
+  //   실제 봉을 망가뜨리는 이 지점에서 봉 자신의 값으로 검증해야 확실히 막힌다.
+  if(last.close>0){
+    const ratio = price/last.close;
+    if(ratio>4 || ratio<0.25) return;
+  }
   const sec=IV_SEC[curInterval]||60;
   if(sec<=86400){                       // 일봉 이하: UTC 정렬이 정확 → 새 봉 직접 롤
     const bs=barStart(Math.floor(Date.now()/1000), curInterval);
@@ -3985,8 +3993,9 @@ document.getElementById('authSubmitBtn').onclick = async ()=>{
   try{
     const email = toFbEmail(id);
     if(authMode === 'register'){
-      const dup = await fbDb.collection('users').where('username','==',id.toLowerCase()).get();
-      if(!dup.empty){ err.textContent = '이미 사용 중인 아이디입니다.'; btn.disabled=false; btn.textContent='회원가입'; return; }
+      // 아이디 중복은 createUserWithEmailAndPassword가 auth/email-already-in-use로
+      // 자동 검사한다. 미인증 상태에서 users 컬렉션을 쿼리하면 Firestore 보안규칙에
+      // 막혀 'Missing or insufficient permissions'가 나므로 사전 쿼리는 하지 않는다.
       const cred = await fbAuth.createUserWithEmailAndPassword(email, pw);
       await fbDb.collection('users').doc(cred.user.uid).set({
         username: id.toLowerCase(),
