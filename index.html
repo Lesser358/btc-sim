@@ -19,6 +19,10 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Malgun Gothic","맑은 고딕",sans-serif;font-size:13px;}
   button{font-family:inherit;cursor:pointer;}
   input,select{font-family:inherit;}
+  /* iOS 키패드 포커스 시 화면 확대 방지 — font-size 16px 미만이면 Safari가 자동 확대함 */
+  @media (max-width:900px){
+    input[type="number"],input[type="text"],input[type="email"],input[type="password"],select,textarea{font-size:16px!important;touch-action:manipulation;}
+  }
   .muted{color:var(--muted);}
   .green{color:var(--green);} .red{color:var(--red);} .yellow{color:var(--yellow);}
 
@@ -29,8 +33,16 @@
   .sym .tag{background:var(--panel2);color:var(--yellow);font-size:10px;font-weight:700;
     padding:2px 6px;border-radius:4px;}
   .sym-sel{font-size:15px;font-weight:700;background:transparent;border:none;
-    color:var(--text);cursor:pointer;outline:none;padding:0;}
-  .sym-sel option{background:var(--panel2);}
+    color:var(--text);cursor:pointer;outline:none;padding:0;display:flex;align-items:center;gap:3px;}
+  #symDropdown .sym-dd-row{display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;transition:background .1s;}
+  #symDropdown .sym-dd-row:hover{background:#2a2f36;}
+  #symDropdown .sym-dd-row.active{background:#363b44;}
+  #symDropdown .sym-dd-icon{width:20px;height:20px;border-radius:50%;object-fit:cover;flex-shrink:0;}
+  #symDropdown .sym-dd-fb{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#fff;flex-shrink:0;}
+  #symDropdown .sym-dd-lbl{font-size:13px;font-weight:600;color:var(--text);}
+  #symIcon{width:24px;height:24px;border-radius:50%;object-fit:cover;margin-right:4px;vertical-align:middle;flex-shrink:0;}
+  .sym-icon-fallback{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;
+    justify-content:center;font-size:10px;font-weight:900;color:#fff;margin-right:4px;flex-shrink:0;}
   .stat{display:flex;flex-direction:column;line-height:1.3;}
   .stat .l{font-size:10px;color:var(--muted);}
   .stat .v{font-size:13px;font-weight:600;}
@@ -57,7 +69,7 @@
   .seg button{flex:1;background:transparent;border:none;color:var(--muted);padding:6px;
     border-radius:5px;font-size:12px;font-weight:600;}
   .seg button.active{background:#363b44;color:var(--text);}
-  .ivseg{display:flex;gap:2px;flex-wrap:wrap;}
+  .ivseg{display:flex;gap:2px;flex-wrap:nowrap;align-items:center;}
   .ivseg button{background:transparent;border:none;color:var(--muted);padding:4px 7px;
     font-size:11px;border-radius:4px;font-weight:600;
     display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.2;}
@@ -65,6 +77,46 @@
   .ivseg button:hover{color:var(--text);}
   .iv-cd{font-size:9px;color:var(--muted);font-variant-numeric:tabular-nums;letter-spacing:0;}
   .ivseg button.active .iv-cd{color:var(--yellow);}
+  /* 분봉 더보기 드롭다운 */
+  #ivMoreBtn{padding:4px 8px;font-size:13px;color:var(--muted);line-height:1;}
+  #ivDropdown{position:fixed;background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+    z-index:9500;box-shadow:0 4px 16px rgba(0,0,0,.5);padding:4px 0;display:none;min-width:150px;}
+  .iv-dd-row{display:flex;align-items:center;justify-content:space-between;}
+  .iv-dd-label{flex:1;padding:7px 14px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;}
+  .iv-dd-label:hover{color:var(--text);}
+  .iv-dd-label.iv-active{color:var(--yellow);}
+  .iv-dd-star{padding:7px 12px;font-size:13px;cursor:pointer;color:var(--muted);user-select:none;}
+  .iv-dd-star:hover{color:var(--yellow);}
+  .iv-dd-star.starred{color:var(--yellow);}
+  .iv-fav-ctrl{border-top:1px solid var(--line);padding:8px 12px;display:flex;align-items:center;gap:8px;}
+  .iv-fav-ctrl span{font-size:11px;color:var(--muted);}
+  .iv-fav-btn{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:3px;
+    width:22px;height:22px;cursor:pointer;font-size:14px;padding:0;display:flex;align-items:center;justify-content:center;}
+  .iv-fav-btn:hover{color:var(--text);}
+  #ivFavCountLbl{font-size:12px;color:var(--text);min-width:18px;text-align:center;font-weight:700;}
+  .iv-fav-edit-btn{margin-left:auto;background:none;border:1px solid var(--line);color:var(--muted);border-radius:3px;
+    font-size:11px;padding:2px 7px;cursor:pointer;white-space:nowrap;}
+  .iv-fav-edit-btn:hover{color:var(--text);border-color:var(--text);}
+  #ivFavEditModal{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.55);}
+  #ivFavEditModal.open{display:flex;}
+  #ivFavEditBox{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    min-width:220px;max-width:320px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.6);overflow:hidden;}
+  #ivFavEditBox .efh{display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;border-bottom:1px solid var(--line);}
+  #ivFavEditBox .efh span{font-size:14px;font-weight:700;color:var(--text);}
+  #ivFavEditBox .efh button{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 2px;}
+  #ivFavEditBox .efh button:hover{color:var(--text);}
+  #ivFavEditList{padding:8px 0;}
+  .ef-row{display:flex;align-items:center;padding:7px 16px;gap:10px;}
+  .ef-row .ef-label{flex:1;font-size:13px;font-weight:600;color:var(--text);}
+  .ef-row .ef-rm{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:0 4px;line-height:1;}
+  .ef-row .ef-rm:hover{color:#f44;}
+  .ef-row .ef-mv{background:none;border:1px solid var(--line);color:var(--muted);font-size:12px;cursor:pointer;padding:1px 5px;border-radius:3px;line-height:1.4;}
+  .ef-row .ef-mv:hover:not(:disabled){color:var(--text);border-color:var(--text);}
+  .ef-row .ef-mv:disabled{opacity:0.25;cursor:default;}
+  #ivFavEditBox .ef-note{padding:8px 16px 12px;font-size:11px;color:var(--muted);border-top:1px solid var(--line);}
+
   /* ===== 지표 시스템 ===== */
   #addIndBtn{background:var(--panel2);border:1px solid var(--line);color:var(--muted);
     padding:4px 10px;border-radius:5px;font-size:11px;font-weight:600;margin-left:auto;}
@@ -337,9 +389,11 @@
   .rank-tab.active{color:var(--yellow);border-bottom-color:var(--yellow);}
   #rankSortBar{display:flex;align-items:center;gap:6px;padding:10px 0;border-bottom:1px solid var(--line);flex-shrink:0;}
   .sort-label{font-size:11px;color:var(--muted);margin-right:2px;}
-  .sort-btn{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:4px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
-  .sort-btn:hover{color:var(--text);}
-  .sort-btn.active{background:rgba(240,185,11,.15);border-color:var(--yellow);color:var(--yellow);}
+  .sort-btn{background:rgba(240,185,11,.15);border:1px solid var(--yellow);color:var(--yellow);border-radius:4px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
+  .sort-btn:hover{opacity:.85;}
+  .rank-sort-opt{padding:7px 16px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap;}
+  .rank-sort-opt:hover{background:rgba(255,255,255,.05);color:var(--text);}
+  .rank-sort-opt.active{color:var(--yellow);}
   .rank-body{flex:1;overflow-y:auto;}
   .rank-tbl{width:100%;border-collapse:collapse;font-size:12px;}
   .rank-tbl th{color:var(--muted);font-weight:600;padding:11px 14px;text-align:right;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:1;white-space:nowrap;}
@@ -648,14 +702,10 @@
 </div>
 
 <header>
-  <div class="sym">
-    <select id="symbolSel" class="sym-sel">
-      <option value="btcusdt">BTCUSDT</option>
-      <option value="ethusdt">ETHUSDT</option>
-      <option value="solusdt">SOLUSDT</option>
-      <option value="bnbusdt">BNBUSDT</option>
-      <option value="xrpusdt">XRPUSDT</option>
-    </select>
+  <div class="sym" style="display:flex;align-items:center;">
+    <img id="symIcon" src="" alt="" onerror="this.style.display='none';document.getElementById('symIconFb').style.display='inline-flex'">
+    <span id="symIconFb" class="sym-icon-fallback" style="display:none;"></span>
+    <button id="symbolSel" class="sym-sel" onclick="toggleSymDD(event)"><span id="symDDLbl">BTCUSDT</span><span style="font-size:10px;color:var(--muted);">▾</span></button>
     <span class="tag">PERP</span>
   </div>
   <div id="headPrice">-</div>
@@ -681,23 +731,7 @@
     <div class="card" style="overflow:hidden;">
       <div style="display:flex;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;">
         <button id="soundBtn" class="on" title="소리 알림 켜기/끄기">소리 ON</button>
-        <div class="ivseg" id="intervalSeg">
-          <button data-iv="1m">1분<span class="iv-cd"></span></button>
-          <button data-iv="3m">3분<span class="iv-cd"></span></button>
-          <button data-iv="5m">5분<span class="iv-cd"></span></button>
-          <button data-iv="15m">15분<span class="iv-cd"></span></button>
-          <button data-iv="30m">30분<span class="iv-cd"></span></button>
-          <button data-iv="1h">1시간<span class="iv-cd"></span></button>
-          <button data-iv="2h">2시간<span class="iv-cd"></span></button>
-          <button data-iv="4h">4시간<span class="iv-cd"></span></button>
-          <button data-iv="6h">6시간<span class="iv-cd"></span></button>
-          <button data-iv="8h">8시간<span class="iv-cd"></span></button>
-          <button data-iv="12h">12시간<span class="iv-cd"></span></button>
-          <button data-iv="1d">1일<span class="iv-cd"></span></button>
-          <button data-iv="3d">3일<span class="iv-cd"></span></button>
-          <button data-iv="1w">1주<span class="iv-cd"></span></button>
-          <button data-iv="1M">1월<span class="iv-cd"></span></button>
-        </div>
+        <div class="ivseg" id="intervalSeg"><!-- renderIntervalSeg()로 동적 생성 --></div>
         <button id="addIndBtn" onclick="openIndModal()">지표+</button>
         <button id="alarmBtn" onclick="toggleAlarmPanel()">알람</button>
       </div>
@@ -839,6 +873,18 @@
 </main>
 
 <!-- ===== 랭킹 페이지 ===== -->
+<!-- 즐겨찾기 편집 모달 -->
+<div id="ivFavEditModal" onclick="if(event.target===this)closeIvFavEdit()">
+  <div id="ivFavEditBox">
+    <div class="efh">
+      <span>즐겨찾기 편집</span>
+      <button onclick="closeIvFavEdit()">✕</button>
+    </div>
+    <div id="ivFavEditList"></div>
+    <div class="ef-note">★ 버튼으로 추가 · ↑↓ 버튼으로 순서 변경</div>
+  </div>
+</div>
+
 <div id="rankPage">
   <div id="rankPageWrap">
     <div id="rankPageHdr">
@@ -849,17 +895,37 @@
       </div>
     </div>
     <div class="rank-tabs">
-      <button class="rank-tab active" id="rankTab0" onclick="switchRankTab('daily',0)">일일 랭킹</button>
-      <button class="rank-tab" id="rankTab1" onclick="switchRankTab('weekly',1)">주간 랭킹</button>
-      <button class="rank-tab" id="rankTab2" onclick="switchRankTab('monthly',2)">월간 랭킹</button>
-      <button class="rank-tab" id="rankTab3" onclick="switchRankTab('total',3)">토탈 랭킹</button>
+      <button class="rank-tab active" id="rankTab0" onclick="switchRankTab('daily',0)">일일</button>
+      <button class="rank-tab" id="rankTab1" onclick="switchRankTab('weekly',1)">주간</button>
+      <button class="rank-tab" id="rankTab2" onclick="switchRankTab('monthly',2)">월간</button>
+      <button class="rank-tab" id="rankTab3" onclick="switchRankTab('total',3)">통합</button>
+      <button class="rank-tab" id="rankTab4" onclick="switchRankTab('symbol',4)">종목별</button>
+    </div>
+    <div id="rankSymbolBar" style="display:none;padding:8px 0;border-bottom:1px solid var(--line);">
+      <span style="font-size:11px;color:var(--muted);margin-right:6px;">종목:</span>
+      <img id="rankSymIcon" src="" alt="" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:4px;" onerror="this.style.display='none'">
+      <select id="rankSymbolSel" onchange="updateRankSymIcon();renderRankingBySymbol()" style="background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:4px;padding:3px 8px;font-size:12px;cursor:pointer;">
+        <option value="BTCUSDT">BTC/USDT</option>
+        <option value="ETHUSDT">ETH/USDT</option>
+        <option value="SOLUSDT">SOL/USDT</option>
+        <option value="BNBUSDT">BNB/USDT</option>
+        <option value="XRPUSDT">XRP/USDT</option>
+        <option value="DOGEUSDT">DOGE/USDT</option>
+        <option value="ADAUSDT">ADA/USDT</option>
+        <option value="AVAXUSDT">AVAX/USDT</option>
+      </select>
     </div>
     <div id="rankSortBar">
       <span class="sort-label">정렬:</span>
-      <button class="sort-btn active" id="sortBtn_pnl" onclick="setRankSort('pnl')">손익순</button>
-      <button class="sort-btn" id="sortBtn_roi" onclick="setRankSort('roi')">수익률순</button>
-      <button class="sort-btn" id="sortBtn_balance" onclick="setRankSort('balance')">총자산순</button>
-      <button class="sort-btn" id="sortBtn_winrate" onclick="setRankSort('winrate')">승률순</button>
+      <div style="position:relative;display:inline-block;">
+        <button id="rankSortBtn" class="sort-btn" onclick="event.stopPropagation();toggleRankSortDD(this)">손익순 ▾</button>
+        <div id="rankSortDD" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--panel2);border:1px solid var(--line);border-radius:6px;z-index:9000;box-shadow:0 4px 12px rgba(0,0,0,.4);padding:4px 0;min-width:110px;">
+          <div class="rank-sort-opt active" onclick="setRankSort('pnl')">손익순</div>
+          <div class="rank-sort-opt" onclick="setRankSort('roi')">수익률순</div>
+          <div class="rank-sort-opt" onclick="setRankSort('balance')">총자산순</div>
+          <div class="rank-sort-opt" onclick="setRankSort('winrate')">승률순</div>
+        </div>
+      </div>
     </div>
     <div class="rank-body" id="rankBody">
       <div class="rank-empty">불러오는 중...</div>
@@ -1121,6 +1187,48 @@ function save(){
 /* ---------- 심볼 ---------- */
 let curSymbol = S.symbol || "btcusdt";
 
+const COIN_IMG = {
+  btcusdt:  'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+  ethusdt:  'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+  solusdt:  'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+  bnbusdt:  'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+  xrpusdt:  'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png',
+  dogeusdt: 'https://assets.coingecko.com/coins/images/5/small/dogecoin.png',
+  adausdt:  'https://assets.coingecko.com/coins/images/975/small/cardano.png',
+  avaxusdt: 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
+};
+const COIN_COLOR = {
+  btcusdt:'#F7931A', ethusdt:'#627EEA', solusdt:'#9945FF',
+  bnbusdt:'#F3BA2F', xrpusdt:'#00AAE4', dogeusdt:'#C2A633',
+  adausdt:'#0033AD', avaxusdt:'#E84142',
+};
+function updateSymIcon(sym){
+  const img = document.getElementById('symIcon');
+  const fb  = document.getElementById('symIconFb');
+  if(!img || !fb) return;
+  const url = COIN_IMG[sym];
+  if(url){
+    img.src = url;
+    img.style.display = 'inline-block';
+    fb.style.display  = 'none';
+  } else {
+    img.style.display = 'none';
+    fb.style.background = COIN_COLOR[sym] || '#888';
+    fb.textContent = sym.replace('usdt','').slice(0,3).toUpperCase();
+    fb.style.display = 'inline-flex';
+  }
+}
+
+function updateRankSymIcon(){
+  const sel = document.getElementById('rankSymbolSel');
+  const img = document.getElementById('rankSymIcon');
+  if(!sel || !img) return;
+  const sym = sel.value.toLowerCase();
+  const url = COIN_IMG[sym];
+  if(url){ img.src=url; img.style.display='inline'; }
+  else { img.style.display='none'; }
+}
+
 /* ---------- 시세 변수 ---------- */
 let lastPrice = 0;
 let markPrice = 0;
@@ -1256,7 +1364,7 @@ function openOrder(side){
 
   if(ot==="limit"){
     S.pending.push({id:uid(), kind:"limit", side, qty, price, tpRaw, slRaw,
-      tpMode, slMode, tpCloseAmt:100, slCloseAmt:100, tpCloseMode:'pct', slCloseMode:'pct'});
+      tpMode, slMode, tpCloseAmt:100, slCloseAmt:100, tpCloseMode:'pct', slCloseMode:'pct', sym:curSymbol});
     toast(`지정가 ${side==="long"?"롱":"숏"} 주문 등록 (${fmtPrice(price)})`);
   } else {
     applyFill(side, qty, price, TAKER);
@@ -1307,12 +1415,12 @@ function buildTpSlOrders(side, tp, sl, tpCloseAmt=100, slCloseAmt=100, tpCloseMo
   const ref = lastPrice || markPrice;
   if(tp>0){
     if((side==="long"&&tp>ref)||(side==="short"&&tp<ref))
-      out.push({id:uid(), kind:"tp", side, price:tp, closeAmt:tpCloseAmt, closeMode:tpCloseMode});
+      out.push({id:uid(), kind:"tp", side, price:tp, closeAmt:tpCloseAmt, closeMode:tpCloseMode, sym:curSymbol});
     else toast("TP 가격 방향이 올바르지 않아 무시했습니다 (롱: 현재가보다 높게 / 숏: 낮게).");
   }
   if(sl>0){
     if((side==="long"&&sl<ref)||(side==="short"&&sl>ref))
-      out.push({id:uid(), kind:"sl", side, price:sl, closeAmt:slCloseAmt, closeMode:slCloseMode});
+      out.push({id:uid(), kind:"sl", side, price:sl, closeAmt:slCloseAmt, closeMode:slCloseMode, sym:curSymbol});
     else toast("SL 가격 방향이 올바르지 않아 무시했습니다 (롱: 현재가보다 낮게 / 숏: 높게).");
   }
   return out;
@@ -1562,7 +1670,7 @@ window.savePendingEdit = function(){
 };
 
 function logHist(type, side, qty, price, pnl, fee, roe=0){
-  S.history.unshift({time:Date.now(), type, side, qty, price, pnl, fee, roe});
+  S.history.unshift({time:Date.now(), type, side, qty, price, pnl, fee, roe, sym: curSymbol});
   if(S.history.length>200) S.history.length=200;
 }
 
@@ -1610,6 +1718,7 @@ function checkPending(checkHi, checkLo){
   const toAdd = [];
   let closed = false;
   for(const o of S.pending){
+    if(o.sym && o.sym !== curSymbol){ remain.push(o); continue; }
     if(o.kind==="limit"){
       const fill = o.side==="long" ? lo<=o.price : hi>=o.price;
       if(fill){
@@ -1800,12 +1909,13 @@ function renderPositions(){
 
 function renderOrders(){
   const el = document.getElementById("tab-ord");
-  if(!S.pending.length){ el.innerHTML=`<div class="empty">미체결 주문이 없습니다.</div>`; return; }
+  const curOrders = S.pending.filter(o=>!o.sym||o.sym===curSymbol);
+  if(!curOrders.length){ el.innerHTML=`<div class="empty">미체결 주문이 없습니다.</div>`; return; }
   const kindName = {limit:"지정가", tp:"TP", sl:"SL"};
   el.innerHTML = `<div class="tblwrap"><table><thead><tr>
     <th>종류</th><th>방향</th><th>수량</th><th>주문가</th><th class="green">TP</th><th class="red">SL</th><th></th>
     </tr></thead><tbody>`+
-    S.pending.map(o=>{
+    curOrders.map(o=>{
       let tpStr='-', slStr='-';
       if(o.kind==='limit'){
         const ts = makeTpSl(o.side, o.price, o.tpRaw||0, o.slRaw||0, o.tpMode||'price', o.slMode||'price', o.qty);
@@ -1902,6 +2012,7 @@ function toast(msg){
 /* ============================ 차트 (Lightweight Charts v4.2.3) ============================ */
 let chart=null, candleSeries=null;
 let oscChart=null;                  // 오실레이터 전용 차트
+let _loadHistVer = 0;               // 비동기 race condition 방지용 버전 카운터
 const indSeriesMap = new Map();     // ind.id → series 또는 {mid,upper,lower} 등
 let candles=[];                       // {time, open, high, low, close, volume}
 let curInterval = S.interval || '1m';
@@ -1930,22 +2041,39 @@ function initChart(){
 
 async function loadHistory(retry=0){
   if(!candleSeries) return;
+  // race condition 방지: 이 호출의 버전을 캡처해두고, await 후에도 여전히 최신인지 확인
+  const ver = (retry === 0) ? ++_loadHistVer : _loadHistVer;
+  const snapSym = curSymbol, snapIv = curInterval;
   loadingMore=false; noMoreHistory=false;       // 심볼/시간봉 바뀌면 지연로딩 상태 초기화
   try{
-    const sym = curSymbol.toUpperCase();
+    const sym = snapSym.toUpperCase();
     // 10초 타임아웃 — 무응답 hang 방지
     const ctrl=new AbortController(); const tid=setTimeout(()=>ctrl.abort(), 10000);
-    const r = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${curInterval}&limit=1000`, {signal:ctrl.signal});
+    const r = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${snapIv}&limit=1000`, {signal:ctrl.signal});
     clearTimeout(tid);
+    if(ver !== _loadHistVer) return; // 더 새로운 요청이 시작됐으면 이 결과는 버림
     const raw = await r.json();
+    if(ver !== _loadHistVer) return;
     if(!Array.isArray(raw)) throw new Error('invalid response: '+JSON.stringify(raw).slice(0,80));
     candles = raw.map(k=>({ time:Math.floor(k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5] }));
+    // 오버레이 시리즈(HMA 등)를 setData 전에 먼저 제거 — 이전 코인 가격대가 Y축을 벌려놓는 원인
+    if(S.indicators) for(const ind of [...S.indicators]) removeSeries(ind.id);
+    // Y축 강제 초기화 후 setData
+    try{ chart.priceScale('right').applyOptions({ autoScale: true }); }catch(e){}
+    try{ candleSeries.priceScale().applyOptions({ autoScale: true }); }catch(e){}
     candleSeries.setData(candles);
-    renderAllIndicators();
-    showLatestView();
+    // 제거된 지표를 새 candles 기준으로 다시 렌더
+    if(S.indicators) for(const ind of S.indicators) renderIndicator(ind);
+    checkOscPane();
     setTimeout(updateHighLow, 100);
+    // RAF에서 한 번 더 autoScale 보장 (LWC가 setData 후 scale을 덮어쓸 수 있음)
+    requestAnimationFrame(()=>{
+      try{ chart.priceScale('right').applyOptions({ autoScale: true }); }catch(e){}
+      try{ candleSeries && candleSeries.priceScale().applyOptions({ autoScale: true }); }catch(e){}
+    });
     _setChartMsg('');                           // 성공 시 메시지 제거
   }catch(e){
+    if(ver !== _loadHistVer) return; // 구버전 요청 실패는 무시
     console.warn(`klines 로드 실패 (시도 ${retry+1})`, e);
     const max=4, delay=Math.min(1500*(retry+1), 6000);
     if(retry < max){
@@ -1969,6 +2097,9 @@ function _setChartMsg(msg){
 /* 최신 봉 위주 + 오른쪽 여백을 화면 너비에 맞춰 결정적으로 표시 (애니메이션 X) */
 function showLatestView(){
   if(!chart || !candles.length) return;
+  // Y축이 이전 심볼/봉에서 잠겨 있을 수 있으므로 매번 autoScale 강제 해제
+  try{ chart.priceScale('right').applyOptions({ autoScale: true }); }catch(e){}
+  try{ candleSeries && candleSeries.priceScale().applyOptions({ autoScale: true }); }catch(e){}
   const apply=()=>{
     const n = candles.length, off = 12;
     let plotW = 0;
@@ -1976,6 +2107,8 @@ function showLatestView(){
     if(!plotW){ const el=document.getElementById('chart'); plotW = el ? el.clientWidth-60 : 800; }   // 초기 width=0 대비
     const want = Math.max(40, Math.min(n, Math.floor(plotW/8) - off));   // 약 8px/봉
     try{ chart.timeScale().setVisibleLogicalRange({ from: n - want, to: n - 1 + off }); }catch(e){}
+    // X범위 설정 후에도 Y축 autoScale 재적용 (LWC가 범위 설정으로 scale을 덮어쓸 수 있음)
+    try{ chart.priceScale('right').applyOptions({ autoScale: true }); }catch(e){}
   };
   apply();
   requestAnimationFrame(apply);     // 레이아웃 안정 후 다시 한 번 (정확한 폭으로)
@@ -2372,17 +2505,28 @@ let _alarmCtx = null;
 let _alarmBuffer = null;
 
 async function _initAlarmAudio(){
-  if(_alarmCtx) return;
+  // 이미 준비 완료면 재시도 불필요
+  if(_alarmCtx && _alarmBuffer) return;
   try{
-    _alarmCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const resp = await fetch('핑구 알림음.mp3.mp4');
-    const arr  = await resp.arrayBuffer();
-    _alarmBuffer = await _alarmCtx.decodeAudioData(arr);
+    // AudioContext가 없거나 닫혔으면 새로 생성 (유저 제스처 내에서 동기 생성 필수 — iOS 정책)
+    if(!_alarmCtx || _alarmCtx.state === 'closed'){
+      _alarmCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // suspended 상태면 resume (백그라운드 복귀 시)
+    if(_alarmCtx.state === 'suspended') await _alarmCtx.resume().catch(()=>{});
+    // 버퍼가 아직 없으면 파일 로드
+    if(!_alarmBuffer){
+      const resp = await fetch('핑구 알림음.mp3.mp4');
+      const arr  = await resp.arrayBuffer();
+      _alarmBuffer = await _alarmCtx.decodeAudioData(arr);
+    }
   }catch(e){ _alarmCtx=null; _alarmBuffer=null; }
 }
 
-// 첫 클릭 시 AudioContext 생성 + 버퍼 로드 (오토플레이 정책 해제)
-document.addEventListener('click', _initAlarmAudio, {once:true});
+// 클릭·터치 모두 캡처 (모바일은 touchstart가 먼저 — once 제거로 실패 시 재시도 허용)
+function _tryInitAlarm(){ if(!_alarmBuffer) _initAlarmAudio(); }
+document.addEventListener('click',      _tryInitAlarm, {passive:true});
+document.addEventListener('touchstart', _tryInitAlarm, {passive:true});
 
 // 뒷탭→앞탭 전환 시 suspended 된 AudioContext 재개
 document.addEventListener('visibilitychange', ()=>{
@@ -2512,6 +2656,177 @@ function renderSettingsPanel(){
 
 /* ---------- 실시간 캔들 (WS·REST 공통) ---------- */
 const IV_SEC = {'1m':60,'3m':180,'5m':300,'15m':900,'30m':1800,'1h':3600,'2h':7200,'4h':14400,'6h':21600,'8h':28800,'12h':43200,'1d':86400,'3d':259200,'1w':604800,'1M':2592000};
+const IV_ALL = ['1m','3m','5m','15m','30m','1h','2h','4h','6h','8h','12h','1d','3d','1w','1M'];
+const IV_LABEL = {'1m':'1분','3m':'3분','5m':'5분','15m':'15분','30m':'30분','1h':'1시간','2h':'2시간','4h':'4시간','6h':'6시간','8h':'8시간','12h':'12시간','1d':'1일','3d':'3일','1w':'1주','1M':'1월'};
+
+let ivFavs = ['1m','5m','15m','1h','4h'];
+let ivFavCount = 5;
+
+function _loadIvFavs(){
+  try{
+    const s = localStorage.getItem('btcSim_ivFavs');
+    if(s){ const d=JSON.parse(s); if(d.favs) ivFavs=d.favs; if(d.count) ivFavCount=d.count; }
+  }catch(e){}
+}
+function _saveIvFavs(){
+  try{ localStorage.setItem('btcSim_ivFavs', JSON.stringify({favs:ivFavs, count:ivFavCount})); }catch(e){}
+}
+
+function renderIntervalSeg(){
+  const seg = document.getElementById('intervalSeg');
+  if(!seg) return;
+  const visible = ivFavs.slice(0, ivFavCount);
+  const favBtns = visible.map(iv =>
+    `<button data-iv="${iv}" class="${iv===curInterval?'active':''}" onclick="selectIv('${iv}')">` +
+    `${IV_LABEL[iv]||iv}<span class="iv-cd">${iv===curInterval?fmtCountdown(iv):''}</span></button>`
+  ).join('');
+  seg.innerHTML = favBtns +
+    `<button id="ivMoreBtn" onclick="toggleIvDropdown()" title="전체 시간봉">▾</button>`;
+}
+
+window.selectIv = function(iv){
+  if(iv === curInterval) return;
+  curInterval = iv; S.interval = iv; save();
+  hmaZoneState = null; alarmFiredCount = 0;
+  renderIntervalSeg();
+  // 시간봉 전환 시도 Y축 강제 초기화 (이전 봉의 가격대가 차트를 눌리게 만드는 원인)
+  try{ chart.priceScale('right').applyOptions({ autoScale: true }); }catch(e){}
+  loadHistory();
+  connectWS();
+};
+
+window.toggleIvDropdown = function(){
+  let dd = document.getElementById('ivDropdown');
+  if(!dd){
+    dd = document.createElement('div');
+    dd.id = 'ivDropdown';
+    dd.style.display = 'none';   // ★ 생성 직후 명시적 none — 안 하면 첫 클릭이 '열림'으로 오판해 닫혀버림(두번클릭 버그)
+    document.body.appendChild(dd);
+    // mousedown 기반 외부 클릭 감지 — click 기반보다 안정적이고 lock 불필요
+    document.addEventListener('mousedown', (e)=>{
+      const toggleBtn = document.getElementById('ivMoreBtn');
+      // 토글 버튼 자체를 누르면 무시 (onclick에서 열기/닫기 처리)
+      if(toggleBtn && toggleBtn.contains(e.target)) return;
+      if(dd && !dd.contains(e.target)) dd.style.display='none';
+    });
+  }
+  if(dd.style.display !== 'none'){ dd.style.display='none'; return; }
+  // 내용 빌드/갱신
+  dd.innerHTML = IV_ALL.map(iv =>
+    `<div class="iv-dd-row">` +
+    `<span class="iv-dd-label${iv===curInterval?' iv-active':''}" onclick="selectIv('${iv}');document.getElementById('ivDropdown').style.display='none'">${IV_LABEL[iv]||iv}</span>` +
+    `<span class="iv-dd-star${ivFavs.includes(iv)?' starred':''}" onclick="event.stopPropagation();toggleIvFav('${iv}')" title="즐겨찾기">${ivFavs.includes(iv)?'★':'☆'}</span>` +
+    `</div>`
+  ).join('') +
+  `<div class="iv-fav-ctrl">` +
+  `<span>즐겨찾기 수</span>` +
+  `<button class="iv-fav-btn" onclick="event.stopPropagation();changeIvFavCount(-1)">−</button>` +
+  `<span id="ivFavCountLbl">${ivFavCount}</span>` +
+  `<button class="iv-fav-btn" onclick="event.stopPropagation();changeIvFavCount(1)">+</button>` +
+  `<button class="iv-fav-edit-btn" onclick="event.stopPropagation();showIvFavEdit()">✏️ 편집</button>` +
+  `</div>`;
+  // 위치 결정
+  const btnEl = document.getElementById('ivMoreBtn');
+  if(btnEl){
+    const r = btnEl.getBoundingClientRect();
+    dd.style.visibility='hidden'; dd.style.display='block';
+    const ddH=dd.offsetHeight, ddW=dd.offsetWidth;
+    dd.style.display='none'; dd.style.visibility='';
+    const top = (r.bottom+4+ddH <= window.innerHeight) ? r.bottom+4 : r.top-ddH-4;
+    dd.style.left = Math.min(r.left, window.innerWidth-ddW-8)+'px';
+    dd.style.top  = Math.max(8,top)+'px';
+  }
+  dd.style.display='block';
+};
+
+window.toggleIvFav = function(iv){
+  const idx = ivFavs.indexOf(iv);
+  if(idx >= 0){
+    if(ivFavs.length <= 1){ toast('즐겨찾기는 최소 1개 이상이어야 합니다.'); return; }
+    ivFavs.splice(idx, 1);
+  } else {
+    if(ivFavs.length >= ivFavCount){
+      toast(`즐겨찾기가 가득 찼습니다 (${ivFavCount}개). ＋ 버튼으로 갯수를 늘려주세요.`);
+      return;
+    }
+    ivFavs.push(iv);
+  }
+  _saveIvFavs();
+  renderIntervalSeg();
+  // 드롭다운 열려 있으면 star 상태만 갱신 (닫지 않음)
+  const dd = document.getElementById('ivDropdown');
+  if(dd && dd.style.display !== 'none'){
+    dd.querySelectorAll('.iv-dd-row').forEach((row,i)=>{
+      const v=IV_ALL[i]; if(!v) return;
+      const star=row.querySelector('.iv-dd-star');
+      if(star){ star.className='iv-dd-star'+(ivFavs.includes(v)?' starred':''); star.textContent=ivFavs.includes(v)?'★':'☆'; }
+    });
+  }
+};
+
+window.changeIvFavCount = function(delta){
+  ivFavCount = Math.max(1, Math.min(10, ivFavCount + delta));
+  _saveIvFavs();
+  const el = document.getElementById('ivFavCountLbl');
+  if(el) el.textContent = ivFavCount;
+  renderIntervalSeg();
+};
+
+window.showIvFavEdit = function(){
+  // 드롭다운 닫기
+  const dd = document.getElementById('ivDropdown');
+  if(dd) dd.style.display='none';
+  const modal = document.getElementById('ivFavEditModal');
+  const list  = document.getElementById('ivFavEditList');
+  if(!modal || !list) return;
+  _renderIvFavEditList();
+  modal.classList.add('open');
+};
+window.closeIvFavEdit = function(){
+  const modal = document.getElementById('ivFavEditModal');
+  if(modal) modal.classList.remove('open');
+};
+function _renderIvFavEditList(){
+  const list = document.getElementById('ivFavEditList');
+  if(!list) return;
+  if(ivFavs.length === 0){
+    list.innerHTML = '<div style="padding:14px 16px;font-size:12px;color:var(--muted);">즐겨찾기가 없습니다.</div>';
+    return;
+  }
+  list.innerHTML = ivFavs.map((iv, idx) =>
+    `<div class="ef-row">` +
+    `<button class="ef-mv" onclick="moveIvFav(${idx},-1)" ${idx===0?'disabled':''}  title="위로">↑</button>` +
+    `<button class="ef-mv" onclick="moveIvFav(${idx},1)" ${idx===ivFavs.length-1?'disabled':''} title="아래로">↓</button>` +
+    `<span class="ef-label">${IV_LABEL[iv]||iv}</span>` +
+    `<button class="ef-rm" onclick="removeIvFavFromEdit('${iv}')" title="제거">✕</button>` +
+    `</div>`
+  ).join('');
+}
+window.removeIvFavFromEdit = function(iv){
+  if(ivFavs.length <= 1){ toast('즐겨찾기는 최소 1개 이상이어야 합니다.'); return; }
+  const idx = ivFavs.indexOf(iv);
+  if(idx >= 0) ivFavs.splice(idx, 1);
+  _saveIvFavs();
+  renderIntervalSeg();
+  _renderIvFavEditList();
+  // 드롭다운 star 상태도 갱신
+  const dd = document.getElementById('ivDropdown');
+  if(dd && dd.style.display !== 'none'){
+    dd.querySelectorAll('.iv-dd-row').forEach((row,i)=>{
+      const v=IV_ALL[i]; if(!v) return;
+      const star=row.querySelector('.iv-dd-star');
+      if(star){ star.className='iv-dd-star'+(ivFavs.includes(v)?' starred':''); star.textContent=ivFavs.includes(v)?'★':'☆'; }
+    });
+  }
+};
+window.moveIvFav = function(idx, dir){
+  const newIdx = idx + dir;
+  if(newIdx < 0 || newIdx >= ivFavs.length) return;
+  [ivFavs[idx], ivFavs[newIdx]] = [ivFavs[newIdx], ivFavs[idx]];
+  _saveIvFavs();
+  renderIntervalSeg();
+  _renderIvFavEditList();
+};
 function barStart(tsSec, iv){ const s=IV_SEC[iv]||60; return Math.floor(tsSec/s)*s; }
 
 function mergeCandle(c){
@@ -2546,8 +2861,20 @@ function liveTick(price){
 
 /* ---- 가격 부드러운 애니메이션 (RAF 보간) ---- */
 let _chartPrice=0, _chartTarget=0, _chartAnimFrom=0, _chartAnimStart=0, _chartAnimRaf=0;
+/* 심볼 전환 시 호출 — 이전 코인 가격 잔재 제거. 안 하면 다음 smoothPriceTo가
+   이전 코인 가격(예 BTC 66000)에서 새 코인 가격(예 DOGE 0.09)으로 보간하며
+   그 중간값들을 새 캔들 high에 Math.max로 박아넣어 차트가 '세로로 납작'해짐 */
+function resetChartPrice(){
+  if(_chartAnimRaf){ cancelAnimationFrame(_chartAnimRaf); _chartAnimRaf=0; }
+  _chartPrice=0; _chartTarget=0; _chartAnimFrom=0;
+}
 function smoothPriceTo(newPrice){
   if(!(newPrice>0)) return;
+  // 가격대가 극단적으로 다르면(코인 전환 등) 보간 없이 즉시 스냅 — 잔재 가격으로 인한 캔들 오염 방지
+  if(_chartPrice>0){
+    const ratio = newPrice/_chartPrice;
+    if(ratio>4 || ratio<0.25){ _chartPrice=newPrice; liveTick(newPrice); return; }
+  }
   if(!(_chartPrice>0)){ _chartPrice=newPrice; liveTick(newPrice); return; }
   _chartAnimFrom=_chartPrice; _chartTarget=newPrice; _chartAnimStart=performance.now();
   if(!_chartAnimRaf) _chartAnimRaf=requestAnimationFrame(_chartAnimStep);
@@ -2587,7 +2914,7 @@ function drawPriceLines(){
   const add=(price,color,title)=>{ if(price>0) priceLines.push(candleSeries.createPriceLine({ price, color, lineWidth:1, lineStyle:0, axisLabelVisible:true, title })); };
   const p=S.position;
   if(p){ add(p.entry,'#f0b90b','진입'); const lq=curLiq(); if(lq) add(lq,'#ff9f43','청산'); }
-  S.pending.forEach(o=>{
+  S.pending.filter(o=>!o.sym||o.sym===curSymbol).forEach(o=>{
     if(o.kind==='tp') add(o.price,'#0ecb81','TP');
     else if(o.kind==='sl') add(o.price,'#f6465d','SL');
     else if(o.kind==='limit') add(o.price,'#2962ff', o.side==='long'?'지정 롱':'지정 숏');
@@ -2699,16 +3026,89 @@ function setConn(cls,txt){
   const el = document.getElementById("conn"); el.className=cls; el.textContent=txt;
 }
 
+/* ---------- 코인 커스텀 드롭다운 ---------- */
+const _SYM_LIST = ['btcusdt','ethusdt','solusdt','bnbusdt','xrpusdt','dogeusdt','adausdt','avaxusdt'];
+const _SYM_LABEL = {btcusdt:'BTC/USDT',ethusdt:'ETH/USDT',solusdt:'SOL/USDT',bnbusdt:'BNB/USDT',
+  xrpusdt:'XRP/USDT',dogeusdt:'DOGE/USDT',adausdt:'ADA/USDT',avaxusdt:'AVAX/USDT'};
+
+function updateSymLabel(){
+  const el = document.getElementById('symDDLbl');
+  if(el) el.textContent = _SYM_LABEL[curSymbol] || curSymbol.toUpperCase();
+}
+
+window.toggleSymDD = function(e){
+  if(e) e.stopPropagation();
+  let dd = document.getElementById('symDropdown');
+  if(!dd){
+    dd = document.createElement('div');
+    dd.id = 'symDropdown';
+    dd.style.cssText = 'display:none;position:fixed;background:#161a1e;border:1px solid #2a2f36;border-radius:8px;z-index:9999;min-width:160px;box-shadow:0 6px 16px rgba(0,0,0,.7);padding:4px 0;';
+    _SYM_LIST.forEach(sym => {
+      const row = document.createElement('div');
+      row.className = 'sym-dd-row';
+      row.dataset.sym = sym;
+      // 아이콘
+      const url = COIN_IMG[sym];
+      const img = document.createElement('img');
+      img.className = 'sym-dd-icon';
+      img.src = url || '';
+      img.alt = sym;
+      img.style.display = url ? 'inline-block' : 'none';
+      img.onerror = function(){ this.style.display='none'; this.nextSibling.style.display='inline-flex'; };
+      const fb = document.createElement('span');
+      fb.className = 'sym-dd-fb';
+      fb.style.background = COIN_COLOR[sym] || '#888';
+      fb.textContent = sym.replace('usdt','').slice(0,3).toUpperCase();
+      fb.style.display = url ? 'none' : 'inline-flex';
+      // 라벨
+      const lbl = document.createElement('span');
+      lbl.className = 'sym-dd-lbl';
+      lbl.textContent = _SYM_LABEL[sym];
+      row.appendChild(img); row.appendChild(fb); row.appendChild(lbl);
+      row.addEventListener('click', ()=>{ changeSymbol(sym); dd.style.display='none'; });
+      dd.appendChild(row);
+    });
+    document.body.appendChild(dd);
+    document.addEventListener('mousedown', (e)=>{
+      const btn = document.getElementById('symbolSel');
+      if(btn && btn.contains(e.target)) return;
+      if(dd && !dd.contains(e.target)) dd.style.display='none';
+    });
+  }
+  if(dd.style.display !== 'none'){ dd.style.display='none'; return; }
+  // 현재 심볼 하이라이트
+  dd.querySelectorAll('.sym-dd-row').forEach(row=>{
+    row.classList.toggle('active', row.dataset.sym === curSymbol);
+  });
+  // 위치
+  const btn = document.getElementById('symbolSel');
+  if(btn){
+    const r = btn.getBoundingClientRect();
+    dd.style.visibility='hidden'; dd.style.display='block';
+    const ddH=dd.offsetHeight, ddW=dd.offsetWidth;
+    dd.style.display='none'; dd.style.visibility='';
+    const top = (r.bottom+4+ddH <= window.innerHeight) ? r.bottom+4 : r.top-ddH-4;
+    dd.style.left = Math.min(r.left, window.innerWidth-ddW-8)+'px';
+    dd.style.top  = Math.max(8,top)+'px';
+  }
+  dd.style.display='block';
+};
+
 /* ---------- 심볼 전환 ---------- */
 function changeSymbol(sym){
-  if(S.position){ toast("포지션 보유 중에는 심볼을 변경할 수 없습니다."); document.getElementById("symbolSel").value=curSymbol; return; }
+  if(S.position){ toast("포지션 보유 중에는 심볼을 변경할 수 없습니다."); updateSymLabel(); return; }
   curSymbol = sym;
   S.symbol = sym;
   lastPrice=0; markPrice=0; prevClose24=0; high24=0; low24=0; fundingRate=0; nextFundingT=0;
-  hmaZoneState = null; alarmFiredCount = 0;   // 새 심볼 기준으로 존 상태 재초기화
+  hmaZoneState = null; alarmFiredCount = 0;
+  resetChartPrice();   // ★ 이전 코인 가격 잔재 제거 (차트 '세로로 납작' 버그 근본 해결)
+  // 심볼 전환 전 Y축 강제 초기화 — 이전 코인 가격대가 남아있는 문제 방지
+  try{ chart.applyOptions({ rightPriceScale: { autoScale: true } }); }catch(e){}
+  updateSymIcon(sym);
+  updateSymLabel();
   save();
   loadHistory();
-  drawings=loadDrawings(); selectedId=null; redrawDrawings();   // 심볼별 그림 전환
+  drawings=loadDrawings(); selectedId=null; redrawDrawings();
   connectWS();
 }
 
@@ -2757,10 +3157,9 @@ window.showCloseUnitDropdown = function(which, btn){
 };
 
 function bindUI(){
-  // 심볼 선택
-  const symSel = document.getElementById("symbolSel");
-  symSel.value = curSymbol;
-  symSel.onchange = ()=> changeSymbol(symSel.value);
+  // 심볼 선택 (커스텀 드롭다운 — toggleSymDD로 처리)
+  updateSymLabel();
+  updateSymIcon(curSymbol);
 
   // 소리 토글
   const sndBtn = document.getElementById("soundBtn");
@@ -2842,19 +3241,9 @@ function bindUI(){
     };
   });
 
-  // 시간봉 선택
-  document.querySelectorAll("#intervalSeg button").forEach(b=>{
-    if(b.dataset.iv===curInterval) b.classList.add("active");
-    b.onclick = ()=>{
-      if(b.dataset.iv===curInterval) return;
-      document.querySelectorAll("#intervalSeg button").forEach(x=>x.classList.remove("active"));
-      b.classList.add("active");
-      curInterval = b.dataset.iv; S.interval = curInterval; save();
-      hmaZoneState = null; alarmFiredCount = 0;   // 새 시간봉 기준으로 존 상태 재초기화
-      loadHistory();
-      connectWS();
-    };
-  });
+  // 시간봉 선택 — renderIntervalSeg()가 동적으로 버튼을 생성하고 onclick도 처리
+  _loadIvFavs();
+  renderIntervalSeg();
 
   renderIndicatorChips();
 
@@ -3456,9 +3845,12 @@ function fmtCountdown(iv){
   }
 }
 function updateCandleTimers(){
-  document.querySelectorAll('#intervalSeg button').forEach(btn=>{
+  // 즐겨찾기 버튼에만 카운트다운 표시 (드롭다운 항목은 제외)
+  document.querySelectorAll('#intervalSeg button[data-iv]').forEach(btn=>{
     const cd = btn.querySelector('.iv-cd');
     if(cd) cd.textContent = fmtCountdown(btn.dataset.iv);
+    // active 상태도 최신 curInterval 기준으로 동기화
+    btn.classList.toggle('active', btn.dataset.iv === curInterval);
   });
 }
 
@@ -3764,12 +4156,17 @@ function computeRankStats(){
   const cutWeekly  = now - 7*dayMs;
   const cutMonthly = now - 30*dayMs;
   const acc = { daily:{pnl:0,tr:0,wins:0}, weekly:{pnl:0,tr:0,wins:0}, monthly:{pnl:0,tr:0,wins:0}, total:{pnl:0,tr:0,wins:0} };
+  const symAcc = {}; // 종목별 통합 누적
   (S.history||[]).forEach(h=>{
     if(h.type==='진입') return;
     acc.total.pnl+=h.pnl; acc.total.tr++; if(h.pnl>0) acc.total.wins++;
     if(h.time>=cutMonthly){ acc.monthly.pnl+=h.pnl; acc.monthly.tr++; if(h.pnl>0) acc.monthly.wins++; }
     if(h.time>=cutWeekly) { acc.weekly.pnl +=h.pnl; acc.weekly.tr++;  if(h.pnl>0) acc.weekly.wins++;  }
     if(h.time>=cutDaily)  { acc.daily.pnl  +=h.pnl; acc.daily.tr++;   if(h.pnl>0) acc.daily.wins++;   }
+    // 종목별 누적
+    const s = h.sym || 'BTCUSDT';
+    if(!symAcc[s]) symAcc[s]={pnl:0,tr:0,wins:0};
+    symAcc[s].pnl+=h.pnl; symAcc[s].tr++; if(h.pnl>0) symAcc[s].wins++;
   });
   return {
     username: fbUsername, nickname: fbNickname, role: fbIsAdmin?'admin':'user',
@@ -3778,6 +4175,7 @@ function computeRankStats(){
     weeklyPnl: acc.weekly.pnl, weeklyTrades: acc.weekly.tr, weeklyWins: acc.weekly.wins,
     monthlyPnl: acc.monthly.pnl,monthlyTrades:acc.monthly.tr,monthlyWins:acc.monthly.wins,
     totalPnl: acc.total.pnl,   totalTrades: acc.total.tr,   totalWins: acc.total.wins,
+    symbols: symAcc,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
 }
@@ -3794,24 +4192,62 @@ window.showRankPage = function(){
   document.querySelector('main').style.display = 'none';
   document.getElementById('rankPage').classList.add('show');
   document.getElementById('navRankBtn').classList.add('nb-active');
+  // 뒤로가기 버튼·백스페이스로 랭킹 페이지 탈출 가능하도록 히스토리 스택에 추가
+  if(location.hash !== '#ranking') history.pushState({page:'ranking'}, '', '#ranking');
   loadRanking(_rankPeriod);
 };
 window.hideRankPage = function(){
   document.querySelector('main').style.display = '';
   document.getElementById('rankPage').classList.remove('show');
   document.getElementById('navRankBtn').classList.remove('nb-active');
+  if(location.hash === '#ranking') history.pushState({page:'chart'}, '', location.pathname+location.search);
 };
+// 브라우저 뒤로가기 / 백스페이스 처리
+window.addEventListener('popstate', function(){
+  if(document.getElementById('rankPage').classList.contains('show')) hideRankPage();
+});
 window.switchRankTab = function(period, idx){
   _rankPeriod = period;
-  [0,1,2,3].forEach(i=>document.getElementById('rankTab'+i).classList.toggle('active',i===idx));
-  loadRanking(period);
+  [0,1,2,3,4].forEach(i=>document.getElementById('rankTab'+i).classList.toggle('active',i===idx));
+  const symBar = document.getElementById('rankSymbolBar');
+  const sortBar = document.getElementById('rankSortBar');
+  if(period==='symbol'){
+    symBar.style.display='block';
+    sortBar.style.display='none';
+    updateRankSymIcon();
+    loadRanking(period);
+  } else {
+    symBar.style.display='none';
+    sortBar.style.display='';
+    loadRanking(period);
+  }
+};
+const _rankSortLabels = {pnl:'손익순', roi:'수익률순', balance:'총자산순', winrate:'승률순'};
+let _rankSortDDLock = false;
+window.toggleRankSortDD = function(btn){
+  const dd = document.getElementById('rankSortDD');
+  if(!dd) return;
+  if(dd.style.display !== 'none'){ dd.style.display='none'; return; }
+  if(!dd._closeListenerAdded){
+    dd._closeListenerAdded = true;
+    document.addEventListener('click', (e)=>{
+      if(_rankSortDDLock) return;
+      if(!dd.contains(e.target)) dd.style.display='none';
+    });
+  }
+  _rankSortDDLock = true;
+  dd.style.display='block';
+  setTimeout(()=>{ _rankSortDDLock=false; }, 0);
 };
 window.setRankSort = function(sort){
   _rankSort = sort;
-  ['pnl','roi','balance','winrate'].forEach(s=>{
-    const el = document.getElementById('sortBtn_'+s);
-    if(el) el.classList.toggle('active', s===sort);
+  const btn = document.getElementById('rankSortBtn');
+  if(btn) btn.textContent = (_rankSortLabels[sort]||sort) + ' ▾';
+  document.querySelectorAll('.rank-sort-opt').forEach(el=>{
+    el.classList.toggle('active', el.textContent.trim() === (_rankSortLabels[sort]||sort));
   });
+  const dd = document.getElementById('rankSortDD');
+  if(dd) dd.style.display = 'none';
   renderRanking(_rankUsersCache, _rankPeriod);
 };
 window.loadRanking = async function(period){
@@ -3825,10 +4261,52 @@ window.loadRanking = async function(period){
     }
     _rankUsersCache = [];
     snap.forEach(doc=>{ const d=doc.data(); d._uid=doc.id; _rankUsersCache.push(d); });
-    renderRanking(_rankUsersCache, period);
+    if(period==='symbol') renderRankingBySymbol();
+    else renderRanking(_rankUsersCache, period);
   } catch(e){
     body.innerHTML='<div class="rank-empty" style="color:var(--red);">불러오기 실패.<br>Firestore 보안 규칙에서 rankings 컬렉션 읽기를 허용해주세요.</div>';
   }
+};
+window.renderRankingBySymbol = function(){
+  const body = document.getElementById('rankBody');
+  const sym = (document.getElementById('rankSymbolSel')||{}).value || 'BTCUSDT';
+  const symLabel = {'BTCUSDT':'BTC/USDT','ETHUSDT':'ETH/USDT','SOLUSDT':'SOL/USDT','BNBUSDT':'BNB/USDT',
+    'XRPUSDT':'XRP/USDT','DOGEUSDT':'DOGE/USDT','ADAUSDT':'ADA/USDT','AVAXUSDT':'AVAX/USDT'}[sym]||sym;
+  const medals = ['🥇','🥈','🥉'];
+  // symbols 데이터가 있는 유저만 필터링
+  const users = _rankUsersCache.filter(u=> u.symbols && u.symbols[sym] && u.symbols[sym].tr>0);
+  if(!users.length){
+    body.innerHTML=`<div class="rank-empty">${symLabel} 거래 기록이 있는 유저가 없습니다.<br>해당 종목을 거래하면 자동으로 등록됩니다.</div>`;
+    return;
+  }
+  const sorted = [...users].sort((a,b)=>(b.symbols[sym].pnl||0)-(a.symbols[sym].pnl||0));
+  const rows = sorted.map((u,i)=>{
+    const sd   = u.symbols[sym];
+    const pnl  = sd.pnl||0;
+    const tr   = sd.tr||0;
+    const wins = sd.wins||0;
+    const wr   = tr>0 ? (wins/tr*100).toFixed(1) : '0.0';
+    const roi  = (pnl/5000*100).toFixed(2);
+    const pnlCls = pnl>=0?'green':'red';
+    const medal = i<3?`<span class="rank-medal">${medals[i]}</span>`:`<span class="rank-num">${i+1}</span>`;
+    const name  = u.nickname||u.username||'익명';
+    const tags  = (u.role==='admin'?'<span class="rank-admin-tag">관리자</span>':'')
+                 +(fbUser&&u._uid===fbUser.uid?'<span class="rank-me-tag">★나</span>':'');
+    return `<tr>
+      <td>${medal}</td>
+      <td><span class="rank-name">${name}</span>${tags}</td>
+      <td class="${pnlCls}">${pnl>=0?'+':''}${pnl.toFixed(2)}</td>
+      <td class="${pnlCls}">${pnl>=0?'+':''}${roi}%</td>
+      <td style="color:var(--text);">${(u.walletBalance||0).toFixed(0)}</td>
+      <td style="color:var(--muted);">${tr}</td>
+      <td style="color:${parseFloat(wr)>=50?'var(--green)':'var(--muted)'};">${wr}%</td>
+    </tr>`;
+  }).join('');
+  body.innerHTML=`<table class="rank-tbl"><thead><tr>
+    <th>순위</th><th>닉네임</th>
+    <th>${symLabel} 손익(USDT)</th><th>수익률(%)</th>
+    <th>총자산(USDT)</th><th>거래수</th><th>승률</th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
 };
 function _rankSortValue(u, period, sort){
   const pnl  = u[period+'Pnl']||0;
