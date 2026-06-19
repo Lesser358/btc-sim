@@ -3012,6 +3012,10 @@ async function syncKlines(){
 /* ---------- 차트 가격선 (진입/청산/TP/SL/지정가) ---------- */
 function drawPriceLines(){
   if(!candleSeries) return;
+  // TP/SL 선을 드래그하는 중에는 재그리기 금지. 실시간 루프(updatePriceLines)가 매 틱
+  //   선을 삭제·재생성하면 드래그 중인 선이 원위치로 되돌아가고 _tslDrag.line이
+  //   죽은 참조가 되어 "선이 안 움직이는" 현상이 생긴다. 드래그 종료 후 다시 그린다.
+  if(_tslDrag) return;
   priceLines.forEach(l=>{ try{ candleSeries.removePriceLine(l); }catch(e){} });
   priceLines=[]; tpPriceLine=null; slPriceLine=null;
   const add=(price,color,title,w=1)=>{ if(price>0){ const l=candleSeries.createPriceLine({price,color,lineWidth:w,lineStyle:0,axisLabelVisible:true,title}); priceLines.push(l); return l; } return null; };
@@ -3034,6 +3038,15 @@ function initTpSlDrag(){
   window.addEventListener('keydown',e=>{if(e.key==='Escape'&&_tslDrag)_tslCancel();});
 }
 function _tslCoordY(price){ try{ const y=candleSeries.priceToCoordinate(price); return (y!=null&&isFinite(y))?y:null; }catch(e){return null;} }
+// TP/SL 선을 드래그하는 동안 차트 자체가 스크롤/줌 되지 않도록 차트 조작을 잠근다.
+// (Lightweight Charts는 내부 캔버스에서 자체 마우스 핸들러로 패닝을 처리하므로
+//  stopPropagation만으로는 막히지 않음 — 드래그 시작 시 조작 옵션을 꺼야 확실히 막힌다.)
+function _tslLockChart(lock){
+  try{ chart.applyOptions({
+    handleScroll: !lock,
+    handleScale:  !lock,
+  }); }catch(e){}
+}
 function _tslDown(e){
   if(!S.position) return;
   const el=document.getElementById('chart');
@@ -3050,6 +3063,7 @@ function _tslDown(e){
   e.preventDefault(); e.stopPropagation();
   _tslDrag={...hit,origPrice:hit.order.price,newPrice:hit.order.price};
   el.style.cursor='ns-resize';
+  _tslLockChart(true);   // 드래그 중 차트 패닝/줌 잠금
 }
 function _tslMove(e){
   const el=document.getElementById('chart');
@@ -3075,6 +3089,7 @@ function _tslMove(e){
 }
 function _tslUp(){
   if(!_tslDrag) return;
+  _tslLockChart(false);   // 마우스 떼면 차트 조작 잠금 해제
   document.getElementById('chart').style.cursor='';
   const {kind,order,origPrice,newPrice}=_tslDrag;
   if(Math.abs(newPrice-origPrice)<0.01){_tslCancel();return;}
@@ -3097,6 +3112,7 @@ function _tslUp(){
 }
 function _tslCancel(){
   if(!_tslDrag) return;
+  _tslLockChart(false);   // 차트 조작 잠금 해제
   try{_tslDrag.line.applyOptions({price:_tslDrag.origPrice,title:_tslDrag.kind==='tp'?'TP ↕':'SL ↕'});}catch(e){}
   _tslDrag=null;
   document.getElementById('chart').style.cursor='';
