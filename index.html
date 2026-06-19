@@ -731,7 +731,7 @@
     <div class="card" style="overflow:hidden;">
       <div style="display:flex;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;">
         <button id="soundBtn" class="on" title="소리 알림 켜기/끄기">소리 ON</button>
-        <div class="ivseg" id="intervalSeg"><!-- renderIntervalSeg()로 동적 생성 --></div>
+<div class="ivseg" id="intervalSeg"><!-- renderIntervalSeg()로 동적 생성 --></div>
         <button id="addIndBtn" onclick="openIndModal()">지표+</button>
         <button id="alarmBtn" onclick="toggleAlarmPanel()">알람</button>
       </div>
@@ -943,6 +943,22 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- TP/SL 드래그 확인 모달 -->
+<div id="tslDragModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:150;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px 20px;width:280px;">
+    <div id="tslDragTitle" style="font-size:14px;font-weight:700;margin-bottom:14px;text-align:center;line-height:1.4;"></div>
+    <div style="background:var(--bg);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:2.2;">
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">변경 가격</span><span id="tslDragPrice" style="font-weight:600;"></span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">예상 손익</span><span id="tslDragPnl"></span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">ROE %</span><span id="tslDragRoe"></span></div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="cancelTslDrag()" style="flex:1;background:none;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:10px;font-size:13px;cursor:pointer;">취소</button>
+      <button onclick="confirmTslDrag()" style="flex:1;background:var(--yellow);border:none;color:#000;border-radius:8px;padding:10px;font-weight:700;font-size:13px;cursor:pointer;">확인</button>
+    </div>
+  </div>
+</div>
 
 <!-- 지표 검색 모달 -->
 <div class="modal" id="indModal">
@@ -1244,9 +1260,11 @@ let lastHmaValue = null;
 // null=미초기화(첫 체크 시 발화 없이 상태만 기록), false=존 밖, true=존 안
 let hmaZoneState = null;
 let alarmFiredCount = 0;
+let _hmaPrevSide = null;   // 직전 가격이 HMA 위(+1)/아래(-1) — 빠른 관통 감지용
 
 /* ---------- 소리 ---------- */
 let soundOn = true;
+
 function playBeep(type){
   if(!soundOn) return;
   try{
@@ -1262,8 +1280,44 @@ function playBeep(type){
       osc.stop(ctx.currentTime + start + dur + 0.01);
     };
     if(type==='fill'){ play(660, 0, 0.1); }
-    else if(type==='tp'){ play(880, 0, 0.12); play(1100, 0.13, 0.15); }
-    else if(type==='sl'){ play(330, 0, 0.12); play(220, 0.13, 0.2); }
+    else if(type==='tp'){
+      // 동전 땡그랑 소리 — 금속성 이중 오실레이터 + 배음
+      const metal = (freq, detune, start, dur, vol) => {
+        const o1=ctx.createOscillator(), o2=ctx.createOscillator(), g=ctx.createGain();
+        o1.type='triangle'; o2.type='sine';
+        o1.connect(g); o2.connect(g); g.connect(ctx.destination);
+        o1.frequency.setValueAtTime(freq, ctx.currentTime+start);
+        o1.frequency.exponentialRampToValueAtTime(freq*0.72, ctx.currentTime+start+dur);
+        o2.frequency.setValueAtTime(freq+detune, ctx.currentTime+start);
+        o2.frequency.exponentialRampToValueAtTime((freq+detune)*0.72, ctx.currentTime+start+dur);
+        g.gain.setValueAtTime(vol, ctx.currentTime+start);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+start+dur);
+        o1.start(ctx.currentTime+start); o1.stop(ctx.currentTime+start+dur+0.01);
+        o2.start(ctx.currentTime+start); o2.stop(ctx.currentTime+start+dur+0.01);
+      };
+      metal(2000, 9, 0, 0.55, 0.3);   // 동전 핑 (주음)
+      metal(4050, 15, 0, 0.22, 0.15); // 고배음 (금속 질감)
+      play(980, 0, 0.07, 0.1);         // 저배음 살짝
+    }
+    else if(type==='sl'){
+      // 크레이지 아케이드 패배 효과음 — 하강 멜로디
+      const seq=[
+        [587,0,   0.11,'square',0.28],
+        [523,0.12,0.11,'square',0.28],
+        [466,0.24,0.11,'square',0.28],
+        [415,0.36,0.11,'square',0.28],
+        [349,0.48,0.11,'square',0.3 ],
+        [294,0.60,0.35,'square',0.35],
+      ];
+      seq.forEach(([f,s,d,w,v])=>{
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.type=w; o.connect(g); g.connect(ctx.destination);
+        o.frequency.value=f;
+        g.gain.setValueAtTime(v, ctx.currentTime+s);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+s+d);
+        o.start(ctx.currentTime+s); o.stop(ctx.currentTime+s+d+0.01);
+      });
+    }
     else if(type==='liq'){ play(220, 0, 0.1); play(165, 0.11, 0.12); play(110, 0.24, 0.3, 0.4); }
   }catch(e){}
 }
@@ -2017,6 +2071,7 @@ const indSeriesMap = new Map();     // ind.id → series 또는 {mid,upper,lower
 let candles=[];                       // {time, open, high, low, close, volume}
 let curInterval = S.interval || '1m';
 let priceLines=[];                     // 차트 가격선(진입/청산/TP/SL/지정가)
+let tpPriceLine=null, slPriceLine=null; // TP/SL 드래그용 ref
 let highLowLines=[];                   // 현재 화면 고점/저점 표시선
 let lastKlineSync=0;                   // 마지막 klines 재동기화 시각
 let loadingMore=false, noMoreHistory=false;   // 과거 봉 지연로딩 상태
@@ -2028,7 +2083,7 @@ function initChart(){
     layout:{ background:{color:'#0b0e11'}, textColor:'#848e9c', fontSize:11 },
     grid:{ vertLines:{color:'#1b2026'}, horzLines:{color:'#1b2026'} },
     timeScale:{ timeVisible:true, secondsVisible:false, borderColor:'#2a2f36', rightOffset:12, barSpacing:8 },
-    rightPriceScale:{ borderColor:'#2a2f36' },
+    rightPriceScale:{ borderColor:'#2a2f36', minimumWidth:80 },
     crosshair:{ mode: LightweightCharts.CrosshairMode.Normal },
     localization:{ locale:'ko-KR' },
   });
@@ -2266,11 +2321,28 @@ function getOscChart(){
     autoSize:true, layout:{background:{color:'#0b0e11'},textColor:'#848e9c',fontSize:11},
     grid:{vertLines:{color:'#1b2026'},horzLines:{color:'#1b2026'}},
     timeScale:{timeVisible:true,secondsVisible:false,borderColor:'#2a2f36',rightOffset:12,barSpacing:8},
-    rightPriceScale:{borderColor:'#2a2f36'}, crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    rightPriceScale:{borderColor:'#2a2f36',minimumWidth:80}, crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
   });
+  // ── 시간축 동기화 (logical 기준) ──
+  // 오실레이터 시리즈는 padOsc()로 앞부분을 빈값 채워 메인과 봉 시각이 1:1 일치 → logical index가 동일.
+  // logical 동기화는 왕복이 idempotent해서 좌우 스크롤 시 줌이 드리프트하지 않음(시간 기준 setVisibleRange는 드리프트).
   let syncing=false;
-  chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{ if(!syncing&&r){ syncing=true; try{oscChart.timeScale().setVisibleLogicalRange(r);}catch(e){} syncing=false; } });
+  chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{ if(!syncing&&r&&oscChart){ syncing=true; try{oscChart.timeScale().setVisibleLogicalRange(r);}catch(e){} syncing=false; } });
   oscChart.timeScale().subscribeVisibleLogicalRangeChange(r=>{ if(!syncing&&r){ syncing=true; try{chart.timeScale().setVisibleLogicalRange(r);}catch(e){} syncing=false; } });
+
+  // ── 크로스헤어 세로선 (CSS 오버레이) ──
+  // timeToCoordinate(시간→픽셀)로 각 차트 좌표계에 변환 → 가격축 너비 차이·워밍업 오프셋과 무관하게 정확히 정렬.
+  el.style.position='relative';
+  const oscVLine=document.createElement('div');
+  oscVLine.style.cssText='position:absolute;top:0;bottom:0;width:1px;background:rgba(132,142,156,0.6);pointer-events:none;z-index:10;display:none';
+  el.appendChild(oscVLine);
+  const mainVLine=document.createElement('div');
+  mainVLine.style.cssText='position:absolute;top:0;bottom:0;width:1px;background:rgba(132,142,156,0.6);pointer-events:none;z-index:10;display:none';
+  document.getElementById('chart').appendChild(mainVLine);
+  // 메인 커서 → osc 세로선
+  chart.subscribeCrosshairMove(param=>{ if(!oscChart) return; if(param.time!=null){ const x=oscChart.timeScale().timeToCoordinate(param.time); if(x!=null){ oscVLine.style.left=x+'px'; oscVLine.style.display='block'; return; } } oscVLine.style.display='none'; });
+  // osc 커서 → 메인 세로선 + 메인 차트 가격 크로스헤어
+  oscChart.subscribeCrosshairMove(param=>{ if(param.time!=null){ const x=chart.timeScale().timeToCoordinate(param.time); if(x!=null){ mainVLine.style.left=x+'px'; mainVLine.style.display='block'; if(candleSeries){ const lg=chart.timeScale().coordinateToLogical(x); const dp=lg!=null?candleSeries.dataByIndex(Math.round(lg),-1):null; if(dp) try{chart.setCrosshairPosition(dp.close,dp.time,candleSeries);}catch(e){} } return; } } mainVLine.style.display='none'; try{chart.clearCrosshairPosition();}catch(e){} });
   return oscChart;
 }
 function checkOscPane(){
@@ -2288,6 +2360,15 @@ function removeSeries(id){
   else if(s.k){ rm(s.k,oscChart); rm(s.d,oscChart); }
   else { const ind=S.indicators.find(i=>i.id===id); const def=ind?INDICATOR_DEFS.find(d=>d.type===ind.type):null; rm(s,def&&!def.overlay?oscChart:chart); }
   indSeriesMap.delete(id);
+}
+
+/* 오실레이터 시리즈 앞부분(워밍업 구간)을 빈값(whitespace)으로 채워 메인 차트와 시간축(logical index)을 일치시킴.
+   → 두 차트가 동일한 봉 시각을 공유하므로 logical 기준 동기화가 어긋나지 않음(좌우 스크롤 시 줌 드리프트 방지). */
+function padOsc(data){
+  if(!candles.length||!data||!data.length) return data||[];
+  const firstT=data[0].time, head=[];
+  for(let i=0;i<candles.length;i++){ if(candles[i].time>=firstT) break; head.push({time:candles[i].time}); }
+  return head.length?head.concat(data):data;
 }
 
 /* ---- 단일 지표 렌더 ---- */
@@ -2324,22 +2405,22 @@ function renderIndicator(ind){
     const oc=getOscChart(); if(!oc) return;
     if(ind.type==='rsi'){
       const ser=oc.addLineSeries({...lo,color:p.color,lineWidth:p.width||1});
-      ser.setData(calcRSI(candles,p.period)); indSeriesMap.set(ind.id,ser);
+      ser.setData(padOsc(calcRSI(candles,p.period))); indSeriesMap.set(ind.id,ser);
     } else if(ind.type==='macd'){
       const md=calcMACD(candles,p.fast,p.slow,p.signal);
       const ms=oc.addLineSeries({...lo,color:p.colorMacd,lineWidth:1});
       const ss=oc.addLineSeries({...lo,color:p.colorSignal,lineWidth:1});
       const hs=oc.addHistogramSeries({priceLineVisible:false,lastValueVisible:false});
-      ms.setData(md.macd); ss.setData(md.signal); hs.setData(md.hist);
+      ms.setData(padOsc(md.macd)); ss.setData(padOsc(md.signal)); hs.setData(padOsc(md.hist));
       indSeriesMap.set(ind.id,{macd:ms,signal:ss,hist:hs});
     } else if(ind.type==='stoch'){
       const st=calcStoch(candles,p.kPeriod,p.smooth,p.dPeriod);
       const ks=oc.addLineSeries({...lo,color:p.colorK,lineWidth:1});
       const ds=oc.addLineSeries({...lo,color:p.colorD,lineWidth:1});
-      ks.setData(st.k); ds.setData(st.d); indSeriesMap.set(ind.id,{k:ks,d:ds});
+      ks.setData(padOsc(st.k)); ds.setData(padOsc(st.d)); indSeriesMap.set(ind.id,{k:ks,d:ds});
     } else if(ind.type==='atr'){
       const ser=oc.addLineSeries({...lo,color:p.color,lineWidth:p.width||1});
-      ser.setData(calcATR(candles,p.period)); indSeriesMap.set(ind.id,ser);
+      ser.setData(padOsc(calcATR(candles,p.period))); indSeriesMap.set(ind.id,ser);
     }
   }
 }
@@ -2382,8 +2463,8 @@ function updateIndicatorsLast(){
 function renderAllIndicators(){
   for(const ind of S.indicators) removeSeries(ind.id);
   if(!candles.length) return;
+  checkOscPane(); // 먼저 패널 표시 → getOscChart()가 정상 크기로 생성됨
   for(const ind of S.indicators) renderIndicator(ind);
-  checkOscPane();
 }
 
 /* ---- 지표 칩 ---- */
@@ -2419,7 +2500,8 @@ window.addIndicator=function(type){
   const def=INDICATOR_DEFS.find(d=>d.type===type); if(!def) return;
   const ind={id:String(uid()), type, params:{...def.defaults,...(S.indDefaults&&S.indDefaults[type]||{})}};
   S.indicators.push(ind); save();
-  renderIndicator(ind); renderIndicatorChips(); checkOscPane();
+  checkOscPane(); // 먼저 패널 표시 → getOscChart()가 정상 크기로 생성됨
+  renderIndicator(ind); renderIndicatorChips();
   closeIndModal(); openIndSettings(ind.id);
 };
 window.removeIndicator=function(id){
@@ -2451,14 +2533,23 @@ window.applyIndSettings=function(){
 function checkHmaAlarm(price, hmaVal){
   if(!hmaVal || !(price>0)) return;
   const a = S.alarms && S.alarms.hmaProximity;
-  if(!a || !a.on) return;
+  if(!a || !a.on){ _hmaPrevSide = null; return; }
   const dist = Math.abs(price - hmaVal);
   const threshold = a.dist || 200;
   const isAbove = price > hmaVal;
+  const curSide = isAbove ? 1 : -1;
 
   // 방향 필터: 방향이 맞지 않으면 존 밖으로 처리
   const dirOk = a.dir==='both' || (a.dir==='above' && isAbove) || (a.dir==='below' && !isAbove);
   const isInside = dist <= threshold && dirOk;
+
+  // 빠른 관통 감지: 두 샘플 사이에 가격이 HMA를 완전히 가로질렀다면(부호 반전)
+  //   근접 존을 통째로 지나친 것이므로, 현재 샘플이 존 밖이어도 발화 대상으로 본다.
+  //   (1초 샘플링 간격에 급변동이 존을 건너뛰는 '씹힘' 방지)
+  const prevSide = _hmaPrevSide;
+  _hmaPrevSide = curSide;
+  const crossDirOk = a.dir==='both' || (a.dir==='above' && prevSide===1) || (a.dir==='below' && prevSide===-1);
+  const crossed = prevSide!==null && prevSide!==curSide && crossDirOk;
 
   if(hmaZoneState === null){
     // 알람 활성화 직후 첫 체크: 현재 상태만 기록, 발화 없음
@@ -2466,9 +2557,9 @@ function checkHmaAlarm(price, hmaVal){
     return;
   }
 
-  if(isInside && !hmaZoneState){
-    // 존 밖 → 존 안 진입 시 발화
-    hmaZoneState = true;
+  if((isInside || crossed) && !hmaZoneState){
+    // 존 밖 → 존 안 진입(또는 빠른 관통) 시 발화
+    hmaZoneState = isInside;   // 관통(현재 존 밖)이면 false 유지 → 다음 진입 재발화 가능
     const side = isAbove ? '위 ↓' : '아래 ↑';
     const maxCount = a.count || 1;
     fireAlarm(`🔔 Hull MA 근접! ${side} HMA ${fmt(hmaVal,2)}  거리 $${fmt(dist,2)}  (${alarmFiredCount+1}/${maxCount})`);
@@ -2617,6 +2708,7 @@ window.saveAlarmSettings = function(){
   S.alarms.volume = Math.round(parseFloat(document.getElementById('alVolume')?.value??70)||70);
   hmaZoneState = null;
   alarmFiredCount = 0;
+  _hmaPrevSide = null;
   save();
   // ON으로 저장 시 현재 가격으로 즉시 초기 상태 기록 (발화 없음)
   if(on && lastHmaValue && lastPrice>0) checkHmaAlarm(lastPrice, lastHmaValue);
@@ -2687,7 +2779,7 @@ function renderIntervalSeg(){
 window.selectIv = function(iv){
   if(iv === curInterval) return;
   curInterval = iv; S.interval = iv; save();
-  hmaZoneState = null; alarmFiredCount = 0;
+  hmaZoneState = null; alarmFiredCount = 0; _hmaPrevSide = null;
   renderIntervalSeg();
   // 시간봉 전환 시도 Y축 강제 초기화 (이전 봉의 가격대가 차트를 눌리게 만드는 원인)
   try{ chart.priceScale('right').applyOptions({ autoScale: true }); }catch(e){}
@@ -2865,6 +2957,9 @@ function liveTick(price){
   }
   // 진행 중 봉 갱신 (3일/주/월의 새 봉은 syncKlines가 정확히 추가)
   mergeCandle({ time:last.time, open:last.open, high:Math.max(last.high,price), low:Math.min(last.low,price), close:price, volume:last.volume });
+  // mergeCandle→updateIndicatorsLast로 lastHmaValue가 막 갱신됨 → 최신가로 즉시 알람 검사.
+  // pollLoop(1초)에만 의존하면 빠른 가격 변동이 근접 존을 건너뛰어 알람이 씹힘.
+  if(lastHmaValue) checkHmaAlarm(price, lastHmaValue);
 }
 
 /* ---- 가격 부드러운 애니메이션 (RAF 보간) ---- */
@@ -2918,16 +3013,105 @@ async function syncKlines(){
 function drawPriceLines(){
   if(!candleSeries) return;
   priceLines.forEach(l=>{ try{ candleSeries.removePriceLine(l); }catch(e){} });
-  priceLines=[];
-  const add=(price,color,title)=>{ if(price>0) priceLines.push(candleSeries.createPriceLine({ price, color, lineWidth:1, lineStyle:0, axisLabelVisible:true, title })); };
+  priceLines=[]; tpPriceLine=null; slPriceLine=null;
+  const add=(price,color,title,w=1)=>{ if(price>0){ const l=candleSeries.createPriceLine({price,color,lineWidth:w,lineStyle:0,axisLabelVisible:true,title}); priceLines.push(l); return l; } return null; };
   const p=S.position;
   if(p){ add(p.entry,'#f0b90b','진입'); const lq=curLiq(); if(lq) add(lq,'#ff9f43','청산'); }
   S.pending.filter(o=>!o.sym||o.sym===curSymbol).forEach(o=>{
-    if(o.kind==='tp') add(o.price,'#0ecb81','TP');
-    else if(o.kind==='sl') add(o.price,'#f6465d','SL');
+    if(o.kind==='tp') tpPriceLine=add(o.price,'#0ecb81','TP ↕',2);
+    else if(o.kind==='sl') slPriceLine=add(o.price,'#f6465d','SL ↕',2);
     else if(o.kind==='limit') add(o.price,'#2962ff', o.side==='long'?'지정 롱':'지정 숏');
   });
 }
+
+/* ---------- TP/SL 가격선 드래그 ---------- */
+let _tslDrag=null; // {kind, order, line, origPrice, newPrice}
+function initTpSlDrag(){
+  const el=document.getElementById('chart');
+  el.addEventListener('mousedown',_tslDown);
+  window.addEventListener('mousemove',_tslMove);
+  window.addEventListener('mouseup',_tslUp);
+  window.addEventListener('keydown',e=>{if(e.key==='Escape'&&_tslDrag)_tslCancel();});
+}
+function _tslCoordY(price){ try{ const y=candleSeries.priceToCoordinate(price); return (y!=null&&isFinite(y))?y:null; }catch(e){return null;} }
+function _tslDown(e){
+  if(!S.position) return;
+  const el=document.getElementById('chart');
+  const rect=el.getBoundingClientRect();
+  const y=e.clientY-rect.top;
+  if(y<0||y>rect.height) return;
+  const THR=8;
+  const tpO=S.pending.find(o=>o.kind==='tp'&&(!o.sym||o.sym===curSymbol));
+  const slO=S.pending.find(o=>o.kind==='sl'&&(!o.sym||o.sym===curSymbol));
+  let hit=null;
+  if(tpPriceLine&&tpO){const cy=_tslCoordY(tpO.price);if(cy!==null&&Math.abs(y-cy)<=THR)hit={kind:'tp',order:tpO,line:tpPriceLine};}
+  if(!hit&&slPriceLine&&slO){const cy=_tslCoordY(slO.price);if(cy!==null&&Math.abs(y-cy)<=THR)hit={kind:'sl',order:slO,line:slPriceLine};}
+  if(!hit) return;
+  e.preventDefault(); e.stopPropagation();
+  _tslDrag={...hit,origPrice:hit.order.price,newPrice:hit.order.price};
+  el.style.cursor='ns-resize';
+}
+function _tslMove(e){
+  const el=document.getElementById('chart');
+  const rect=el.getBoundingClientRect();
+  const y=e.clientY-rect.top;
+  if(!_tslDrag){
+    // hover 커서
+    if(y<0||y>rect.height){el.style.cursor='';return;}
+    const THR=8;
+    const tpO=S.pending.find(o=>o.kind==='tp'&&(!o.sym||o.sym===curSymbol));
+    const slO=S.pending.find(o=>o.kind==='sl'&&(!o.sym||o.sym===curSymbol));
+    let near=false;
+    if(S.position&&tpPriceLine&&tpO){const cy=_tslCoordY(tpO.price);if(cy!==null&&Math.abs(y-cy)<=THR)near=true;}
+    if(!near&&S.position&&slPriceLine&&slO){const cy=_tslCoordY(slO.price);if(cy!==null&&Math.abs(y-cy)<=THR)near=true;}
+    el.style.cursor=near?'ns-resize':'';
+    return;
+  }
+  // 드래그 중 — 가격선 실시간 이동
+  const np=candleSeries.coordinateToPrice(y);
+  if(np==null||!(np>0)) return;
+  _tslDrag.newPrice=np;
+  try{_tslDrag.line.applyOptions({price:np,title:_tslDrag.kind==='tp'?'TP ↕':'SL ↕'});}catch(err){}
+}
+function _tslUp(){
+  if(!_tslDrag) return;
+  document.getElementById('chart').style.cursor='';
+  const {kind,order,origPrice,newPrice}=_tslDrag;
+  if(Math.abs(newPrice-origPrice)<0.01){_tslCancel();return;}
+  // 모달 표시
+  const p=S.position;
+  if(!p){_tslCancel();return;}
+  const pnl=unrealized(newPrice);
+  const roe=(pnl/p.margin)*100;
+  const pos=pnl>=0;
+  const kindLabel=kind==='tp'?'TP (익절)':'SL (손절)';
+  document.getElementById('tslDragTitle').textContent=`${kindLabel} 가격을 수정하시겠습니까?`;
+  document.getElementById('tslDragPrice').textContent=fmtPrice(newPrice)+' USDT';
+  const pnlEl=document.getElementById('tslDragPnl');
+  pnlEl.textContent=(pos?'+':'')+fmt(pnl,2)+' USDT';
+  pnlEl.style.color=pos?'var(--green)':'var(--red)';
+  const roeEl=document.getElementById('tslDragRoe');
+  roeEl.textContent=(pos?'+':'')+fmt(roe,2)+'%';
+  roeEl.style.color=pos?'var(--green)':'var(--red)';
+  document.getElementById('tslDragModal').style.display='flex';
+}
+function _tslCancel(){
+  if(!_tslDrag) return;
+  try{_tslDrag.line.applyOptions({price:_tslDrag.origPrice,title:_tslDrag.kind==='tp'?'TP ↕':'SL ↕'});}catch(e){}
+  _tslDrag=null;
+  document.getElementById('chart').style.cursor='';
+  document.getElementById('tslDragModal').style.display='none';
+}
+window.confirmTslDrag=function(){
+  if(!_tslDrag) return;
+  const {kind,order,newPrice}=_tslDrag;
+  order.price=newPrice;
+  _tslDrag=null;
+  document.getElementById('tslDragModal').style.display='none';
+  save(); drawPriceLines();
+  toast(`${kind==='tp'?'TP':'SL'} 가격이 ${fmtPrice(newPrice)}으로 변경되었습니다.`);
+};
+window.cancelTslDrag=function(){ _tslCancel(); };
 
 function updateHighLow(){
   highLowLines.forEach(l=>{ try{ candleSeries.removePriceLine(l); }catch(e){} });
@@ -3108,7 +3292,7 @@ function changeSymbol(sym){
   curSymbol = sym;
   S.symbol = sym;
   lastPrice=0; markPrice=0; prevClose24=0; high24=0; low24=0; fundingRate=0; nextFundingT=0;
-  hmaZoneState = null; alarmFiredCount = 0;
+  hmaZoneState = null; alarmFiredCount = 0; _hmaPrevSide = null;
   resetChartPrice();   // ★ 이전 코인 가격 잔재 제거 (차트 '세로로 납작' 버그 근본 해결)
   // 심볼 전환 전 Y축 강제 초기화 — 이전 코인 가격대가 남아있는 문제 방지
   try{ chart.applyOptions({ rightPriceScale: { autoScale: true } }); }catch(e){}
@@ -3176,6 +3360,7 @@ function bindUI(){
     sndBtn.textContent = soundOn ? "소리 ON" : "소리 OFF";
     sndBtn.className = soundOn ? "on" : "";
   };
+
 
   // 알람 버튼 초기 상태
   if(S.alarms&&S.alarms.hmaProximity&&S.alarms.hmaProximity.on){
@@ -3818,6 +4003,7 @@ window.cancelOrder      = cancelOrder;
 window.closePositionPct = window.closePositionPct;
 
 initChart();
+initTpSlDrag();
 setupDrawing();
 bindUI();
 renderAll();
