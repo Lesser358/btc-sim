@@ -1142,8 +1142,8 @@ const BRACKETS_MAP = {
   ],
 };
 
-function bracketOf(notional){
-  const arr = BRACKETS_MAP[curSymbol] || BRACKETS_MAP.btcusdt;
+function bracketOf(notional, sym){
+  const arr = BRACKETS_MAP[sym || curSymbol] || BRACKETS_MAP.btcusdt;
   let b = arr[0];
   for(const x of arr){ if(notional >= x.floor) b = x; }
   return b;
@@ -1154,7 +1154,8 @@ const defaultState = () => ({
   walletBalance: START_BAL,
   marginMode: "isolated",
   leverage: 20,
-  position: null,
+  positions: {},           // 코인별 포지션 맵: { btcusdt:{side,qty,entry,margin,openTime,lev,mode}, ... }
+  lastFundingTs: {},       // 코인별 마지막 펀딩 정산 시각
   pending: [],
   history: [],
   totalFee: 0,
@@ -1174,6 +1175,20 @@ function loadState(){
     if(raw){
       const saved = JSON.parse(raw);
       const state = Object.assign(defaultState(), saved);
+      // 다중 포지션 마이그레이션: 구 버전 단일 position → 코인별 positions 맵
+      if(!state.positions || typeof state.positions !== 'object' || Array.isArray(state.positions)) state.positions = {};
+      if(saved.position){
+        const sym = saved.symbol || 'btcusdt';
+        const op = saved.position;
+        state.positions[sym] = {
+          side:op.side, qty:op.qty, entry:op.entry, margin:op.margin,
+          openTime:op.openTime || Date.now(),
+          lev: op.lev || saved.leverage || 20,
+          mode: op.mode || saved.marginMode || 'isolated',
+        };
+      }
+      delete state.position;
+      if(!state.lastFundingTs || typeof state.lastFundingTs !== 'object') state.lastFundingTs = {};
       // 구 버전 HMA 마이그레이션
       if(!Array.isArray(state.indicators)){
         state.indicators = (saved.hullOn !== false)
@@ -1250,6 +1265,11 @@ let lastPrice = 0;
 let markPrice = 0;
 let fundingRate = 0;
 let nextFundingT = 0;
+// 코인별 시세 맵 — 다른 코인 포지션의 손익·강제청산·펀딩비를 실시간 계산하기 위해
+// 보유 중인 모든 종목의 마크가/펀딩율/다음펀딩시각을 별도 폴링해 보관한다.
+let symMarks = {};       // {sym: markPrice}
+let symFundRate = {};    // {sym: fundingRate}
+let symFundNextT = {};   // {sym: nextFundingTime}
 let prevClose24 = 0;
 let high24 = 0;
 let low24 = 0;
@@ -1330,58 +1350,77 @@ const fmtPrice = (n)=> fmt(n,2);
 const fmtQty = (n)=> fmt(n,4);
 
 /* ============================ 거래 로직 ============================ */
-function usedMargin(){ return S.position ? S.position.margin : 0; }
-function unrealized(price){
-  if(!S.position) return 0;
-  const p = S.position;
-  return p.side==="long" ? (price-p.entry)*p.qty : (p.entry-price)*p.qty;
+// ---- 다중 포지션 접근자 ----
+function curPos(){ return S.positions[curSymbol] || null; }
+function heldSymbols(){ return Object.keys(S.positions); }
+// 해당 코인의 마크가 — 현재 보는 코인은 실시간 markPrice, 나머지는 폴링 맵에서
+function markOf(sym){
+  const m = (sym===curSymbol && markPrice>0) ? markPrice : symMarks[sym];
+  return (m>0) ? m : 0;
 }
-function equity(){ return S.walletBalance + unrealized(markPrice); }
+// 단일 포지션의 미실현 손익 (해당 코인 마크가 기준)
+function posPnl(sym){
+  const p = S.positions[sym]; if(!p) return 0;
+  const mk = markOf(sym); if(!(mk>0)) return 0;
+  return p.side==="long" ? (mk-p.entry)*p.qty : (p.entry-mk)*p.qty;
+}
+function totalUnrealized(){ let u=0; for(const s in S.positions) u+=posPnl(s); return u; }
+
+function usedMargin(){ let m=0; for(const s in S.positions) m+=S.positions[s].margin; return m; }
+// 현재 코인 포지션의 미실현 손익 (price 미지정 시 현재 코인 마크가). 하위호환 유지.
+function unrealized(price){
+  const p = curPos(); if(!p) return 0;
+  const mk = (price>0) ? price : markOf(curSymbol); if(!(mk>0)) return 0;
+  return p.side==="long" ? (mk-p.entry)*p.qty : (p.entry-mk)*p.qty;
+}
+function equity(){ return S.walletBalance + totalUnrealized(); }
 function available(){
   if(S.marginMode==="cross") return Math.max(0, equity() - usedMargin());
   return Math.max(0, S.walletBalance - usedMargin());
 }
 
-function liqPriceOf(side, qty, entry, margin){
+function liqPriceOf(side, qty, entry, margin, mode, sym){
   if(qty<=0) return null;
+  mode = mode || S.marginMode;
   const notional = qty*entry;
-  const b = bracketOf(notional);
-  const m = (S.marginMode==="cross") ? S.walletBalance : margin;
+  const b = bracketOf(notional, sym);
+  const m = (mode==="cross") ? S.walletBalance : margin;
   let p;
   if(side==="long") p = (qty*entry - m - b.cum) / (qty*(1 - b.mmr));
   else              p = (qty*entry + m + b.cum) / (qty*(1 + b.mmr));
   return p>0 ? p : null;
 }
 function curLiq(){
-  if(!S.position) return null;
-  return liqPriceOf(S.position.side, S.position.qty, S.position.entry, S.position.margin);
+  const p = curPos(); if(!p) return null;
+  return liqPriceOf(p.side, p.qty, p.entry, p.margin, p.mode, curSymbol);
 }
 
 function applyFill(side, qty, price, feeRate){
   const fee = qty*price*feeRate;
   S.walletBalance -= fee;
   S.totalFee += fee;
-  const p = S.position;
+  const p = curPos();
+  const lev = p ? p.lev : S.leverage;   // 기존 포지션은 진입 당시 레버리지 유지
   if(!p){
-    S.position = {side, qty, entry:price, margin:(qty*price)/S.leverage, openTime:Date.now()};
+    S.positions[curSymbol] = {side, qty, entry:price, margin:(qty*price)/S.leverage, openTime:Date.now(), lev:S.leverage, mode:S.marginMode};
   } else if(p.side===side){
     const nq = p.qty+qty;
     p.entry = (p.entry*p.qty + price*qty)/nq;
     p.qty = nq;
-    p.margin = (p.qty*p.entry)/S.leverage;
+    p.margin = (p.qty*p.entry)/lev;
   } else {
     if(qty < p.qty){
       const realized = p.side==="long" ? (price-p.entry)*qty : (p.entry-price)*qty;
       S.walletBalance += realized;
       p.qty -= qty;
-      p.margin = (p.qty*p.entry)/S.leverage;
-      logHist("감소", side, qty, price, realized, fee, (qty*p.entry/S.leverage)>0?(realized/(qty*p.entry/S.leverage)*100):0);
+      p.margin = (p.qty*p.entry)/lev;
+      logHist("감소", side, qty, price, realized, fee, (qty*p.entry/lev)>0?(realized/(qty*p.entry/lev)*100):0);
       finishFill(); return;
     } else if(Math.abs(qty-p.qty)<1e-9){
       const realized = p.side==="long" ? (price-p.entry)*qty : (p.entry-price)*qty;
       S.walletBalance += realized;
-      const _roe2 = (qty*p.entry/S.leverage)>0?(realized/(qty*p.entry/S.leverage)*100):0;
-      S.position = null;
+      const _roe2 = (qty*p.entry/lev)>0?(realized/(qty*p.entry/lev)*100):0;
+      delete S.positions[curSymbol];
       cancelReduceOnly();
       logHist("종료", side, qty, price, realized, fee, _roe2);
       finishFill(); return;
@@ -1389,9 +1428,9 @@ function applyFill(side, qty, price, feeRate){
       const closeQty = p.qty;
       const realized = p.side==="long" ? (price-p.entry)*closeQty : (p.entry-price)*closeQty;
       S.walletBalance += realized;
-      const _roe3 = (closeQty*p.entry/S.leverage)>0?(realized/(closeQty*p.entry/S.leverage)*100):0;
+      const _roe3 = (closeQty*p.entry/lev)>0?(realized/(closeQty*p.entry/lev)*100):0;
       const rem = qty - closeQty;
-      S.position = {side, qty:rem, entry:price, margin:(rem*price)/S.leverage, openTime:Date.now()};
+      S.positions[curSymbol] = {side, qty:rem, entry:price, margin:(rem*price)/S.leverage, openTime:Date.now(), lev:S.leverage, mode:S.marginMode};
       logHist("전환", side, qty, price, realized, fee, _roe3);
       finishFill(); return;
     }
@@ -1488,10 +1527,11 @@ function applyTpSlOrders(side, tp, sl, tpCloseAmt=100, slCloseAmt=100, tpCloseMo
 }
 
 function closePosition(fraction, label){
-  if(!S.position){ return; }
+  const p = curPos();
+  if(!p){ return; }
   const price = lastPrice || markPrice;
   if(!(price>0)){ toast("시세 로딩 중입니다. 잠시만요."); return; }
-  const p = S.position;
+  const lev = p.lev || S.leverage;
   const frac = Math.max(0, Math.min(1, fraction));
   const qty = p.qty*frac;
   if(qty<=0) return;
@@ -1500,9 +1540,9 @@ function closePosition(fraction, label){
   S.walletBalance += realized - fee;
   S.totalFee += fee;
   p.qty -= qty;
-  if(p.qty<1e-8){ S.position=null; cancelReduceOnly(); }
-  else p.margin = (p.qty*p.entry)/S.leverage;
-  const _roe = (qty*p.entry/S.leverage)>0?(realized/(qty*p.entry/S.leverage)*100):0;
+  if(p.qty<1e-8){ delete S.positions[curSymbol]; cancelReduceOnly(); }
+  else p.margin = (p.qty*p.entry)/lev;
+  const _roe = (qty*p.entry/lev)>0?(realized/(qty*p.entry/lev)*100):0;
   logHist(frac>=1?"종료":"부분종료", p.side==="long"?"short":"long", qty, price, realized, fee, _roe);
   addMarker(); updatePriceLines(); save(); renderAll();
   toast(`${label||'청산'} @ ${fmtPrice(price)} · 손익 ${fmtUsd(realized)} USDT`);
@@ -1511,7 +1551,8 @@ function closePosition(fraction, label){
 let closeMode = 'pct';   // 포지션 정리 단위: pct=% / usdt=USDT
 
 window.executeClose = function(){
-  if(!S.position) return;
+  const cp = curPos();
+  if(!cp) return;
   const amt = parseFloat(document.getElementById('closeAmtIn')?.value) || 0;
   if(closeMode==='pct'){
     const pct = Math.min(1, Math.max(0.001, (amt||100)/100));
@@ -1521,8 +1562,8 @@ window.executeClose = function(){
     const px = lastPrice||markPrice;
     if(!(px>0)){ toast('시세 로딩 중입니다.'); return; }
     const qty = amt/px;
-    if(qty>=S.position.qty-1e-9){ closePosition(1,'포지션 정리'); return; }
-    closePosition(qty/S.position.qty,'부분 정리');
+    if(qty>=cp.qty-1e-9){ closePosition(1,'포지션 정리'); return; }
+    closePosition(qty/cp.qty,'부분 정리');
   }
 };
 window.closePositionPct = window.executeClose;
@@ -1662,8 +1703,8 @@ window.showTpSlModeDropdown = function(btn){
 
 /* 현재 포지션 TP/SL 설정·수정 */
 window.applyPosTpSl = function(){
-  if(!S.position){ toast('보유 포지션이 없습니다.'); return; }
-  const p = S.position;
+  if(!curPos()){ toast('보유 포지션이 없습니다.'); return; }
+  const p = curPos();
   const tpv = parseFloat(document.getElementById('posTpIn').value) || 0;
   const slv = parseFloat(document.getElementById('posSlIn').value) || 0;
   const tpCA = Math.max(0.01, parseFloat(document.getElementById('posTpCloseAmt')?.value) || 100);
@@ -1686,7 +1727,8 @@ window.clearPosTpSl = function(){
   toast('TP/SL이 해제되었습니다.');
 };
 
-function cancelReduceOnly(){ S.pending = S.pending.filter(o=>o.kind==="limit"); }
+// 현재 코인 포지션 종료 시 해당 코인의 TP/SL(청산용)만 제거. 다른 코인 주문은 보존.
+function cancelReduceOnly(){ S.pending = S.pending.filter(o=> o.kind==="limit" || ((o.sym||curSymbol)!==curSymbol) ); }
 function cancelOrder(id){ S.pending = S.pending.filter(o=>o.id!==id); updatePriceLines(); save(); renderAll(); }
 
 /* 미체결 지정가 주문 TP/SL 편집 */
@@ -1723,43 +1765,56 @@ window.savePendingEdit = function(){
   closePendingEdit();
 };
 
-function logHist(type, side, qty, price, pnl, fee, roe=0){
-  S.history.unshift({time:Date.now(), type, side, qty, price, pnl, fee, roe, sym: curSymbol});
+function logHist(type, side, qty, price, pnl, fee, roe=0, sym=curSymbol){
+  S.history.unshift({time:Date.now(), type, side, qty, price, pnl, fee, roe, sym});
   if(S.history.length>200) S.history.length=200;
 }
 
-/* ---------- 펀딩비 ---------- */
+const _symShort = (sym)=> sym.toUpperCase().replace('USDT','');
+
+/* ---------- 펀딩비 (보유 중인 모든 코인 각각 정산) ---------- */
 function applyFunding(){
-  if(!S.position || !nextFundingT) return;
-  if(Date.now() >= nextFundingT && S.lastFundingT !== nextFundingT){
-    const notional = S.position.qty * markPrice;
-    const pay = notional * fundingRate;
-    const delta = S.position.side==="long" ? -pay : pay;
-    S.walletBalance += delta;
-    S.totalFunding += delta;
-    S.lastFundingT = nextFundingT;
-    toast(`펀딩비 정산: ${fmtUsd(delta)} USDT`);
-    save();
+  for(const sym in S.positions){
+    const nt = (sym===curSymbol && nextFundingT) ? nextFundingT : symFundNextT[sym];
+    const fr = (sym===curSymbol && nextFundingT!=null) ? fundingRate : symFundRate[sym];
+    const mk = markOf(sym);
+    if(!nt || !(mk>0) || fr==null) continue;
+    if(Date.now() >= nt && S.lastFundingTs[sym] !== nt){
+      const p = S.positions[sym];
+      const pay = (p.qty*mk) * fr;
+      const delta = p.side==="long" ? -pay : pay;
+      S.walletBalance += delta;
+      S.totalFunding += delta;
+      S.lastFundingTs[sym] = nt;
+      toast(`펀딩비 정산(${_symShort(sym)}): ${fmtUsd(delta)} USDT`);
+      save();
+    }
   }
 }
 
-/* ---------- 청산 체크 ---------- */
+/* ---------- 청산 체크 (보유 중인 모든 코인 각각 검사) ----------
+   다중 포지션에서는 각 포지션이 자기 증거금만큼 손실(독립). 안 보고 있는
+   코인도 폴링된 마크가로 실시간 강제청산된다. */
 function checkLiquidation(){
-  if(!S.position) return;
-  const liq = curLiq();
-  if(!liq) return;
-  const p = S.position;
-  const hit = p.side==="long" ? markPrice<=liq : markPrice>=liq;
-  if(hit){
-    const lostMargin = (S.marginMode==="cross") ? S.walletBalance : p.margin;
-    if(S.marginMode==="cross") S.walletBalance = 0;
-    else S.walletBalance -= p.margin;
-    logHist("강제청산", p.side==="long"?"short":"long", p.qty, liq, -lostMargin, 0, -100);
-    S.position = null;
-    cancelReduceOnly();
-    playBeep('liq');
-    addMarker(); updatePriceLines(); save(); renderAll();
-    showLiqModal(lostMargin);
+  for(const sym of heldSymbols()){
+    const p = S.positions[sym];
+    const mk = markOf(sym);
+    if(!(mk>0)) continue;
+    const liq = liqPriceOf(p.side, p.qty, p.entry, p.margin, p.mode, sym);
+    if(!liq) continue;
+    const hit = p.side==="long" ? mk<=liq : mk>=liq;
+    if(hit){
+      const lostMargin = p.margin;
+      S.walletBalance -= p.margin;
+      if(S.walletBalance < 0) S.walletBalance = 0;
+      logHist("강제청산", p.side==="long"?"short":"long", p.qty, liq, -lostMargin, 0, -100, sym);
+      delete S.positions[sym];
+      // 해당 코인의 TP/SL 미체결 제거
+      S.pending = S.pending.filter(o=> !((o.sym||curSymbol)===sym && (o.kind==='tp'||o.kind==='sl')) );
+      playBeep('liq');
+      addMarker(); updatePriceLines(); save(); renderAll();
+      showLiqModal(lostMargin, sym);
+    }
   }
 }
 
@@ -1779,7 +1834,7 @@ function checkPending(checkHi, checkLo){
         playBeep('fill');
         applyFill(o.side, o.qty, o.price, MAKER);
         toast(`지정가 체결 @ ${fmtPrice(o.price)}`);
-        if((o.tpRaw>0 || o.slRaw>0) && S.position){
+        if((o.tpRaw>0 || o.slRaw>0) && curPos()){
           const ts = makeTpSl(o.side, o.price, o.tpRaw, o.slRaw, o.tpMode||'price', o.slMode||'price', o.qty);
           toAdd.push(...buildTpSlOrders(o.side, ts.tp, ts.sl,
             o.tpCloseAmt??100, o.slCloseAmt??100,
@@ -1790,8 +1845,9 @@ function checkPending(checkHi, checkLo){
       remain.push(o); continue;
     }
     // TP / SL (전량 청산형 reduce-only)
-    if(closed || !S.position){ continue; }            // 포지션 종료됨 → 남은 TP/SL 제거
-    const ps = S.position.side;
+    const cpos = curPos();
+    if(closed || !cpos){ continue; }            // 포지션 종료됨 → 남은 TP/SL 제거
+    const ps = cpos.side;
     let fill = false;
     if(o.kind==="tp") fill = ps==="long" ? hi>=o.price : lo<=o.price;
     else if(o.kind==="sl") fill = ps==="long" ? lo<=o.price : hi>=o.price;
@@ -1801,17 +1857,17 @@ function checkPending(checkHi, checkLo){
       const cm  = o.closeMode ?? 'pct';
       const amt = o.closeAmt  ?? o.pct ?? 100;
       let frac;
-      if(cm === 'usdt' && amt > 0 && S.position){
-        frac = Math.min(1, Math.max(0.001, amt / (S.position.qty * _px)));
-      } else if(cm === 'coin' && amt > 0 && S.position){
-        frac = Math.min(1, Math.max(0.001, amt / S.position.qty));
+      if(cm === 'usdt' && amt > 0){
+        frac = Math.min(1, Math.max(0.001, amt / (cpos.qty * _px)));
+      } else if(cm === 'coin' && amt > 0){
+        frac = Math.min(1, Math.max(0.001, amt / cpos.qty));
       } else {
         frac = Math.min(1, Math.max(0.001, amt / 100));
       }
       const lbl = frac < 0.999 ? ` (${cm==='usdt'?'$'+fmt(amt,0):cm==='coin'?fmt(amt,4)+'코인':Math.round(frac*100)+'%'})` : '';
       playBeep(o.kind);
       closePosition(frac, o.kind==="tp" ? `TP${lbl}` : `SL${lbl}`);
-      if(!S.position) closed = true;
+      if(!curPos()) closed = true;
       continue;
     }
     remain.push(o);
@@ -1871,11 +1927,11 @@ function renderAll(){
   uEl.textContent = fmtUsd(u); uEl.className = u>=0 ? "green" : "red";
   const roeEl = document.getElementById("uRoe");
   if(roeEl){
-    if(S.position){ const roe=S.position.margin?(u/S.position.margin*100):0; roeEl.textContent=(roe>=0?"+":"")+fmt(roe,2)+"%"; roeEl.className=roe>=0?"green":"red"; }
+    if(curPos()){ const cp=curPos(); const roe=cp.margin?(u/cp.margin*100):0; roeEl.textContent=(roe>=0?"+":"")+fmt(roe,2)+"%"; roeEl.className=roe>=0?"green":"red"; }
     else { roeEl.textContent="-"; roeEl.className="muted"; }
   }
   const liqEl = document.getElementById("liqPriceDisp");
-  if(liqEl){ const liqV=curLiq(); liqEl.textContent=S.position&&liqV?fmtPrice(liqV):"-"; }
+  if(liqEl){ const liqV=curLiq(); liqEl.textContent=curPos()&&liqV?fmtPrice(liqV):"-"; }
   document.getElementById("usedMargin").textContent = fmt(usedMargin(),2);
   document.getElementById("available").textContent  = fmt(available(),2);
   document.getElementById("equity").textContent     = fmt(equity(),2);
@@ -1904,35 +1960,52 @@ function renderPreview(){
   }
 }
 
-let posCtlRendered=false, posCtlModeShown=null;
+let posCtlRendered=false, posCtlModeShown=null, posCtlForSym=null, posCtlHadPos=null;
 function renderPositions(){
   const el = document.getElementById("tab-pos");
-  if(!S.position){ el.innerHTML=`<div class="empty">보유 포지션이 없습니다.</div>`; posCtlRendered=false; return; }
-  const p = S.position;
-  const u = unrealized(markPrice);
-  const roe = p.margin ? (u/p.margin*100) : 0;
-  const liq = curLiq();
-  const tpO = S.pending.find(o=>o.kind==='tp');
-  const slO = S.pending.find(o=>o.kind==='sl');
-  const notional = p.qty*markPrice;
-  const _ot = p.openTime ? new Date(p.openTime) : null;
-  const otStr = _ot ? `${String(_ot.getMonth()+1).padStart(2,'0')}/${String(_ot.getDate()).padStart(2,'0')} ${String(_ot.getHours()).padStart(2,'0')}:${String(_ot.getMinutes()).padStart(2,'0')}` : '-';
-  const tableHtml = `<div class="tblwrap"><table><thead><tr>
-    <th>방향</th><th>진입시간</th><th>수량</th><th>가치(USDT)</th><th>진입가</th><th>마크가</th><th>청산가</th>
-    <th>증거금</th><th>손익(USDT)</th><th>ROE</th><th>TP</th><th>SL</th></tr></thead><tbody>
-    <tr>
-      <td class="${p.side==='long'?'green':'red'}">${p.side==='long'?'롱':'숏'} ${S.leverage}x</td>
+  const syms = heldSymbols();
+  if(!syms.length){ el.innerHTML=`<div class="empty">보유 포지션이 없습니다.</div>`; posCtlRendered=false; posCtlForSym=null; return; }
+  // ── 보유 중인 모든 코인 포지션 행 ──
+  const rows = syms.map(sym=>{
+    const p = S.positions[sym];
+    const mk = markOf(sym);
+    const u = posPnl(sym);
+    const roe = p.margin ? (u/p.margin*100) : 0;
+    const liq = liqPriceOf(p.side, p.qty, p.entry, p.margin, p.mode, sym);
+    const tpO = S.pending.find(o=>o.kind==='tp'&&(o.sym||curSymbol)===sym);
+    const slO = S.pending.find(o=>o.kind==='sl'&&(o.sym||curSymbol)===sym);
+    const notional = p.qty*(mk||p.entry);
+    const _ot = p.openTime ? new Date(p.openTime) : null;
+    const otStr = _ot ? `${String(_ot.getMonth()+1).padStart(2,'0')}/${String(_ot.getDate()).padStart(2,'0')} ${String(_ot.getHours()).padStart(2,'0')}:${String(_ot.getMinutes()).padStart(2,'0')}` : '-';
+    const isCur = sym===curSymbol;
+    return `<tr class="pos-row${isCur?' cur':''}" data-sym="${sym}" onclick="${isCur?'':`changeSymbol('${sym}')`}" style="cursor:${isCur?'default':'pointer'};">
+      <td><b class="${isCur?'yellow':''}">${_symShort(sym)}</b></td>
+      <td class="${p.side==='long'?'green':'red'}">${p.side==='long'?'롱':'숏'} ${p.lev||S.leverage}x</td>
       <td class="muted">${otStr}</td>
       <td>${fmtQty(p.qty)}</td><td>${fmt(notional,2)}</td>
-      <td>${fmtPrice(p.entry)}</td><td>${fmtPrice(markPrice)}</td>
+      <td>${fmtPrice(p.entry)}</td><td>${mk?fmtPrice(mk):'-'}</td>
       <td class="yellow">${liq?fmtPrice(liq):'-'}</td>
       <td>${fmt(p.margin,2)}</td>
       <td class="${u>=0?'green':'red'}">${fmtUsd(u)}</td>
       <td class="${roe>=0?'green':'red'}">${(roe>=0?'+':'')+fmt(roe,2)}%</td>
       <td class="green">${tpO?fmtPrice(tpO.price):'-'}</td>
       <td class="red">${slO?fmtPrice(slO.price):'-'}</td>
-    </tr></tbody></table></div>`;
-  const ctlHtml = `<div class="pos-ctl">
+    </tr>`;
+  }).join('');
+  const tableHtml = `<div class="tblwrap"><table><thead><tr>
+    <th>코인</th><th>방향</th><th>진입시간</th><th>수량</th><th>가치(USDT)</th><th>진입가</th><th>마크가</th><th>청산가</th>
+    <th>증거금</th><th>손익(USDT)</th><th>ROE</th><th>TP</th><th>SL</th></tr></thead><tbody>
+    ${rows}</tbody></table></div>`;
+  // ── 제어판: 현재 보는 코인의 포지션 대상 ──
+  const cp = curPos();
+  const tpO = cp ? S.pending.find(o=>o.kind==='tp'&&(o.sym||curSymbol)===curSymbol) : null;
+  const slO = cp ? S.pending.find(o=>o.kind==='sl'&&(o.sym||curSymbol)===curSymbol) : null;
+  let ctlHtml;
+  if(!cp){
+    ctlHtml = `<div class="pos-ctl"><div class="pc-row"><span class="pc-lb muted" style="font-weight:400;">위 표에서 코인 행을 클릭해 해당 코인으로 전환하면 정리·TP/SL 조작이 가능합니다.</span></div></div>`;
+  } else {
+  ctlHtml = `<div class="pos-ctl">
+      <div class="pc-row" style="font-size:11px;color:var(--muted);margin-bottom:2px;">현재 선택: <b class="yellow" style="margin-left:4px;">${_symShort(curSymbol)}</b></div>
       <div class="pc-row">
         <span class="pc-lb">포지션 정리</span>
         <input id="closeAmtIn" type="number" min="0" value="100" placeholder="100" class="pc-in">
@@ -1950,10 +2023,12 @@ function renderPositions(){
         <button class="closebtn" onclick="clearPosTpSl()">해제</button>
       </div>
     </div>`;
-  // 표(라이브)는 매번 갱신, 제어판(입력칸)은 포지션 생성/모드변경 때만 → 입력 중 값 보존
-  if(!posCtlRendered || posCtlModeShown!==posTpSlMode){
+  }
+  // 표(라이브)는 매번 갱신, 제어판(입력칸)은 코인/포지션유무/모드 변경 때만 → 입력 중 값 보존
+  const hasPos = !!cp;
+  if(!posCtlRendered || posCtlModeShown!==posTpSlMode || posCtlForSym!==curSymbol || posCtlHadPos!==hasPos){
     el.innerHTML = `<div id="posTableBox">${tableHtml}</div><div id="posCtlBox">${ctlHtml}</div>`;
-    posCtlRendered = true; posCtlModeShown = posTpSlMode;
+    posCtlRendered = true; posCtlModeShown = posTpSlMode; posCtlForSym = curSymbol; posCtlHadPos = hasPos;
   }else{
     const tb = document.getElementById("posTableBox");
     if(tb) tb.innerHTML = tableHtml;
@@ -2050,9 +2125,10 @@ function renderHistory(){
     }).join("")+`</tbody></table></div>`;
 }
 
-function showLiqModal(lost){
+function showLiqModal(lost, sym){
+  const coin = sym ? `<b class="yellow">${_symShort(sym)}</b> ` : '';
   document.getElementById("liqMsg").innerHTML =
-    `포지션이 강제 청산되어 <b class="red">${fmt(lost,2)} USDT</b>의 증거금을 잃었습니다.<br>현재 지갑 잔고: <b>${fmt(S.walletBalance,2)} USDT</b>`;
+    `${coin}포지션이 강제 청산되어 <b class="red">${fmt(lost,2)} USDT</b>의 증거금을 잃었습니다.<br>현재 지갑 잔고: <b>${fmt(S.walletBalance,2)} USDT</b>`;
   document.getElementById("liqModal").classList.add("show");
 }
 
@@ -2110,9 +2186,10 @@ async function loadHistory(retry=0){
     const raw = await r.json();
     if(ver !== _loadHistVer) return;
     if(!Array.isArray(raw)) throw new Error('invalid response: '+JSON.stringify(raw).slice(0,80));
-    candles = raw.map(k=>({ time:Math.floor(k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5] }));
+    candles = raw.map(k=>({ time:Math.floor(k[0]/1000)+TZ_OFFSET, open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5] }));
     // 오버레이 시리즈(HMA 등)를 setData 전에 먼저 제거 — 이전 코인 가격대가 Y축을 벌려놓는 원인
-    if(S.indicators) for(const ind of [...S.indicators]) removeSeries(ind.id);
+    // ★ S.indicators가 아니라 맵에 실재하는 모든 시리즈를 제거(고아 시리즈 차단)
+    removeAllIndSeries();
     // Y축 강제 초기화 후 setData
     try{ chart.priceScale('right').applyOptions({ autoScale: true }); }catch(e){}
     try{ candleSeries.priceScale().applyOptions({ autoScale: true }); }catch(e){}
@@ -2175,12 +2252,12 @@ async function loadOlder(){
   loadingMore = true;
   try{
     const sym = curSymbol.toUpperCase();
-    const endTime = candles[0].time*1000 - 1;     // 현재 가장 오래된 봉 직전까지
+    const endTime = (candles[0].time - TZ_OFFSET)*1000 - 1;     // 현재 가장 오래된 봉 직전까지 (API는 UTC ms → 오프셋 제거)
     const r = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${curInterval}&endTime=${endTime}&limit=1000`);
     const raw = await r.json();
     if(!Array.isArray(raw) || !raw.length){ noMoreHistory=true; return; }
     const firstT = candles[0].time;
-    const older = raw.map(k=>({ time:Math.floor(k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5] }))
+    const older = raw.map(k=>({ time:Math.floor(k[0]/1000)+TZ_OFFSET, open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5] }))
                      .filter(c=>c.time < firstT);
     if(!older.length){ noMoreHistory=true; return; }
     const added = older.length;
@@ -2372,17 +2449,27 @@ function padOsc(data){
 }
 
 /* ---- 단일 지표 렌더 ---- */
+// LWC의 setData는 value가 null/NaN이면 "Value is null"로 throw한다. 빠른 코인 전환 중
+// candles가 일시적으로 워밍업 미달 상태이면 지표 계산값에 null/NaN이 섞여 throw가 발생하고,
+// 그 throw가 addLineSeries 직후·indSeriesMap.set 직전에 터지면 시리즈가 맵에 등록되지 못한 채
+// 차트에 남아 '추적 불가 고아'가 된다(이전 코인 가격대에 박혀 Y축을 폭발시킴).
+// → 유효하지 않은 점을 제거하고, time만 있는 whitespace 점(오실레이터 워밍업 패딩)은 보존.
+function _clean(d){ return (d||[]).filter(p=> p && p.time!=null && (!('value' in p) || (p.value!=null && isFinite(p.value))) ); }
 function renderIndicator(ind){
   removeSeries(ind.id);
   if(!candles.length) return;
   const def=INDICATOR_DEFS.find(d=>d.type===ind.type); if(!def) return;
   const p=ind.params;
   const lo={priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false};
+  // ★ 모든 분기: 시리즈 생성 직후 indSeriesMap.set 먼저 → setData가 throw해도 시리즈가
+  //   맵에 있어 다음 render/removeAllIndSeries가 반드시 제거(고아 영구 잔존 차단).
+  //   setData는 정제(_clean)된 데이터로, try/catch로 감싸 throw가 렌더 루프를 중단시키지 않게 함.
   if(ind.type==='vol'){
     const ser=chart.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:'',priceLineVisible:false,lastValueVisible:false});
+    indSeriesMap.set(ind.id,ser);
     ser.priceScale().applyOptions({scaleMargins:{top:0.85,bottom:0}});
-    ser.setData(candles.map(c=>({time:c.time,value:c.volume,color:c.close>=c.open?toRgba(p.colorUp,0.5):toRgba(p.colorDown,0.5)})));
-    indSeriesMap.set(ind.id,ser); return;
+    try{ ser.setData(candles.map(c=>({time:c.time,value:c.volume,color:c.close>=c.open?toRgba(p.colorUp,0.5):toRgba(p.colorDown,0.5)}))); }catch(e){}
+    return;
   }
   if(def.overlay){
     if(ind.type==='bb'){
@@ -2390,8 +2477,8 @@ function renderIndicator(ind){
       const mid=chart.addLineSeries({...lo,color:p.colorMid,lineWidth:p.width||1});
       const upper=chart.addLineSeries({...lo,color:p.colorBand,lineWidth:p.width||1});
       const lower=chart.addLineSeries({...lo,color:p.colorBand,lineWidth:p.width||1});
-      mid.setData(bd.mid); upper.setData(bd.upper); lower.setData(bd.lower);
       indSeriesMap.set(ind.id,{mid,upper,lower});
+      try{ mid.setData(_clean(bd.mid)); upper.setData(_clean(bd.upper)); lower.setData(_clean(bd.lower)); }catch(e){}
     } else {
       let data;
       if(ind.type==='sma') data=calcSMA(candles,p.period);
@@ -2399,28 +2486,32 @@ function renderIndicator(ind){
       else if(ind.type==='wma') data=calcWMA(candles,p.period);
       else if(ind.type==='hma') data=calcHMA(candles,p.period);
       const ser=chart.addLineSeries({...lo,color:p.color,lineWidth:p.width||1});
-      ser.setData(data||[]); indSeriesMap.set(ind.id,ser);
+      indSeriesMap.set(ind.id,ser);
+      try{ ser.setData(_clean(data)); }catch(e){}
     }
   } else {
     const oc=getOscChart(); if(!oc) return;
     if(ind.type==='rsi'){
       const ser=oc.addLineSeries({...lo,color:p.color,lineWidth:p.width||1});
-      ser.setData(padOsc(calcRSI(candles,p.period))); indSeriesMap.set(ind.id,ser);
+      indSeriesMap.set(ind.id,ser);
+      try{ ser.setData(_clean(padOsc(calcRSI(candles,p.period)))); }catch(e){}
     } else if(ind.type==='macd'){
       const md=calcMACD(candles,p.fast,p.slow,p.signal);
       const ms=oc.addLineSeries({...lo,color:p.colorMacd,lineWidth:1});
       const ss=oc.addLineSeries({...lo,color:p.colorSignal,lineWidth:1});
       const hs=oc.addHistogramSeries({priceLineVisible:false,lastValueVisible:false});
-      ms.setData(padOsc(md.macd)); ss.setData(padOsc(md.signal)); hs.setData(padOsc(md.hist));
       indSeriesMap.set(ind.id,{macd:ms,signal:ss,hist:hs});
+      try{ ms.setData(_clean(padOsc(md.macd))); ss.setData(_clean(padOsc(md.signal))); hs.setData(_clean(padOsc(md.hist))); }catch(e){}
     } else if(ind.type==='stoch'){
       const st=calcStoch(candles,p.kPeriod,p.smooth,p.dPeriod);
       const ks=oc.addLineSeries({...lo,color:p.colorK,lineWidth:1});
       const ds=oc.addLineSeries({...lo,color:p.colorD,lineWidth:1});
-      ks.setData(padOsc(st.k)); ds.setData(padOsc(st.d)); indSeriesMap.set(ind.id,{k:ks,d:ds});
+      indSeriesMap.set(ind.id,{k:ks,d:ds});
+      try{ ks.setData(_clean(padOsc(st.k))); ds.setData(_clean(padOsc(st.d))); }catch(e){}
     } else if(ind.type==='atr'){
       const ser=oc.addLineSeries({...lo,color:p.color,lineWidth:p.width||1});
-      ser.setData(padOsc(calcATR(candles,p.period))); indSeriesMap.set(ind.id,ser);
+      indSeriesMap.set(ind.id,ser);
+      try{ ser.setData(_clean(padOsc(calcATR(candles,p.period)))); }catch(e){}
     }
   }
 }
@@ -2460,8 +2551,12 @@ function updateIndicatorsLast(){
 }
 
 /* ---- 전체 지표 재렌더 ---- */
+// ★ 고아 시리즈 차단: S.indicators가 아니라 indSeriesMap에 실재하는 '모든' 시리즈를 제거.
+//   (로그인·클라우드 동기화가 S.indicators를 다른 id의 새 배열로 교체하면, 기존 id로 만든
+//    시리즈가 제거 루프에서 누락되어 이전 코인 가격대(예 65000)에 영구 고아로 남아 Y축을 폭발시킴.)
+function removeAllIndSeries(){ for(const id of [...indSeriesMap.keys()]) removeSeries(id); }
 function renderAllIndicators(){
-  for(const ind of S.indicators) removeSeries(ind.id);
+  removeAllIndSeries();
   if(!candles.length) return;
   checkOscPane(); // 먼저 패널 표시 → getOscChart()가 정상 크기로 생성됨
   for(const ind of S.indicators) renderIndicator(ind);
@@ -2748,6 +2843,10 @@ function renderSettingsPanel(){
 
 /* ---------- 실시간 캔들 (WS·REST 공통) ---------- */
 const IV_SEC = {'1m':60,'3m':180,'5m':300,'15m':900,'30m':1800,'1h':3600,'2h':7200,'4h':14400,'6h':21600,'8h':28800,'12h':43200,'1d':86400,'3d':259200,'1w':604800,'1M':2592000};
+// ★ 시간대 보정: Lightweight Charts는 타임스탬프를 UTC로 해석해 그대로 표시한다.
+//   바이낸스 캔들 시각(UTC)에 로컬 오프셋(한국=+9h)을 미리 더해 저장하면, LWC가 UTC로 표시 → 화면엔 로컬시간으로 읽힌다.
+//   캔들 시각이 들어오는 모든 지점(klines)에 +TZ_OFFSET, 바이낸스 API로 시각을 보낼 때(endTime)는 -TZ_OFFSET.
+const TZ_OFFSET = -new Date().getTimezoneOffset()*60;   // 초 단위 (KST: +32400)
 const IV_ALL = ['1m','3m','5m','15m','30m','1h','2h','4h','6h','8h','12h','1d','3d','1w','1M'];
 const IV_LABEL = {'1m':'1분','3m':'3분','5m':'5분','15m':'15분','30m':'30분','1h':'1시간','2h':'2시간','4h':'4시간','6h':'6시간','8h':'8시간','12h':'12시간','1d':'1일','3d':'3일','1w':'1주','1M':'1월'};
 
@@ -2924,6 +3023,13 @@ function barStart(tsSec, iv){ const s=IV_SEC[iv]||60; return Math.floor(tsSec/s)
 function mergeCandle(c){
   if(!candleSeries) return;
   const last=candles[candles.length-1];
+  // ★ 오염 차단 최종 방어선: 진행 중 봉(같은 시각)을 극단적으로 다른 가격으로 덮으려 하면 무시.
+  //   다른 코인 가격이 candles[]에 박혀 Y축이 폭발(차트 납작/안 보임)하는 것을 막는다.
+  //   (같은 코인의 연속 봉은 ratio≈1이라 정상 갱신에 영향 없음.)
+  if(last && last.close>0 && c.close>0){
+    const r=c.close/last.close;
+    if(r>4 || r<0.25) return;
+  }
   if(last && last.time===c.time){ candles[candles.length-1]=c; }
   else if(!last || c.time>last.time){ candles.push(c); if(candles.length>6000) candles.shift(); }
   else { return; }                                  // 과거 봉은 무시
@@ -2951,9 +3057,12 @@ function liveTick(price){
     if(ratio>4 || ratio<0.25) return;
   }
   const sec=IV_SEC[curInterval]||60;
-  if(sec<=86400){                       // 일봉 이하: UTC 정렬이 정확 → 새 봉 직접 롤
-    const bs=barStart(Math.floor(Date.now()/1000), curInterval);
-    if(bs>last.time){ mergeCandle({ time:bs, open:price, high:price, low:price, close:price, volume:0 }); return; }
+  if(sec<=86400){                       // 일봉 이하: 새 봉 직접 롤
+    // 그리드 기준 롤: last.time(=바이낸스 시각+TZ_OFFSET, 항상 봉 경계)에 sec를 더한 게 다음 봉 시작.
+    //   현재 실시각(로컬 환산)이 그 경계를 넘으면 새 봉 생성. last.time 기준이라 시간대 보정과 무관하게 그리드가 어긋나지 않음.
+    const nowLocal=Math.floor(Date.now()/1000)+TZ_OFFSET;
+    const nextStart=last.time+sec;
+    if(nowLocal>=nextStart){ mergeCandle({ time:nextStart, open:price, high:price, low:price, close:price, volume:0 }); return; }
   }
   // 진행 중 봉 갱신 (3일/주/월의 새 봉은 syncKlines가 정확히 추가)
   mergeCandle({ time:last.time, open:last.open, high:Math.max(last.high,price), low:Math.min(last.low,price), close:price, volume:last.volume });
@@ -2995,11 +3104,13 @@ function _chartAnimStep(now){
 async function syncKlines(){
   if(!candleSeries) return;
   try{
-    const sym=curSymbol.toUpperCase();
-    const r=await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${curInterval}&limit=3`);
-    const raw=await r.json(); if(!Array.isArray(raw) || !candles.length) return;
+    const snapSym=curSymbol, snapIv=curInterval;
+    const r=await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${snapSym.toUpperCase()}&interval=${snapIv}&limit=3`);
+    const raw=await r.json();
+    if(!Array.isArray(raw) || !candles.length) return;
+    if(snapSym!==curSymbol || snapIv!==curInterval) return; // 심볼/시간봉 바뀌면 버림
     raw.forEach(k=>{
-      const c={ time:Math.floor(k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5] };
+      const c={ time:Math.floor(k[0]/1000)+TZ_OFFSET, open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5] };
       const i=candles.findIndex(x=>x.time===c.time);
       if(i>=0) candles[i]=c;
       else if(c.time>candles[candles.length-1].time){ candles.push(c); if(candles.length>6000) candles.shift(); }
@@ -3019,7 +3130,7 @@ function drawPriceLines(){
   priceLines.forEach(l=>{ try{ candleSeries.removePriceLine(l); }catch(e){} });
   priceLines=[]; tpPriceLine=null; slPriceLine=null;
   const add=(price,color,title,w=1)=>{ if(price>0){ const l=candleSeries.createPriceLine({price,color,lineWidth:w,lineStyle:0,axisLabelVisible:true,title}); priceLines.push(l); return l; } return null; };
-  const p=S.position;
+  const p=curPos();
   if(p){ add(p.entry,'#f0b90b','진입'); const lq=curLiq(); if(lq) add(lq,'#ff9f43','청산'); }
   S.pending.filter(o=>!o.sym||o.sym===curSymbol).forEach(o=>{
     if(o.kind==='tp') tpPriceLine=add(o.price,'#0ecb81','TP ↕',2);
@@ -3048,7 +3159,7 @@ function _tslLockChart(lock){
   }); }catch(e){}
 }
 function _tslDown(e){
-  if(!S.position) return;
+  if(!curPos()) return;
   const el=document.getElementById('chart');
   const rect=el.getBoundingClientRect();
   const y=e.clientY-rect.top;
@@ -3076,8 +3187,8 @@ function _tslMove(e){
     const tpO=S.pending.find(o=>o.kind==='tp'&&(!o.sym||o.sym===curSymbol));
     const slO=S.pending.find(o=>o.kind==='sl'&&(!o.sym||o.sym===curSymbol));
     let near=false;
-    if(S.position&&tpPriceLine&&tpO){const cy=_tslCoordY(tpO.price);if(cy!==null&&Math.abs(y-cy)<=THR)near=true;}
-    if(!near&&S.position&&slPriceLine&&slO){const cy=_tslCoordY(slO.price);if(cy!==null&&Math.abs(y-cy)<=THR)near=true;}
+    if(curPos()&&tpPriceLine&&tpO){const cy=_tslCoordY(tpO.price);if(cy!==null&&Math.abs(y-cy)<=THR)near=true;}
+    if(!near&&curPos()&&slPriceLine&&slO){const cy=_tslCoordY(slO.price);if(cy!==null&&Math.abs(y-cy)<=THR)near=true;}
     el.style.cursor=near?'ns-resize':'';
     return;
   }
@@ -3094,7 +3205,7 @@ function _tslUp(){
   const {kind,order,origPrice,newPrice}=_tslDrag;
   if(Math.abs(newPrice-origPrice)<0.01){_tslCancel();return;}
   // 모달 표시
-  const p=S.position;
+  const p=curPos();
   if(!p){_tslCancel();return;}
   const pnl=unrealized(newPrice);
   const roe=(pnl/p.margin)*100;
@@ -3169,8 +3280,15 @@ function connectWS(){
     }
     const m = JSON.parse(ev.data); const d = m.data;
     if(!d) return;
+    // ★ 심볼 검증 — 코인 전환 직후 이전 소켓에 버퍼된 잔여 메시지가
+    //   새 코인(curSymbol)의 캔들·마크가를 오염시키는 것을 차단. (WS close()는 비동기라
+    //   닫히기 전 큐에 쌓인 메시지가 onmessage로 더 들어올 수 있음.)
+    const _msgSym = (m.stream ? m.stream.split('@')[0]
+                    : (d.s || (d.k && d.k.s) || '')).toLowerCase();
+    if(_msgSym && _msgSym !== curSymbol) return;
     if(d.e==="markPriceUpdate"){
       markPrice=+d.p; lastPrice=markPrice; fundingRate=+d.r; nextFundingT=+d.T;
+      symMarks[curSymbol]=markPrice; symFundRate[curSymbol]=fundingRate; symFundNextT[curSymbol]=nextFundingT;
       smoothPriceTo(lastPrice);
       if(lastHmaValue) checkHmaAlarm(lastPrice, lastHmaValue);
       onTick();
@@ -3199,17 +3317,22 @@ function connectWS(){
 /* ---------- REST 시장 조회 (WS 미수신 시 실시간 backbone) ---------- */
 async function fetchMarket(){
   try{
-    const sym = curSymbol.toUpperCase();
+    const snapSym = curSymbol;            // 응답 도착 시 코인이 바뀌었으면 결과 폐기 (잔재 가격 오염 방지)
+    const sym = snapSym.toUpperCase();
     const [r1, r2] = await Promise.all([
       fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${sym}`),
       fetch(`https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${sym}`),
     ]);
+    if(snapSym !== curSymbol) return;     // ★ 코인 전환됨 → 이 응답은 버림
     if(r1.ok){
       const d = await r1.json();
-      if(+d.markPrice){ markPrice=+d.markPrice; fundingRate=+d.lastFundingRate; nextFundingT=+d.nextFundingTime; }
+      if(snapSym !== curSymbol) return;
+      if(+d.markPrice){ markPrice=+d.markPrice; fundingRate=+d.lastFundingRate; nextFundingT=+d.nextFundingTime;
+        symMarks[curSymbol]=markPrice; symFundRate[curSymbol]=fundingRate; symFundNextT[curSymbol]=nextFundingT; }
     }
     if(r2.ok){
       const d = await r2.json();
+      if(snapSym !== curSymbol) return;
       if(+d.lastPrice) lastPrice = +d.lastPrice;
       if(+d.openPrice){ prevClose24=+d.openPrice; high24=+d.highPrice; low24=+d.lowPrice; }
     }
@@ -3304,7 +3427,7 @@ window.toggleSymDD = function(e){
 
 /* ---------- 심볼 전환 ---------- */
 function changeSymbol(sym){
-  if(S.position){ toast("포지션 보유 중에는 심볼을 변경할 수 없습니다."); updateSymLabel(); return; }
+  // 다중 포지션 지원: 포지션 보유 중에도 자유롭게 코인 전환 가능 (각 코인 포지션은 그대로 유지)
   curSymbol = sym;
   S.symbol = sym;
   lastPrice=0; markPrice=0; prevClose24=0; high24=0; low24=0; fundingRate=0; nextFundingT=0;
@@ -3387,7 +3510,8 @@ function bindUI(){
   document.querySelectorAll("#marginModeSeg button").forEach(b=>{
     if(b.dataset.mm===S.marginMode) b.classList.add("active"); else b.classList.remove("active");
     b.onclick = ()=>{
-      if(S.position){ toast("포지션 보유 중에는 마진 모드를 변경할 수 없습니다."); return; }
+      // 코인별 마진 모드 — 현재 코인에 포지션이 있으면 그 코인은 변경 불가(새 설정은 신규 주문에 적용)
+      if(curPos()){ toast("이 코인 포지션 보유 중에는 마진 모드를 변경할 수 없습니다."); return; }
       document.querySelectorAll("#marginModeSeg button").forEach(x=>x.classList.remove("active"));
       b.classList.add("active"); S.marginMode=b.dataset.mm; save(); renderAll();
     };
@@ -3398,16 +3522,15 @@ function bindUI(){
   const levInputEl = document.getElementById("levInput");
   lev.value = S.leverage;
   levInputEl.value = S.leverage;
+  // 레버리지는 신규 주문에만 적용 — 기존 포지션은 진입 당시 레버리지(p.lev)를 그대로 유지
   lev.oninput = ()=>{
     S.leverage = parseInt(lev.value);
     levInputEl.value = S.leverage;
-    if(S.position) S.position.margin = (S.position.qty*S.position.entry)/S.leverage;
     save(); renderAll();
   };
   levInputEl.oninput = ()=>{
     const v = Math.max(2, Math.min(125, parseInt(levInputEl.value)||2));
     S.leverage = v; lev.value = v;
-    if(S.position) S.position.margin = (S.position.qty*S.position.entry)/S.leverage;
     save(); renderAll();
   };
   levInputEl.onblur = ()=>{ levInputEl.value = S.leverage; };
@@ -3522,7 +3645,7 @@ function xToT(x){
   const ts=chart.timeScale();
   const t=ts.coordinateToTime(x);
   if(t!==null) return t;
-  if(!candles.length) return Math.floor(Date.now()/1000);
+  if(!candles.length) return Math.floor(Date.now()/1000)+TZ_OFFSET;
   const lastT=candles[candles.length-1].time, xl=ts.timeToCoordinate(lastT);
   const bs=ts.options().barSpacing||6, sec=IV_SEC[curInterval]||60;
   if(xl===null) return lastT;
@@ -4081,10 +4204,74 @@ setInterval(()=>{ if(_chartPrice>0 && !_chartAnimRaf) liveTick(_chartPrice); }, 
 setInterval(async ()=>{
   if(Date.now()-lastWsTime<2500) return;
   try{
-    const r=await fetch(`https://fapi.binance.com/fapi/v1/ticker/price?symbol=${curSymbol.toUpperCase()}`);
-    if(r.ok){ const d=await r.json(); if(+d.price){ lastPrice=+d.price; smoothPriceTo(lastPrice); } }
+    const snapSym=curSymbol;
+    const r=await fetch(`https://fapi.binance.com/fapi/v1/ticker/price?symbol=${snapSym.toUpperCase()}`);
+    if(snapSym!==curSymbol) return;   // ★ 코인 전환됨 → 이전 코인 가격 주입 차단
+    if(r.ok){ const d=await r.json(); if(snapSym===curSymbol && +d.price){ lastPrice=+d.price; smoothPriceTo(lastPrice); } }
   }catch(e){}
 }, 300);
+
+// ── 다중 코인 마크가 폴링 ──
+// 보유 중인 '안 보고 있는' 코인들의 마크가·펀딩율을 2초마다 갱신해
+// 손익·강제청산·펀딩비를 실시간으로 처리한다(현재 보는 코인은 WS/REST가 더 빠르게 처리).
+async function pollBgMarks(){
+  const syms = heldSymbols().filter(s=>s!==curSymbol);
+  if(!syms.length) return;
+  try{
+    const r = await fetch('https://fapi.binance.com/fapi/v1/premiumIndex');
+    if(!r.ok) return;
+    const arr = await r.json();
+    if(!Array.isArray(arr)) return;
+    const want = new Set(syms.map(s=>s.toUpperCase()));
+    let changed = false;
+    for(const d of arr){
+      if(!want.has(d.symbol)) continue;
+      const sym = d.symbol.toLowerCase();
+      if(+d.markPrice){ symMarks[sym] = +d.markPrice; changed = true; }
+      if(d.lastFundingRate!=null) symFundRate[sym] = +d.lastFundingRate;
+      if(+d.nextFundingTime) symFundNextT[sym] = +d.nextFundingTime;
+    }
+    if(changed){
+      // 백그라운드 코인 펀딩·강제청산·TP/SL 체크 + 화면 손익 갱신
+      applyFunding();
+      checkLiquidation();
+      checkBgTpSl();
+      renderAll();
+    }
+  }catch(e){}
+}
+setInterval(pollBgMarks, 2000);
+
+// 백그라운드(안 보는) 코인의 TP/SL을 마크가 기준으로 체결. 현재 코인은 checkPending(봉 고저)이 담당.
+function checkBgTpSl(){
+  if(!S.pending.length) return;
+  for(const sym of heldSymbols()){
+    if(sym===curSymbol) continue;
+    const p = S.positions[sym];
+    const mk = markOf(sym);
+    if(!p || !(mk>0)) continue;
+    const orders = S.pending.filter(o=>(o.sym||curSymbol)===sym && (o.kind==='tp'||o.kind==='sl'));
+    for(const o of orders){
+      let fill=false;
+      if(o.kind==='tp') fill = p.side==='long' ? mk>=o.price : mk<=o.price;
+      else              fill = p.side==='long' ? mk<=o.price : mk>=o.price;
+      if(fill){
+        const realized = p.side==='long' ? (o.price-p.entry)*p.qty : (p.entry-o.price)*p.qty;
+        const fee = p.qty*o.price*TAKER;
+        S.walletBalance += realized - fee; S.totalFee += fee;
+        const lev = p.lev||S.leverage;
+        const roe = (p.qty*p.entry/lev)>0 ? (realized/(p.qty*p.entry/lev)*100) : 0;
+        logHist(o.kind==='tp'?'종료':'종료', p.side==='long'?'short':'long', p.qty, o.price, realized, fee, roe, sym);
+        delete S.positions[sym];
+        S.pending = S.pending.filter(x=> !((x.sym||curSymbol)===sym && (x.kind==='tp'||x.kind==='sl')) );
+        playBeep(o.kind);
+        toast(`${_symShort(sym)} ${o.kind.toUpperCase()} 체결 @ ${fmtPrice(o.price)} · 손익 ${fmtUsd(realized)}`);
+        break;
+      }
+    }
+  }
+  save();
+}
 
 /* ========== 사용설명서 ========== */
 window.openManual = function(){
@@ -4263,6 +4450,20 @@ function applyCloudData(d){
     localStorage.setItem('btcSimState', d.state);
     const loaded = JSON.parse(d.state);
     Object.assign(S, defaultState(), loaded);
+    // 다중 포지션 마이그레이션: 구 버전 단일 position → 코인별 positions 맵
+    if(!S.positions || typeof S.positions !== 'object' || Array.isArray(S.positions)) S.positions = {};
+    if(loaded.position && !loaded.positions){
+      const sym = loaded.symbol || 'btcusdt';
+      const op = loaded.position;
+      S.positions[sym] = {
+        side:op.side, qty:op.qty, entry:op.entry, margin:op.margin,
+        openTime:op.openTime || Date.now(),
+        lev: op.lev || loaded.leverage || 20,
+        mode: op.mode || loaded.marginMode || 'isolated',
+      };
+    }
+    delete S.position;
+    if(!S.lastFundingTs || typeof S.lastFundingTs !== 'object') S.lastFundingTs = {};
   }
   if(d.drawings){
     Object.entries(JSON.parse(d.drawings)).forEach(([k,v])=>localStorage.setItem(k,v));
@@ -4284,7 +4485,19 @@ function startCloudListener(){
       if(!doc.exists){ setSyncStatus(''); return; }
       // 내 기기가 방금 저장한 것이면 무시 (6초 이내)
       if(Date.now() - _lastSelfSaveTime < 6000){ setSyncStatus('✓ 저장됨'); setTimeout(()=>setSyncStatus(''),3000); return; }
-      applyCloudData(doc.data());
+      // 클라우드 데이터가 로컬 포지션을 지울 경우 → 로컬 우선 보존 후 클라우드 재저장
+      const localPos = S.positions ? {...S.positions} : {};
+      const cloudRaw = doc.data();
+      const cloudLoaded = cloudRaw.state ? JSON.parse(cloudRaw.state) : {};
+      const cloudPositions = cloudLoaded.positions || (cloudLoaded.position ? {[cloudLoaded.symbol||'btcusdt']:cloudLoaded.position} : {});
+      if(Object.keys(localPos).length > 0 && Object.keys(cloudPositions).length === 0){
+        // 로컬에 포지션 있는데 클라우드는 없음 → 로컬이 올바름, 클라우드 재저장
+        doSyncSave();
+        setSyncStatus('✓ 로컬 보존');
+        setTimeout(()=>setSyncStatus(''), 3000);
+        return;
+      }
+      applyCloudData(cloudRaw);
       setSyncStatus('✓ 동기화됨');
       setTimeout(()=>setSyncStatus(''), 3000);
     }, err=>{ setSyncStatus('동기화 오류'); });
