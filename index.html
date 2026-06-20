@@ -4,10 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>선물 모의투자 (바이낸스 기준)</title>
-<script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<!-- 공급망 방어: SRI(무결성 해시) — CDN이 변조되면 스크립트 로드를 차단. crossorigin 필수 -->
+<script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js" integrity="sha384-stKllnUqA9AD0gsKCuUtf5XlqAW7PwIgDagoNsTWkjkBmJ/GZ/uHTgEBxdLV2VSK" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js" integrity="sha384-sEVIly94UBRLKWdkYoPpSG7GD/e79YHMrxVyZaOk712Ga7+EAw6w1EFi+xBzBdd+" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js" integrity="sha384-EkqK+ezBWJuvO3hfrSx2iVqr3YQbhmnzn8kPhOpBZ+0GMVU5oGSgptwIu8D84HjE" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js" integrity="sha384-M481iNZJtbpypKgvlvZ+78Giq0BsewFLk5r2k+MOcGXlwKCc27DQRZ+WCV/zpmpC" crossorigin="anonymous"></script>
 <style>
   :root{
     --bg:#0b0e11; --panel:#161a1e; --panel2:#1e2329; --line:#2a2f36;
@@ -249,6 +250,8 @@
   .pc-u{font-size:10px;color:var(--muted);}
   .closebtn.full{border-color:var(--red);color:var(--red);margin-left:auto;}
   .closebtn.go:hover{border-color:var(--green);color:var(--green);}
+  .closebtn.rev{border-color:#f0b90b;color:#f0b90b;flex:1;text-align:center;font-weight:600;}
+  .closebtn.rev:hover{background:rgba(240,185,11,.12);border-color:#f0b90b;color:#f0b90b;}
   .pc-seg{width:74px;flex:0 0 auto;padding:2px;}
   .pc-seg button{padding:3px 4px;font-size:10px;}
 
@@ -765,10 +768,7 @@
         <button id="drawDelBtn" title="선택한 도형 삭제">삭제</button>
         <button id="drawClearBtn" title="모든 도형 삭제">전체삭제</button>
         <span class="db-sep"></span>
-        <span class="db-label">색상</span>
-        <input type="color" id="drawColorPick" value="#f0b90b" title="선 색상" class="draw-color-pick">
-        <span class="db-label">굵기</span>
-        <input type="number" id="drawWidthSel" title="선 굵기 (키보드 입력 가능)" class="draw-width-sel" min="0.5" max="20" step="0.5" value="1.5">
+        <span class="db-label" style="opacity:.6;">그린 뒤 우클릭 → 잠금·색상·굵기·속성 편집</span>
       </div>
       <div id="chart" style="height:600px;position:relative;"></div>
       <div id="oscPane" style="height:160px;display:none;border-top:1px solid var(--line);"></div>
@@ -1548,6 +1548,46 @@ function closePosition(fraction, label){
   toast(`${label||'청산'} @ ${fmtPrice(price)} · 손익 ${fmtUsd(realized)} USDT`);
 }
 
+/* ── 반대 포지션 전환 (바이낸스 'Reverse'): 현재 포지션 청산 + 같은 수량 반대 진입을 한 번에 ──
+   원자성 보장: 청산 후 가용잔고가 반대 진입 증거금+수수료에 못 미치면 아무것도 실행하지 않고 실패시켜,
+   '청산만 되고 반대진입은 실패'하는 부분 실행 상태를 원천 차단한다. */
+window.reversePosition = function(){
+  const p = curPos();
+  if(!p){ toast("전환할 포지션이 없습니다."); return; }
+  const price = lastPrice || markPrice;
+  if(!(price>0)){ toast("시세 로딩 중입니다. 잠시만요."); return; }
+  const oppSide = p.side==="long" ? "short" : "long";
+  const qty  = p.qty;
+  const lev  = p.lev  || S.leverage;
+  const mode = p.mode || S.marginMode;
+  const realized  = p.side==="long" ? (price-p.entry)*qty : (p.entry-price)*qty;  // 청산 손익
+  const closeFee  = qty*price*TAKER;
+  const openFee   = qty*price*TAKER;
+  const openMargin= (qty*price)/lev;     // 반대 진입에 필요한 증거금
+  // 청산 후 가용잔고 산정(available()와 동일 의미, 단 이 포지션 청산을 반영).
+  //   격리: walletBalance + 청산손익 - 청산수수료, 사용증거금에서 이 포지션 증거금 제외.
+  //   교차: equity - 청산수수료, 사용증거금에서 이 포지션 증거금 제외.
+  const base = (S.marginMode==="cross") ? (equity()-closeFee) : (S.walletBalance + realized - closeFee);
+  const capacityAfterClose = base - (usedMargin() - p.margin);
+  if(capacityAfterClose < openMargin + openFee - 1e-6){
+    toast("반대 전환 실패 — 청산 후 잔고가 반대 진입 증거금에 부족합니다.");
+    return;
+  }
+  // ── 커밋 (검증 통과 후에만 상태 변경) ──
+  // 1) 청산 정산
+  S.walletBalance += realized - closeFee; S.totalFee += closeFee;
+  const closeRoe = (qty*p.entry/lev)>0 ? (realized/(qty*p.entry/lev)*100) : 0;
+  logHist("종료", oppSide, qty, price, realized, closeFee, closeRoe);   // 청산 체결 방향 = 반대측
+  cancelReduceOnly();   // 방향이 바뀌므로 이 코인의 기존 TP/SL(reduce-only) 무효 → 제거
+  // 2) 반대 진입 (레버리지·마진모드는 기존 포지션 그대로 유지)
+  S.walletBalance -= openFee; S.totalFee += openFee;
+  S.positions[curSymbol] = {side:oppSide, qty, entry:price, margin:openMargin, openTime:Date.now(), lev, mode};
+  logHist("진입", oppSide, qty, price, 0, openFee);
+  playBeep('fill');
+  addMarker(); updatePriceLines(); save(); renderAll();
+  toast(`${p.side==="long"?"롱→숏":"숏→롱"} 스위칭 완료 · 청산손익 ${fmtUsd(realized)} @ ${fmtPrice(price)}`);
+};
+
 let closeMode = 'pct';   // 포지션 정리 단위: pct=% / usdt=USDT
 
 window.executeClose = function(){
@@ -1960,7 +2000,7 @@ function renderPreview(){
   }
 }
 
-let posCtlRendered=false, posCtlModeShown=null, posCtlForSym=null, posCtlHadPos=null;
+let posCtlRendered=false, posCtlModeShown=null, posCtlForSym=null, posCtlHadPos=null, posCtlSide=null;
 function renderPositions(){
   const el = document.getElementById("tab-pos");
   const syms = heldSymbols();
@@ -2014,6 +2054,10 @@ function renderPositions(){
         <button class="closebtn full" onclick="closePosition(1,'포지션 정리')">전체</button>
       </div>
       <div class="pc-row">
+        <span class="pc-lb">스위칭</span>
+        <button class="closebtn rev" onclick="reversePosition()">${cp.side==='long'?'롱 → 숏':'숏 → 롱'} 스위칭</button>
+      </div>
+      <div class="pc-row">
         <span class="pc-lb">TP/SL</span>
         <button id="posTpSlModeBtn" onclick="event.stopPropagation();showTpSlModeDropdown(this)"
           style="background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:4px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">${posTpSlMode==='price'?'가격':'ROE%'} ▾</button>
@@ -2026,9 +2070,10 @@ function renderPositions(){
   }
   // 표(라이브)는 매번 갱신, 제어판(입력칸)은 코인/포지션유무/모드 변경 때만 → 입력 중 값 보존
   const hasPos = !!cp;
-  if(!posCtlRendered || posCtlModeShown!==posTpSlMode || posCtlForSym!==curSymbol || posCtlHadPos!==hasPos){
+  const curSide = cp ? cp.side : null;   // 반대 전환 등으로 방향 바뀌면 제어판(전환 버튼 라벨) 재렌더 필요
+  if(!posCtlRendered || posCtlModeShown!==posTpSlMode || posCtlForSym!==curSymbol || posCtlHadPos!==hasPos || posCtlSide!==curSide){
     el.innerHTML = `<div id="posTableBox">${tableHtml}</div><div id="posCtlBox">${ctlHtml}</div>`;
-    posCtlRendered = true; posCtlModeShown = posTpSlMode; posCtlForSym = curSymbol; posCtlHadPos = hasPos;
+    posCtlRendered = true; posCtlModeShown = posTpSlMode; posCtlForSym = curSymbol; posCtlHadPos = hasPos; posCtlSide = curSide;
   }else{
     const tb = document.getElementById("posTableBox");
     if(tb) tb.innerHTML = tableHtml;
@@ -3773,7 +3818,7 @@ function redrawDrawings(){
   const pd=plotDims();
   drawCtx.save(); drawCtx.beginPath(); drawCtx.rect(0,0,pd.w,pd.h); drawCtx.clip();
   const list = curDraft ? drawings.concat([curDraft]) : drawings;
-  list.forEach(d=>{ try{ renderShape(d, pd.w, pd.h, d.id===selectedId); }catch(e){} });
+  list.forEach(d=>{ try{ renderShape(d, pd.w, pd.h, d.id===selectedId); if(d.locked) drawLockBadge(d, pd.w, pd.h); }catch(e){} });
   // 자석 스냅 표시기
   if(drawMagnet && snapCursorPos && drawTool!=='pan'){
     const {x,y}=snapCursorPos;
@@ -3863,6 +3908,7 @@ function onDrawDown(e){
     }
     // 2) 도형 선택
     const hit=hitTest(x,y);
+    if(hit && hit.locked){ selectedId=null; redrawDrawings(); return; }  // 잠긴 도형은 선택·이동 불가(우클릭으로 잠금해제) → 차트 패닝 허용
     if(hit){
       selectedId=hit.id;
       if(isPosTool(hit.type)){
@@ -3875,7 +3921,6 @@ function onDrawDown(e){
         else dragInfo={ kind:'shape', t0:xToT(x), p0:yToP(y), orig:hit.pts.map(p=>({t:p.t,p:p.p})) };
       }
       e.stopPropagation(); e.preventDefault();
-      if(!isPosTool(hit.type)){ const cp=document.getElementById('drawColorPick'),ws=document.getElementById('drawWidthSel'); if(cp)cp.value=hit.color||'#f0b90b'; if(ws)ws.value=hit.lineWidth??1.5; }
       redrawDrawings();
     }else{ selectedId=null; redrawDrawings(); }                  // 빈 곳 → 차트 패닝 허용
     return;
@@ -3989,6 +4034,154 @@ function onDrawUp(){
 }
 function deleteSelected(){ if(selectedId==null) return; drawings=drawings.filter(d=>d.id!==selectedId); selectedId=null; saveDrawings(); redrawDrawings(); }
 function clearDrawings(){ if(!drawings.length){ return; } if(!confirm('모든 그림을 삭제할까요?')) return; drawings=[]; selectedId=null; saveDrawings(); redrawDrawings(); }
+
+/* ========== 그리기 우클릭 컨텍스트 메뉴 (트레이딩뷰 스타일) ========== */
+const DRAW_COLORS = ['#f0b90b','#ffffff','#f6465d','#ff9f43','#0ecb81','#2962ff','#9c27b0','#848e9c'];
+const DRAW_WIDTHS = [1,2,3,4];
+const _SHAPE_NAME = {hline:'수평선',vline:'수직선',trend:'추세선',arrow:'화살표',rect:'사각형',fib:'피보나치',channel:'채널',text:'텍스트',long:'롱 포지션',short:'숏 포지션'};
+let _drawMenu=null;
+
+/* 도형 타입별 편집 가능한 속성(get/set 클로저). 없으면 '속성 편집' 항목 숨김 */
+function shapeFields(d){
+  const P=d.pts;
+  switch(d.type){
+    case 'hline': return [{label:'가격', kind:'price', get:()=>P[0].p, set:v=>P[0].p=v}];
+    case 'trend':
+    case 'arrow': return [
+      {label:'시작점 가격', kind:'price', get:()=>P[0].p, set:v=>P[0].p=v},
+      {label:'끝점 가격',   kind:'price', get:()=>P[1].p, set:v=>P[1].p=v},
+    ];
+    case 'rect':
+    case 'fib': return [
+      {label:'가격 1', kind:'price', get:()=>P[0].p, set:v=>P[0].p=v},
+      {label:'가격 2', kind:'price', get:()=>P[1].p, set:v=>P[1].p=v},
+    ];
+    case 'long':
+    case 'short': {
+      const r2=v=>Math.round(v*100)/100;                       // 소수점 2자리로 축약
+      return [
+        {label:'진입가', kind:'price', get:()=>r2(d.entry),  set:v=>d.entry=r2(v)},
+        {label:'목표가', kind:'price', get:()=>r2(d.target), set:v=>d.target=r2(v)},
+        {label:'손절가', kind:'price', get:()=>r2(d.stop),   set:v=>d.stop=r2(v)},
+        // 손익비(R:R): 변경 시에만 적용 → 진입·손절 기준으로 목표가를 재계산(목표가 직접 입력과 충돌 방지)
+        {label:'손익비', kind:'num', onlyIfChanged:true,
+          get:()=>{ const risk=Math.abs(d.entry-d.stop); return risk>0 ? Math.round(Math.abs(d.target-d.entry)/risk*100)/100 : 0; },
+          set:v=>{ const risk=Math.abs(d.entry-d.stop), rw=Math.max(0,v)*risk; d.target = d.type==='long' ? r2(d.entry+rw) : r2(d.entry-rw); } },
+        // 수량을 USDT(명목가치=수량×진입가)로 입력·표시. 적용 시 수량=USDT/진입가로 환산
+        {label:'수량(USDT)', kind:'num',
+          get:()=>Math.round(d.qty*d.entry*100)/100,
+          set:v=>{ if(d.entry>0) d.qty=Math.max(0,v)/d.entry; } },
+      ];
+    }
+    case 'text': return [
+      {label:'내용', kind:'text',  get:()=>d.label||'', set:v=>d.label=v},
+      {label:'가격', kind:'price', get:()=>P[0].p,      set:v=>P[0].p=v},
+    ];
+    default: return [];   // vline·channel은 가격 직접 편집 비대상
+  }
+}
+
+function hideDrawMenu(){ if(_drawMenu){ _drawMenu.remove(); _drawMenu=null; } }
+function showDrawMenu(d, clientX, clientY){
+  hideDrawMenu();
+  const isPos = isPosTool(d.type);
+  const menu=document.createElement('div');
+  menu.style.cssText='position:fixed;z-index:10000;background:#161a1e;border:1px solid #2a2f36;border-radius:8px;padding:6px 0;min-width:184px;box-shadow:0 8px 24px rgba(0,0,0,.6);font-size:12px;color:#d1d4dc;user-select:none;';
+  const item=(html,onclick)=>{ const it=document.createElement('div'); it.style.cssText='padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;'; it.innerHTML=html; it.onmouseenter=()=>it.style.background='#222831'; it.onmouseleave=()=>it.style.background=''; it.onclick=(ev)=>{ ev.stopPropagation(); onclick(); }; return it; };
+  const sep=()=>{ const s=document.createElement('div'); s.style.cssText='height:1px;background:#2a2f36;margin:5px 0;'; return s; };
+  const head=(t)=>{ const s=document.createElement('span'); s.textContent=t; s.style.cssText='color:#848e9c;margin-right:4px;min-width:30px;'; return s; };
+
+  // 잠금 토글
+  menu.appendChild(item(`<span style="width:16px;text-align:center;">${d.locked?'🔓':'🔒'}</span>${d.locked?'잠금 해제':'잠금'}`,
+    ()=>{ d.locked=!d.locked; if(d.locked && selectedId===d.id) selectedId=null; saveDrawings(); redrawDrawings(); hideDrawMenu(); }));
+
+  if(!isPos){   // 포지션 도구는 색상이 방향 고정(롱=초록/숏=빨강)
+    menu.appendChild(sep());
+    const colorRow=document.createElement('div'); colorRow.style.cssText='padding:6px 14px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;';
+    colorRow.appendChild(head('색상'));
+    DRAW_COLORS.forEach(col=>{ const sw=document.createElement('span');
+      sw.style.cssText=`width:16px;height:16px;border-radius:50%;background:${col};cursor:pointer;border:2px solid ${(d.color||'').toLowerCase()===col?'#fff':'transparent'};box-sizing:border-box;`;
+      sw.onclick=(ev)=>{ ev.stopPropagation(); d.color=col; saveDrawings(); redrawDrawings(); showDrawMenu(d, clientX, clientY); }; colorRow.appendChild(sw); });
+    menu.appendChild(colorRow);
+    const widthRow=document.createElement('div'); widthRow.style.cssText='padding:6px 14px;display:flex;align-items:center;gap:7px;';
+    widthRow.appendChild(head('굵기'));
+    DRAW_WIDTHS.forEach(w=>{ const b=document.createElement('span'); const on=(d.lineWidth??1.5)==w; b.textContent=w;
+      b.style.cssText=`min-width:24px;text-align:center;padding:3px 0;border-radius:4px;cursor:pointer;border:1px solid ${on?'#f0b90b':'#2a2f36'};color:${on?'#f0b90b':'#d1d4dc'};`;
+      b.onclick=(ev)=>{ ev.stopPropagation(); d.lineWidth=w; saveDrawings(); redrawDrawings(); showDrawMenu(d, clientX, clientY); }; widthRow.appendChild(b); });
+    menu.appendChild(widthRow);
+  }
+
+  if(shapeFields(d).length){
+    menu.appendChild(sep());
+    menu.appendChild(item(`<span style="width:16px;text-align:center;">✎</span>속성 편집…`, ()=>{ hideDrawMenu(); openShapeProps(d); }));
+  }
+  menu.appendChild(sep());
+  menu.appendChild(item(`<span style="width:16px;text-align:center;">🗑</span><span style="color:#f6465d;">삭제</span>`,
+    ()=>{ drawings=drawings.filter(z=>z.id!==d.id); if(selectedId===d.id) selectedId=null; saveDrawings(); redrawDrawings(); hideDrawMenu(); }));
+
+  document.body.appendChild(menu);
+  const mw=menu.offsetWidth, mh=menu.offsetHeight;
+  menu.style.left=Math.max(8, Math.min(clientX, window.innerWidth-mw-8))+'px';
+  menu.style.top =Math.max(8, Math.min(clientY, window.innerHeight-mh-8))+'px';
+  _drawMenu=menu;
+}
+// 메뉴 밖 클릭·ESC 시 닫기 (캡처 단계: 차트 mousedown보다 먼저 처리)
+document.addEventListener('mousedown', e=>{ if(_drawMenu && !_drawMenu.contains(e.target)) hideDrawMenu(); }, true);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') hideDrawMenu(); });
+
+/* 속성 편집 모달 */
+function openShapeProps(d){
+  const fields=shapeFields(d); if(!fields.length) return;
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;';
+  const box=document.createElement('div');
+  box.style.cssText='background:#161a1e;border:1px solid #2a2f36;border-radius:10px;padding:18px 20px;min-width:266px;color:#d1d4dc;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.6);';
+  box.innerHTML=`<div style="font-weight:700;margin-bottom:14px;font-size:14px;">${_SHAPE_NAME[d.type]||d.type} 속성 편집</div>`;
+  const inputs=[];
+  fields.forEach((f,i)=>{
+    const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;';
+    const lb=document.createElement('label'); lb.textContent=f.label; lb.style.cssText='color:#848e9c;';
+    const inp=document.createElement('input');
+    inp.type = f.kind==='text' ? 'text' : 'number'; if(f.kind!=='text') inp.step='any';
+    inp.value=f.get();
+    inp.style.cssText='width:150px;background:#0b0e11;border:1px solid #2a2f36;border-radius:5px;padding:6px 8px;color:#d1d4dc;font-size:13px;'+(f.kind==='text'?'text-align:left;':'text-align:right;');
+    row.appendChild(lb); row.appendChild(inp); box.appendChild(row); inputs.push({f,inp,orig:String(inp.value)});
+    if(i===0) setTimeout(()=>{ inp.focus(); inp.select && inp.select(); },0);
+  });
+  const close=()=>{ if(ov.parentNode) document.body.removeChild(ov); };
+  const apply=()=>{
+    for(const {f,inp,orig} of inputs){
+      if(f.onlyIfChanged && inp.value===orig) continue;   // 변경된 경우만 적용 (예: 손익비 ↔ 목표가 충돌 방지)
+      if(f.kind==='text'){ f.set(inp.value); }
+      else { const v=parseFloat(inp.value); if(isFinite(v)) f.set(v); }
+    }
+    saveDrawings(); redrawDrawings(); close();
+  };
+  const btnRow=document.createElement('div'); btnRow.style.cssText='display:flex;gap:8px;justify-content:flex-end;margin-top:16px;';
+  const cancel=document.createElement('button'); cancel.textContent='취소'; cancel.style.cssText='padding:6px 14px;border-radius:5px;border:1px solid #2a2f36;background:#1b2026;color:#d1d4dc;cursor:pointer;font-size:12px;'; cancel.onclick=close;
+  const ok=document.createElement('button'); ok.textContent='적용'; ok.style.cssText='padding:6px 16px;border-radius:5px;border:1px solid #f0b90b;background:#f0b90b;color:#0b0e11;font-weight:700;cursor:pointer;font-size:12px;'; ok.onclick=apply;
+  btnRow.appendChild(cancel); btnRow.appendChild(ok); box.appendChild(btnRow);
+  ov.addEventListener('mousedown', e=>{ if(e.target===ov) close(); });
+  box.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); apply(); } else if(e.key==='Escape'){ e.preventDefault(); close(); } });
+  ov.appendChild(box); document.body.appendChild(ov);
+}
+
+/* 잠긴 도형에 작은 자물쇠 배지(벡터) 표시 */
+function _shapeAnchor(d){
+  if(isPosTool(d.type)){ const xa=tToX(d.t0),xb=tToX(d.t1); const x=(xa!=null&&xb!=null)?Math.min(xa,xb):xa; return {x:(x!=null?x:12), y:pToY(d.entry)}; }
+  const P=d.pts; if(!P||!P[0]) return null;
+  if(d.type==='hline') return {x:14, y:pToY(P[0].p)};
+  if(d.type==='vline'){ const x=tToX(P[0].t); return {x, y:14}; }
+  return {x:tToX(P[0].t), y:pToY(P[0].p)};
+}
+function drawLockBadge(d){
+  const a=_shapeAnchor(d); if(!a||a.x==null||a.y==null) return;
+  const c=drawCtx, x=a.x+9, y=a.y-9; c.save();
+  c.strokeStyle='#aeb4bc'; c.fillStyle='#aeb4bc'; c.lineWidth=1.2;
+  c.beginPath(); c.arc(x,y-2,2.1,Math.PI,0); c.stroke();   // 자물쇠 고리
+  c.fillRect(x-3.1,y,6.2,5);                                // 자물쇠 몸체
+  c.restore();
+}
 
 function setTool(t){
   drawTool=t; curDraft=null;
@@ -4117,16 +4310,11 @@ function setupDrawing(){
   document.getElementById('chart').addEventListener('mouseleave', ()=>{
     if(snapCursorPos){ snapCursorPos=null; redrawDrawings(); }
   });
-  const colorPick=document.getElementById('drawColorPick');
-  const widthSel=document.getElementById('drawWidthSel');
-  colorPick.addEventListener('input',()=>{
-    drawColor=colorPick.value;
-    if(selectedId!=null){ const d=drawings.find(z=>z.id===selectedId); if(d&&!isPosTool(d.type)){ d.color=drawColor; saveDrawings(); redrawDrawings(); } }
-  });
-  widthSel.addEventListener('input',()=>{
-    const v=parseFloat(widthSel.value); if(!(v>0)) return;
-    drawWidth=v;
-    if(selectedId!=null){ const d=drawings.find(z=>z.id===selectedId); if(d&&!isPosTool(d.type)){ d.lineWidth=drawWidth; saveDrawings(); redrawDrawings(); } }
+  // 우클릭 컨텍스트 메뉴 (그린 도형 위에서) — 잠금·색상·굵기·속성 편집·삭제
+  host.addEventListener('contextmenu', e=>{
+    if(!drawLayer) return;
+    const {x,y}=evtXY(e); const hit=hitTest(x,y);
+    if(hit){ e.preventDefault(); e.stopPropagation(); showDrawMenu(hit, e.clientX, e.clientY); }
   });
   window.addEventListener('keydown', e=>{
     const typing = document.activeElement && document.activeElement.tagName==='INPUT';
@@ -4312,7 +4500,10 @@ let fbUser = null, fbUsername = '', fbIsAdmin = false, fbNickname = '', fbBio = 
 let fbGuestMode = false;
 let _syncTimer = null, _cloudListener = null, _lastSelfSaveTime = 0;
 
-function toFbEmail(id){ return id.toLowerCase().replace(/[^a-z0-9_]/g,'')+'@btcsim.local'; }
+function sanitizeId(id){ return String(id==null?'':id).toLowerCase().replace(/[^a-z0-9_]/g,''); }
+function toFbEmail(id){ return sanitizeId(id)+'@btcsim.local'; }
+// ★ HTML 이스케이프 — 사용자 입력(닉네임·아이디 등)을 innerHTML에 넣기 전 반드시 적용(저장형 XSS 차단)
+function escHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 /* ---- 모달 표시/숨김 ---- */
 function showAuth(){ document.getElementById('authOverlay').style.display='flex'; }
@@ -4331,7 +4522,7 @@ function renderUserBadge(){
   }
   const displayName = fbNickname || fbUsername;
   el.innerHTML = `
-    <span class="uname" onclick="openProfileModal()" style="cursor:pointer;" title="프로필 설정">👤 ${displayName}</span>
+    <span class="uname" onclick="openProfileModal()" style="cursor:pointer;" title="프로필 설정">👤 ${escHtml(displayName)}</span>
     ${fbIsAdmin ? '<span class="admin-tag">관리자</span>' : ''}
     ${fbIsAdmin ? '<button onclick="openAdminPanel()">관리자 패널</button>' : ''}
     <button onclick="fbLogout()">로그아웃</button>
@@ -4378,6 +4569,10 @@ document.getElementById('authSubmitBtn').onclick = async ()=>{
   if(!id || id.length < 2){ err.textContent = '아이디는 2자 이상이어야 합니다.'; return; }
   if(!pw || pw.length < 6){ err.textContent = '비밀번호는 6자 이상이어야 합니다.'; return; }
   if(authMode === 'register' && pw !== pw2){ err.textContent = '비밀번호가 일치하지 않습니다.'; return; }
+  // 아이디를 영문·숫자·밑줄로 정제(이메일과 동일 규칙) → 저장 username을 깨끗하게 유지(신원 일관성·심층 방어)
+  const cleanId = sanitizeId(id);
+  if(authMode === 'register' && cleanId.length < 2){ err.textContent = '아이디는 영문·숫자·밑줄(_) 2자 이상이어야 합니다.'; return; }
+  if(authMode === 'register' && cleanId.length > 20){ err.textContent = '아이디는 20자 이내여야 합니다.'; return; }
   btn.disabled = true; btn.textContent = '처리 중...';
   try{
     const email = toFbEmail(id);
@@ -4387,10 +4582,12 @@ document.getElementById('authSubmitBtn').onclick = async ()=>{
       // 막혀 'Missing or insufficient permissions'가 나므로 사전 쿼리는 하지 않는다.
       const cred = await fbAuth.createUserWithEmailAndPassword(email, pw);
       await fbDb.collection('users').doc(cred.user.uid).set({
-        username: id.toLowerCase(),
+        username: cleanId,
         nickname: '',
         bio: '',
-        role: id.toLowerCase()===ADMIN_USERNAME ? 'admin' : 'user',
+        // 보안: 가입 시 항상 'user'. 관리자 승격은 Firebase 콘솔에서 role을 'admin'으로 수동 변경(또는 C단계 커스텀 클레임).
+        // 보안규칙도 create 시 role=='user'만 허용하므로 클라이언트에서 admin 자가지정 불가.
+        role: 'user',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     } else {
@@ -4713,7 +4910,7 @@ window.renderRankingBySymbol = function(){
     const roi  = (pnl/5000*100).toFixed(2);
     const pnlCls = pnl>=0?'green':'red';
     const medal = i<3?`<span class="rank-medal">${medals[i]}</span>`:`<span class="rank-num">${i+1}</span>`;
-    const name  = u.nickname||u.username||'익명';
+    const name  = escHtml(u.nickname||u.username||'익명');
     const tags  = (u.role==='admin'?'<span class="rank-admin-tag">관리자</span>':'')
                  +(fbUser&&u._uid===fbUser.uid?'<span class="rank-me-tag">★나</span>':'');
     return `<tr>
@@ -4761,7 +4958,7 @@ function renderRanking(users, period){
     const isSortBal = _rankSort==='balance', isSortWr=_rankSort==='winrate';
     const bold = 'font-weight:700;';
     const medal = i<3 ? `<span class="rank-medal">${medals[i]}</span>` : `<span class="rank-num">${i+1}</span>`;
-    const name  = u.nickname||u.username||'익명';
+    const name  = escHtml(u.nickname||u.username||'익명');
     const tags  = (u.role==='admin'?'<span class="rank-admin-tag">관리자</span>':'')
                  +(fbUser&&u._uid===fbUser.uid?'<span class="rank-me-tag">★나</span>':'');
     return `<tr>
@@ -4802,14 +4999,18 @@ window.openAdminPanel = async function(){
       const dt = u.createdAt ? u.createdAt.toDate().toLocaleDateString('ko-KR') : '-';
       const row = document.createElement('div');
       row.className='adm-row';
+      // 사용자 입력(username)은 escHtml로 이스케이프. 삭제 버튼은 onclick 문자열 대신
+      // addEventListener 클로저로 연결 → username/uid가 코드 문맥에 끼어들 여지 자체를 제거.
       row.innerHTML = `
-        <span>${u.username}</span>
+        <span>${escHtml(u.username)}</span>
         <span style="color:${u.role==='admin'?'var(--yellow)':'var(--muted)'}">${u.role==='admin'?'관리자':'일반'}</span>
-        <span style="color:var(--muted)">${dt}</span>
+        <span style="color:var(--muted)">${escHtml(dt)}</span>
         ${u.role!=='admin'
-          ? `<button onclick="adminDeleteUser('${doc.id}','${u.username}',this)" style="background:transparent;border:1px solid var(--red);color:var(--red);border-radius:3px;padding:2px 7px;font-size:10px;cursor:pointer;">삭제</button>`
+          ? `<button class="adm-del-btn" style="background:transparent;border:1px solid var(--red);color:var(--red);border-radius:3px;padding:2px 7px;font-size:10px;cursor:pointer;">삭제</button>`
           : '<span></span>'}
       `;
+      const delBtn = row.querySelector('.adm-del-btn');
+      if(delBtn) delBtn.addEventListener('click', ()=>adminDeleteUser(doc.id, u.username, delBtn));
       listEl.appendChild(row);
     });
   } catch(e){ listEl.innerHTML='<div style="color:var(--red);font-size:12px;">불러오기 실패</div>'; }
