@@ -126,6 +126,15 @@
   @media(max-width:700px){
     #headerRight{flex:0 0 100%;justify-content:space-between;}
     #headerRight #userBadge{flex-wrap:wrap;}
+    header{gap:8px;padding:6px 12px;}
+    #headPrice{font-size:16px;}
+    .stat .v{font-size:12px;}
+    .drawbar{gap:2px;padding:4px 6px;}
+    .db-hint{display:none;}
+    #chartSizeLabel{display:none;}
+    .chart-size-range{width:64px;}
+    .tblwrap{-webkit-overflow-scrolling:touch;}
+    .tblwrap table{min-width:620px;}
   }
 
   /* ===== 지표 시스템 ===== */
@@ -260,8 +269,6 @@
   .pc-u{font-size:10px;color:var(--muted);}
   .closebtn.full{border-color:var(--red);color:var(--red);margin-left:auto;}
   .closebtn.go:hover{border-color:var(--green);color:var(--green);}
-  .closebtn.rev{border-color:#f0b90b;color:#f0b90b;flex:1;text-align:center;font-weight:600;}
-  .closebtn.rev:hover{background:rgba(240,185,11,.12);border-color:#f0b90b;color:#f0b90b;}
   .pc-seg{width:74px;flex:0 0 auto;padding:2px;}
   .pc-seg button{padding:3px 4px;font-size:10px;}
 
@@ -405,20 +412,6 @@
   .prof-id-field input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:6px;padding:9px 12px;font-size:13px;outline:none;opacity:.5;box-sizing:border-box;}
   .prof-avatar-rm{margin-top:8px;background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline;padding:0;}
   .prof-avatar-rm:hover{color:var(--red);}
-  /* ===== 스위칭 확인 모달 ===== */
-  #switchOverlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:10002;display:none;align-items:center;justify-content:center;}
-  #switchOverlay.show{display:flex;}
-  #switchBox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px 22px 18px;width:330px;max-width:92vw;box-shadow:0 10px 40px rgba(0,0,0,.6);}
-  .sw-title{font-size:15px;font-weight:700;color:#f0b90b;margin-bottom:12px;}
-  .sw-msg{font-size:13px;color:var(--text);line-height:1.65;margin-bottom:16px;}
-  .sw-chk{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:18px;user-select:none;}
-  .sw-chk input{width:15px;height:15px;cursor:pointer;accent-color:#f0b90b;}
-  .sw-btns{display:flex;gap:8px;}
-  .sw-btns button{flex:1;padding:11px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--line);}
-  .sw-cancel{background:var(--panel2);color:var(--muted);}
-  .sw-cancel:hover{color:var(--text);}
-  .sw-go{background:#f0b90b;color:#0b0e11;border-color:#f0b90b;}
-  .sw-go:hover{opacity:.9;}
   .prof-msg{font-size:11px;margin-bottom:10px;min-height:15px;}
   .prof-msg.err{color:var(--red);}
   .prof-msg.ok{color:var(--green);}
@@ -755,18 +748,7 @@
   </div>
 </div>
 
-<!-- ===== 스위칭 확인 모달 ===== -->
-<div id="switchOverlay" onclick="if(event.target===this)closeSwitchModal()">
-  <div id="switchBox">
-    <div class="sw-title">⇄ 포지션 스위칭</div>
-    <div class="sw-msg" id="switchMsg"></div>
-    <label class="sw-chk"><input type="checkbox" id="switchSkipChk"> 오늘은 그만 보기</label>
-    <div class="sw-btns">
-      <button class="sw-cancel" onclick="closeSwitchModal()">취소</button>
-      <button class="sw-go" onclick="confirmSwitchGo()">전환</button>
-    </div>
-  </div>
-</div>
+
 
 <header>
   <div class="sym" style="display:flex;align-items:center;">
@@ -826,10 +808,10 @@
         <button id="drawDelBtn" title="선택한 도형 삭제">삭제</button>
         <button id="drawClearBtn" title="모든 도형 삭제">전체삭제</button>
         <span class="db-sep"></span>
-        <span class="db-label">📏 차트</span>
+        <span class="db-label" id="chartSizeLabel">📏 차트</span>
         <input type="range" id="chartSizeRange" class="chart-size-range" min="320" max="900" step="20" title="차트 크기 조절 (← 축소 / 확대 →)">
-        <span class="db-sep"></span>
-        <span class="db-label" style="opacity:.55;">도형 우클릭(모바일: 더블탭) → 잠금·색상·굵기·속성</span>
+        <span class="db-sep db-hint"></span>
+        <span class="db-label db-hint" style="opacity:.55;">도형 우클릭(모바일: 더블탭) → 잠금·색상·굵기·속성</span>
       </div>
       <div id="chart" style="height:600px;position:relative;"></div>
       <div id="oscPane" style="height:160px;display:none;border-top:1px solid var(--line);"></div>
@@ -1616,69 +1598,6 @@ function closePosition(fraction, label){
 /* ── 반대 포지션 전환 (바이낸스 'Reverse'): 현재 포지션 청산 + 같은 수량 반대 진입을 한 번에 ──
    원자성 보장: 청산 후 가용잔고가 반대 진입 증거금+수수료에 못 미치면 아무것도 실행하지 않고 실패시켜,
    '청산만 되고 반대진입은 실패'하는 부분 실행 상태를 원천 차단한다. */
-/* ── 스위칭 확인 팝업 (오늘은 그만 보기 지원) ── */
-function _switchSkipActive(){
-  try{ return localStorage.getItem('btcSwitchSkipDate') === new Date().toDateString(); }catch(e){ return false; }
-}
-window.reversePosition = function(){
-  const p = curPos();
-  if(!p){ toast("전환할 포지션이 없습니다."); return; }
-  // '오늘은 그만 보기'가 켜져 있으면 확인 없이 즉시 전환
-  if(_switchSkipActive()){ doReverse(); return; }
-  const from = p.side==='long' ? 'Long' : 'Short';
-  const to   = p.side==='long' ? 'Short' : 'Long';
-  const cFrom = p.side==='long' ? 'var(--green)' : 'var(--red)';
-  const cTo   = p.side==='long' ? 'var(--red)' : 'var(--green)';
-  const msgEl = document.getElementById('switchMsg');
-  if(msgEl) msgEl.innerHTML = `현재 <b style="color:${cFrom}">${from}</b> 포지션을 청산하고, 같은 수량으로 <b style="color:${cTo}">${to}</b> 포지션으로 전환합니다.<br>진행하시겠습니까?`;
-  const chk = document.getElementById('switchSkipChk'); if(chk) chk.checked = false;
-  const ov = document.getElementById('switchOverlay'); if(ov) ov.classList.add('show');
-};
-window.closeSwitchModal = function(){
-  const ov = document.getElementById('switchOverlay'); if(ov) ov.classList.remove('show');
-};
-window.confirmSwitchGo = function(){
-  const chk = document.getElementById('switchSkipChk');
-  if(chk && chk.checked){ try{ localStorage.setItem('btcSwitchSkipDate', new Date().toDateString()); }catch(e){} }
-  closeSwitchModal();
-  doReverse();
-};
-function doReverse(){
-  const p = curPos();
-  if(!p){ toast("전환할 포지션이 없습니다."); return; }
-  const price = lastPrice || markPrice;
-  if(!(price>0)){ toast("시세 로딩 중입니다. 잠시만요."); return; }
-  const oppSide = p.side==="long" ? "short" : "long";
-  const qty  = p.qty;
-  const lev  = p.lev  || S.leverage;
-  const mode = p.mode || S.marginMode;
-  const realized  = p.side==="long" ? (price-p.entry)*qty : (p.entry-price)*qty;  // 청산 손익
-  const closeFee  = qty*price*TAKER;
-  const openFee   = qty*price*TAKER;
-  const openMargin= (qty*price)/lev;     // 반대 진입에 필요한 증거금
-  // 청산 후 가용잔고 산정(available()와 동일 의미, 단 이 포지션 청산을 반영).
-  //   격리: walletBalance + 청산손익 - 청산수수료, 사용증거금에서 이 포지션 증거금 제외.
-  //   교차: equity - 청산수수료, 사용증거금에서 이 포지션 증거금 제외.
-  const base = (S.marginMode==="cross") ? (equity()-closeFee) : (S.walletBalance + realized - closeFee);
-  const capacityAfterClose = base - (usedMargin() - p.margin);
-  if(capacityAfterClose < openMargin + openFee - 1e-6){
-    toast("반대 전환 실패 — 청산 후 잔고가 반대 진입 증거금에 부족합니다.");
-    return;
-  }
-  // ── 커밋 (검증 통과 후에만 상태 변경) ──
-  // 1) 청산 정산
-  S.walletBalance += realized - closeFee; S.totalFee += closeFee;
-  const closeRoe = (qty*p.entry/lev)>0 ? (realized/(qty*p.entry/lev)*100) : 0;
-  logHist("종료", oppSide, qty, price, realized, closeFee, closeRoe);   // 청산 체결 방향 = 반대측
-  cancelReduceOnly();   // 방향이 바뀌므로 이 코인의 기존 TP/SL(reduce-only) 무효 → 제거
-  // 2) 반대 진입 (레버리지·마진모드는 기존 포지션 그대로 유지)
-  S.walletBalance -= openFee; S.totalFee += openFee;
-  S.positions[curSymbol] = {side:oppSide, qty, entry:price, margin:openMargin, openTime:Date.now(), lev, mode};
-  logHist("진입", oppSide, qty, price, 0, openFee);
-  playBeep('fill');
-  addMarker(); updatePriceLines(); save(); renderAll();
-  toast(`${p.side==="long"?"롱→숏":"숏→롱"} 스위칭 완료 · 청산손익 ${fmtUsd(realized)} @ ${fmtPrice(price)}`);
-};
 
 let closeMode = 'pct';   // 포지션 정리 단위: pct=% / usdt=USDT
 
@@ -2099,7 +2018,7 @@ function renderPreview(){
   }
 }
 
-let posCtlRendered=false, posCtlModeShown=null, posCtlForSym=null, posCtlHadPos=null, posCtlSide=null;
+let posCtlRendered=false, posCtlModeShown=null, posCtlForSym=null, posCtlHadPos=null;
 function renderPositions(){
   const el = document.getElementById("tab-pos");
   const syms = heldSymbols();
@@ -2153,10 +2072,6 @@ function renderPositions(){
         <button class="closebtn full" onclick="closePosition(1,'포지션 정리')">전체</button>
       </div>
       <div class="pc-row">
-        <span class="pc-lb">스위칭</span>
-        <button class="closebtn rev" onclick="reversePosition()">⇄ ${cp.side==='long'?'Short':'Long'} 전환</button>
-      </div>
-      <div class="pc-row">
         <span class="pc-lb">TP/SL</span>
         <button id="posTpSlModeBtn" onclick="event.stopPropagation();showTpSlModeDropdown(this)"
           style="background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:4px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">${posTpSlMode==='price'?'가격':'ROE%'} ▾</button>
@@ -2169,10 +2084,9 @@ function renderPositions(){
   }
   // 표(라이브)는 매번 갱신, 제어판(입력칸)은 코인/포지션유무/모드 변경 때만 → 입력 중 값 보존
   const hasPos = !!cp;
-  const curSide = cp ? cp.side : null;   // 반대 전환 등으로 방향 바뀌면 제어판(전환 버튼 라벨) 재렌더 필요
-  if(!posCtlRendered || posCtlModeShown!==posTpSlMode || posCtlForSym!==curSymbol || posCtlHadPos!==hasPos || posCtlSide!==curSide){
+  if(!posCtlRendered || posCtlModeShown!==posTpSlMode || posCtlForSym!==curSymbol || posCtlHadPos!==hasPos){
     el.innerHTML = `<div id="posTableBox">${tableHtml}</div><div id="posCtlBox">${ctlHtml}</div>`;
-    posCtlRendered = true; posCtlModeShown = posTpSlMode; posCtlForSym = curSymbol; posCtlHadPos = hasPos; posCtlSide = curSide;
+    posCtlRendered = true; posCtlModeShown = posTpSlMode; posCtlForSym = curSymbol; posCtlHadPos = hasPos;
   }else{
     const tb = document.getElementById("posTableBox");
     if(tb) tb.innerHTML = tableHtml;
@@ -4077,7 +3991,7 @@ function evtXY(e){
 // 전체화면 오버레이(사용설명서·프로필·관리자·랭킹·인증)가 열려 있으면 차트 작도 입력을 무시
 function _overlayOpen(){
   const sh = id => { const el=document.getElementById(id); return el && (el.classList.contains('show') || el.style.display==='flex'); };
-  return sh('manualOverlay') || sh('profileOverlay') || sh('switchOverlay') || sh('adminOverlay') || sh('authOverlay')
+  return sh('manualOverlay') || sh('profileOverlay') || sh('adminOverlay') || sh('authOverlay')
       || (document.getElementById('rankPage') && document.getElementById('rankPage').classList.contains('show'));
 }
 function onDrawDown(e){
@@ -4780,7 +4694,6 @@ window.showManualTab = function(idx, btn){
 };
 document.addEventListener('keydown', function(e){
   if(e.key!=='Escape') return;
-  if(document.getElementById('switchOverlay').classList.contains('show')){ closeSwitchModal(); return; }
   if(document.getElementById('profileOverlay').classList.contains('show')){ closeProfileModal(); return; }
   if(document.getElementById('rankPage').classList.contains('show')){ hideRankPage(); return; }
   closeManual();
