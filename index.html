@@ -116,10 +116,17 @@
   .ef-row .ef-label{flex:1;font-size:13px;font-weight:600;color:var(--text);}
   .ef-row .ef-rm{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:0 4px;line-height:1;}
   .ef-row .ef-rm:hover{color:#f44;}
-  .ef-row .ef-mv{background:none;border:1px solid var(--line);color:var(--muted);font-size:12px;cursor:pointer;padding:1px 5px;border-radius:3px;line-height:1.4;}
-  .ef-row .ef-mv:hover:not(:disabled){color:var(--text);border-color:var(--text);}
-  .ef-row .ef-mv:disabled{opacity:0.25;cursor:default;}
+  .ef-drag-handle{color:var(--muted);font-size:20px;cursor:grab;user-select:none;touch-action:none;padding:0 2px;line-height:1;letter-spacing:-1px;}
+  .ef-drag-handle:active{cursor:grabbing;}
+  .ef-row.ef-dragging{opacity:0.35;}
+  .ef-row.ef-drag-over{background:var(--panel);border-radius:6px;outline:1px dashed var(--line);}
   #ivFavEditBox .ef-note{padding:8px 16px 12px;font-size:11px;color:var(--muted);border-top:1px solid var(--line);}
+  /* ===== Header right group ===== */
+  #headerRight{display:flex;align-items:center;gap:14px;}
+  @media(max-width:700px){
+    #headerRight{flex:0 0 100%;justify-content:space-between;}
+    #headerRight #userBadge{flex-wrap:wrap;}
+  }
 
   /* ===== 지표 시스템 ===== */
   #addIndBtn{background:var(--panel2);border:1px solid var(--line);color:var(--muted);
@@ -775,8 +782,10 @@
   <div class="stat"><span class="l">마크 가격</span><span class="v" id="markP">-</span></div>
   <div class="stat"><span class="l">펀딩 / 남은시간</span><span class="v" id="funding">-</span></div>
   <div class="spacer"></div>
-  <div class="stat"><span class="l">총 자산(USDT)</span><span class="v yellow" id="equityTop">-</span></div>
-  <div id="userBadge"></div>
+  <div id="headerRight">
+    <div class="stat"><span class="l">총 자산(USDT)</span><span class="v yellow" id="equityTop">-</span></div>
+    <div id="userBadge"></div>
+  </div>
   <div id="conn" class="wait">● 연결 중...</div>
 </header>
 
@@ -933,7 +942,7 @@
       <button onclick="closeIvFavEdit()">✕</button>
     </div>
     <div id="ivFavEditList"></div>
-    <div class="ef-note">★ 버튼으로 추가 · ↑↓ 버튼으로 순서 변경</div>
+    <div class="ef-note">★ 버튼으로 추가 · ⠿ 핸들을 드래그해 순서 변경</div>
   </div>
 </div>
 
@@ -3076,6 +3085,7 @@ window.toggleIvFav = function(iv){
       return;
     }
     ivFavs.push(iv);
+    ivFavs.sort((a,b) => IV_ALL.indexOf(a) - IV_ALL.indexOf(b));
   }
   _saveIvFavs();
   renderIntervalSeg();
@@ -3120,13 +3130,86 @@ function _renderIvFavEditList(){
     return;
   }
   list.innerHTML = ivFavs.map((iv, idx) =>
-    `<div class="ef-row">` +
-    `<button class="ef-mv" onclick="moveIvFav(${idx},-1)" ${idx===0?'disabled':''}  title="위로">↑</button>` +
-    `<button class="ef-mv" onclick="moveIvFav(${idx},1)" ${idx===ivFavs.length-1?'disabled':''} title="아래로">↓</button>` +
+    `<div class="ef-row" data-idx="${idx}" draggable="true">` +
+    `<span class="ef-drag-handle" title="드래그로 순서 변경">⠿⠿</span>` +
     `<span class="ef-label">${IV_LABEL[iv]||iv}</span>` +
-    `<button class="ef-rm" onclick="removeIvFavFromEdit('${iv}')" title="제거">✕</button>` +
+    `<button class="ef-rm" data-iv="${iv}" title="제거">✕</button>` +
     `</div>`
   ).join('');
+
+  // 제거 버튼
+  list.querySelectorAll('.ef-rm').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); removeIvFavFromEdit(btn.dataset.iv); });
+  });
+
+  // ── 마우스 드래그 (HTML5 DnD) ──
+  let dragIdx = null;
+  list.querySelectorAll('.ef-row').forEach(row => {
+    row.addEventListener('dragstart', e => {
+      dragIdx = +row.dataset.idx;
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => row.classList.add('ef-dragging'), 0);
+    });
+    row.addEventListener('dragend', () => {
+      list.querySelectorAll('.ef-row').forEach(r => { r.classList.remove('ef-dragging'); r.classList.remove('ef-drag-over'); });
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      list.querySelectorAll('.ef-row').forEach(r => r.classList.remove('ef-drag-over'));
+      row.classList.add('ef-drag-over');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('ef-drag-over'));
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      const toIdx = +row.dataset.idx;
+      if(dragIdx !== null && dragIdx !== toIdx){
+        const item = ivFavs.splice(dragIdx, 1)[0];
+        ivFavs.splice(toIdx, 0, item);
+        _saveIvFavs(); renderIntervalSeg(); _renderIvFavEditList();
+      }
+    });
+  });
+
+  // ── 터치 드래그 ──
+  let touchIdx = null, touchClone = null;
+  list.querySelectorAll('.ef-drag-handle').forEach(handle => {
+    const row = handle.closest('.ef-row');
+    handle.addEventListener('touchstart', e => {
+      touchIdx = +row.dataset.idx;
+      row.classList.add('ef-dragging');
+      e.preventDefault();
+    }, {passive: false});
+  });
+  list.addEventListener('touchmove', e => {
+    if(touchIdx === null) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    list.querySelectorAll('.ef-row').forEach(r => r.classList.remove('ef-drag-over'));
+    const target = [...list.querySelectorAll('.ef-row')].find(r => {
+      const rc = r.getBoundingClientRect();
+      return t.clientY >= rc.top && t.clientY <= rc.bottom;
+    });
+    if(target && +target.dataset.idx !== touchIdx) target.classList.add('ef-drag-over');
+  }, {passive: false});
+  list.addEventListener('touchend', e => {
+    if(touchIdx === null) return;
+    const t = e.changedTouches[0];
+    const rows = [...list.querySelectorAll('.ef-row')];
+    const target = rows.find(r => {
+      const rc = r.getBoundingClientRect();
+      return t.clientY >= rc.top && t.clientY <= rc.bottom;
+    });
+    const toIdx = target ? +target.dataset.idx : null;
+    if(toIdx !== null && toIdx !== touchIdx){
+      const item = ivFavs.splice(touchIdx, 1)[0];
+      ivFavs.splice(toIdx, 0, item);
+      _saveIvFavs(); renderIntervalSeg(); _renderIvFavEditList();
+    } else {
+      rows.forEach(r => { r.classList.remove('ef-dragging'); r.classList.remove('ef-drag-over'); });
+      touchIdx = null;
+    }
+  });
 }
 window.removeIvFavFromEdit = function(iv){
   if(ivFavs.length <= 1){ toast('즐겨찾기는 최소 1개 이상이어야 합니다.'); return; }
@@ -3145,14 +3228,7 @@ window.removeIvFavFromEdit = function(iv){
     });
   }
 };
-window.moveIvFav = function(idx, dir){
-  const newIdx = idx + dir;
-  if(newIdx < 0 || newIdx >= ivFavs.length) return;
-  [ivFavs[idx], ivFavs[newIdx]] = [ivFavs[newIdx], ivFavs[idx]];
-  _saveIvFavs();
-  renderIntervalSeg();
-  _renderIvFavEditList();
-};
+
 function barStart(tsSec, iv){ const s=IV_SEC[iv]||60; return Math.floor(tsSec/s)*s; }
 
 function mergeCandle(c){
