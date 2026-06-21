@@ -53,8 +53,11 @@
   #conn.ok{color:var(--green);} #conn.bad{color:var(--red);} #conn.wait{color:var(--yellow);}
 
   /* ===== Layout ===== */
-  main{display:grid;grid-template-columns:1fr 320px;gap:10px;padding:10px;align-items:start;}
-  @media(max-width:1000px){ main{grid-template-columns:1fr;} }
+  /* minmax(0,1fr): 13열 포지션 테이블 등 넓은 콘텐츠가 그리드 트랙을 화면 밖으로
+     늘리는(블로우아웃) 것을 차단 → 테이블은 카드 안에서 가로 스크롤. */
+  main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:10px;padding:10px;align-items:start;}
+  main > div, main > aside{min-width:0;}
+  @media(max-width:1000px){ main{grid-template-columns:minmax(0,1fr);} }
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;}
   .card .hd{padding:8px 12px;border-bottom:1px solid var(--line);font-weight:600;font-size:12px;
