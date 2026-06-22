@@ -310,6 +310,35 @@
   .ai-refresh{display:flex;justify-content:flex-end;padding:8px 14px 0;}
   .ai-refresh-btn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;}
   .ai-refresh-btn:hover{color:var(--text);border-color:var(--muted);}
+  .ai-signal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+  .ai-signal-title{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .ai-signal-title b{font-size:13px;color:var(--text);}
+  .ai-signal-title span{font-size:10.5px;color:var(--muted);line-height:1.5;}
+  .ai-signal-actions{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+  .ai-signal-toggle,.ai-signal-smallbtn{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;}
+  .ai-signal-toggle.on{background:rgba(14,203,129,.14);border-color:var(--green);color:var(--green);}
+  .ai-signal-smallbtn:hover,.ai-signal-toggle:hover{border-color:var(--yellow);color:var(--yellow);}
+  .ai-signal-note{font-size:10.5px;color:var(--muted);line-height:1.6;margin-bottom:10px;}
+  .ai-signal-list{display:flex;flex-direction:column;gap:8px;}
+  .ai-signal-row{display:grid;grid-template-columns:76px 78px minmax(0,1fr);gap:9px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:6px;padding:9px 10px;min-width:0;}
+  .ai-signal-row.long{border-left-color:var(--green);}
+  .ai-signal-row.short{border-left-color:var(--red);}
+  .ai-signal-row.wait{border-left-color:var(--yellow);}
+  .ai-signal-sym{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;min-width:0;}
+  .ai-signal-coin{width:18px;height:18px;border-radius:50%;flex-shrink:0;}
+  .ai-signal-fb{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:8px;font-weight:700;flex-shrink:0;}
+  .ai-signal-badge{font-size:11px;font-weight:800;text-align:center;border-radius:999px;padding:4px 7px;border:1px solid var(--line);}
+  .ai-signal-badge.long{color:var(--green);border-color:var(--green);background:rgba(14,203,129,.08);}
+  .ai-signal-badge.short{color:var(--red);border-color:var(--red);background:rgba(246,70,93,.08);}
+  .ai-signal-badge.wait{color:var(--yellow);border-color:var(--yellow);background:rgba(240,185,11,.08);}
+  .ai-signal-detail{min-width:0;}
+  .ai-signal-reason{font-size:11.5px;line-height:1.55;color:var(--text);white-space:normal;overflow-wrap:anywhere;}
+  .ai-signal-metrics{font-size:10px;color:var(--muted);line-height:1.5;margin-top:2px;white-space:normal;overflow-wrap:anywhere;}
+  .ai-signal-empty{padding:16px 12px;background:var(--panel2);border:1px dashed var(--line);border-radius:6px;text-align:center;color:var(--muted);font-size:12px;line-height:1.7;}
+  @media(max-width:520px){
+    .ai-signal-row{grid-template-columns:1fr;gap:6px;align-items:flex-start;}
+    .ai-signal-badge{text-align:left;width:max-content;max-width:100%;}
+  }
 
   /* close pct input */
   .close-pct-in{width:42px;background:var(--panel2);border:1px solid var(--line);
@@ -1275,6 +1304,7 @@ const defaultState = () => ({
   indDefaults: {},  // 마지막으로 저장한 지표 타입별 파라미터
   alarms: { hmaProximity: { on: false, dist: 200, dir: 'both', count: 1 }, volume: 70 },
   aiConsent: null,
+  aiSignalOn: false,
 });
 let S = loadState();
 
@@ -2440,6 +2470,191 @@ function calcPnlAnalysis(st){
   return lines;
 }
 
+let _aiSignalCache=null, _aiSignalLoading=false, _aiSignalReq=0;
+const AI_SIGNAL_CACHE_MS = 3*60*1000;
+function _aiClamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+function _aiLastVal(data){ return data&&data.length ? data[data.length-1].value : null; }
+function _aiAvg(arr){ return arr&&arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0; }
+function _aiKlines(raw){
+  return (Array.isArray(raw)?raw:[]).map(k=>({
+    time:Math.floor(+k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5]
+  })).filter(c=>c.close>0&&c.high>0&&c.low>0);
+}
+async function _aiFetchJson(url){
+  const r=await fetch(url);
+  if(!r.ok) throw new Error('market');
+  return await r.json();
+}
+
+function calcAiMarketSignal(sym,h1,m15,ticker,premium){
+  const coin=_symShort(sym);
+  const fail={sym,type:'wait',label:'관망',score:0,confidence:0,reason:'시장 데이터가 부족합니다.',metrics:'-',risk:'잠시 후 새로고침'};
+  if(!h1||h1.length<60||!m15||m15.length<20) return fail;
+  const close=h1[h1.length-1].close;
+  const prev4=h1[Math.max(0,h1.length-5)].close;
+  const prev2=m15[Math.max(0,m15.length-9)].close;
+  const ema20=_aiLastVal(calcEMA(h1,20));
+  const ema50=_aiLastVal(calcEMA(h1,50));
+  const rsi=_aiLastVal(calcRSI(h1,14)) ?? 50;
+  const atr=_aiLastVal(calcATR(h1,14)) || close*0.02;
+  if(!(close>0)||!(ema20>0)||!(ema50>0)) return fail;
+
+  const trendPct=(ema20&&ema50)?(ema20/ema50-1)*100:0;
+  const mom4h=prev4>0?(close/prev4-1)*100:0;
+  const mom2h=prev2>0?(m15[m15.length-1].close/prev2-1)*100:0;
+  const change24=ticker&&ticker.priceChangePercent!=null ? +ticker.priceChangePercent : 0;
+  const fundingPct=premium&&premium.lastFundingRate!=null ? +premium.lastFundingRate*100 : 0;
+  const recentVol=_aiAvg(h1.slice(-12).map(c=>c.volume));
+  const baseVol=_aiAvg(h1.slice(-60,-12).map(c=>c.volume)) || recentVol || 1;
+  const volRel=recentVol/baseVol;
+  const atrPct=atr/close*100;
+
+  let raw=0;
+  raw += _aiClamp(trendPct*15, -28, 28);
+  raw += _aiClamp(mom4h*8, -24, 24);
+  raw += _aiClamp(mom2h*6, -18, 18);
+  raw += _aiClamp(change24*1.2, -14, 14);
+  if(rsi>=74) raw -= 8;
+  else if(rsi<=26) raw += 8;
+  else if(rsi>=62&&trendPct>0) raw += 5;
+  else if(rsi<=38&&trendPct<0) raw -= 5;
+  raw -= _aiClamp(fundingPct*140, -10, 10);
+  const signBase=raw||mom4h||change24;
+  if(volRel>1.25&&signBase) raw += Math.sign(signBase)*Math.min(8,(volRel-1)*8);
+  if(atrPct>4.8) raw *= 0.85;
+
+  const type=raw>=10?'long':raw<=-10?'short':'wait';
+  const label=type==='long'?'롱 우위':type==='short'?'숏 우위':'관망';
+  const confidence=type==='wait'
+    ? Math.max(30, Math.round(55-Math.min(20,Math.abs(raw))))
+    : Math.min(95, Math.round(52+Math.abs(raw)*1.15));
+  const reasons=[];
+  if(Math.abs(trendPct)>0.15) reasons.push(`1H EMA ${trendPct>0?'상승':'하락'} 추세`);
+  if(Math.abs(mom4h)>0.35) reasons.push(`4H 모멘텀 ${mom4h>0?'강세':'약세'}`);
+  if(volRel>1.25) reasons.push(`거래량 ${fmt(volRel,1)}배 증가`);
+  if(fundingPct>0.04) reasons.push('롱 과열 펀딩');
+  else if(fundingPct<-0.02) reasons.push('숏 과열 펀딩');
+  if(rsi>=74) reasons.push('RSI 과열');
+  else if(rsi<=26) reasons.push('RSI 과매도');
+  if(!reasons.length) reasons.push(type==='wait'?'추세와 모멘텀이 엇갈림':`${coin} 단기 우위 신호`);
+  return{
+    sym,type,label,score:Math.round(raw),confidence,
+    reason:reasons.slice(0,3).join(' · '),
+    metrics:`24h ${fmt(change24,1)}% · RSI ${fmt(rsi,0)} · 펀딩 ${fmt(fundingPct,3)}% · ATR ${fmt(atrPct,2)}%`,
+    risk:type==='wait'?'방향성 확인 전까지 관망':'진입 전 손절가(SL) 필수 · 1H ATR 기준 변동성 확인'
+  };
+}
+
+async function loadAiCoinSignals(){
+  const [tickers,premiums]=await Promise.all([
+    _aiFetchJson('https://fapi.binance.com/fapi/v1/ticker/24hr').catch(()=>[]),
+    _aiFetchJson('https://fapi.binance.com/fapi/v1/premiumIndex').catch(()=>[]),
+  ]);
+  const tickerMap={}, premiumMap={};
+  if(Array.isArray(tickers)) tickers.forEach(d=>{ if(d&&d.symbol) tickerMap[d.symbol.toLowerCase()]=d; });
+  if(Array.isArray(premiums)) premiums.forEach(d=>{ if(d&&d.symbol) premiumMap[d.symbol.toLowerCase()]=d; });
+  const rows=await Promise.all(_SYM_LIST.map(async sym=>{
+    try{
+      const up=sym.toUpperCase();
+      const [h1Raw,m15Raw]=await Promise.all([
+        _aiFetchJson(`https://fapi.binance.com/fapi/v1/klines?symbol=${up}&interval=1h&limit=150`),
+        _aiFetchJson(`https://fapi.binance.com/fapi/v1/klines?symbol=${up}&interval=15m&limit=96`),
+      ]);
+      return calcAiMarketSignal(sym,_aiKlines(h1Raw),_aiKlines(m15Raw),tickerMap[sym],premiumMap[sym]);
+    }catch(e){
+      return{sym,type:'wait',label:'관망',score:0,confidence:0,reason:'시장 데이터 조회 실패',metrics:'-',risk:'잠시 후 새로고침'};
+    }
+  }));
+  return rows.sort((a,b)=>((b.type==='wait'?0:1)-(a.type==='wait'?0:1)) || (b.confidence-a.confidence) || (Math.abs(b.score)-Math.abs(a.score)));
+}
+
+function renderAiSignalRows(rows){
+  if(!rows||!rows.length) return '<div class="ai-signal-empty">추천 데이터를 불러오지 못했습니다.</div>';
+  return `<div class="ai-signal-list">${rows.map(r=>{
+    const icon=COIN_IMG[r.sym]
+      ? `<img class="ai-signal-coin" src="${COIN_IMG[r.sym]}" alt="">`
+      : `<span class="ai-signal-fb" style="background:${COIN_COLOR[r.sym]||'#888'}">${_symShort(r.sym).slice(0,3)}</span>`;
+    const score=(r.score>0?'+':'')+r.score;
+    return `<div class="ai-signal-row ${r.type}">
+      <div class="ai-signal-sym">${icon}<span>${_symShort(r.sym)}</span></div>
+      <div class="ai-signal-badge ${r.type}">${r.label} ${r.confidence?`${r.confidence}`:''}</div>
+      <div class="ai-signal-detail">
+        <div class="ai-signal-reason">${r.reason}</div>
+        <div class="ai-signal-metrics">점수 ${score} · ${r.metrics} · ${r.risk}</div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function updateAiSignalDom(){
+  const host=document.getElementById('aiSignalBody');
+  if(!host||S.aiSignalOn!==true) return;
+  if(_aiSignalCache&&_aiSignalCache.error){
+    host.innerHTML='<div class="ai-signal-empty">시장 데이터를 불러오지 못했습니다. 잠시 후 새로고침하세요.</div>';
+  } else if(_aiSignalCache&&_aiSignalCache.rows){
+    host.innerHTML=renderAiSignalRows(_aiSignalCache.rows);
+  }
+}
+
+function ensureAiSignalData(force=false){
+  if(S.aiSignalOn!==true) return;
+  const fresh=_aiSignalCache&&_aiSignalCache.rows&&(Date.now()-_aiSignalCache.ts<AI_SIGNAL_CACHE_MS);
+  if(!force&&fresh){ updateAiSignalDom(); return; }
+  if(_aiSignalLoading) return;
+  _aiSignalLoading=true;
+  const req=++_aiSignalReq;
+  const host=document.getElementById('aiSignalBody');
+  if(host) host.innerHTML='<div class="ai-signal-empty">공개 시장 데이터를 분석 중입니다...</div>';
+  loadAiCoinSignals().then(rows=>{
+    if(req!==_aiSignalReq) return;
+    _aiSignalLoading=false;
+    if(S.aiSignalOn!==true) return;
+    _aiSignalCache={ts:Date.now(),rows};
+    updateAiSignalDom();
+  }).catch(()=>{
+    if(req!==_aiSignalReq) return;
+    _aiSignalLoading=false;
+    _aiSignalCache={ts:Date.now(),error:true};
+    updateAiSignalDom();
+  });
+}
+
+function renderAiSignalSection(){
+  const on=S.aiSignalOn===true;
+  const body=!on
+      ? '<div class="ai-signal-empty">OFF 상태입니다. 켜면 Binance 공개 시장 빅데이터를 불러와 코인별 롱/숏 우위를 계산합니다.</div>'
+    : (_aiSignalCache&&_aiSignalCache.rows&&Date.now()-_aiSignalCache.ts<AI_SIGNAL_CACHE_MS)
+      ? renderAiSignalRows(_aiSignalCache.rows)
+      : '<div class="ai-signal-empty">공개 시장 데이터를 분석 중입니다...</div>';
+  return `<div class="ai-section">
+    <div class="ai-signal-head">
+      <div class="ai-signal-title">
+        <b>AI 빅데이터 롱/숏 추천</b>
+        <span>1H 150개 + 15M 96개 캔들, 24h 등락률, 펀딩비를 기기에서 계산합니다.</span>
+      </div>
+      <div class="ai-signal-actions">
+        ${on?'<button class="ai-signal-smallbtn" onclick="refreshAiSignals()">새로고침</button>':''}
+        <button class="ai-signal-toggle ${on?'on':''}" onclick="toggleAiSignals(${on?'false':'true'})">추천 ${on?'ON':'OFF'}</button>
+      </div>
+    </div>
+    <div class="ai-signal-note">외부 AI 서버나 API 키는 사용하지 않습니다. 공개 시장데이터 기반 보조 지표이므로 실제 진입 전 손절가와 포지션 크기를 먼저 정하세요.</div>
+    <div id="aiSignalBody">${body}</div>
+  </div>`;
+}
+
+window.toggleAiSignals=function(on){
+  S.aiSignalOn=!!on;
+  if(!S.aiSignalOn){ _aiSignalReq++; _aiSignalLoading=false; }
+  else _aiSignalCache=null;
+  save();
+  renderAiAnalysis();
+};
+window.refreshAiSignals=function(){
+  if(S.aiSignalOn!==true) return;
+  _aiSignalCache=null; _aiSignalLoading=false;
+  renderAiAnalysis();
+};
+
 window.aiConsent = function(agree){
   S.aiConsent = agree; save(); renderAiAnalysis();
 };
@@ -2454,8 +2669,8 @@ function renderAiAnalysis(){
     el.innerHTML=`<div class="ai-consent">
       <div class="ai-consent-icon">🤖</div>
       <div class="ai-consent-title">AI 트레이딩 분석</div>
-      <div class="ai-consent-desc">${declined?'AI 분석 기능 동의를 철회했습니다.<br>다시 동의하면 트레이딩 스타일 진단, 수익/손실 원인 분석, 레버리지·분봉 추천을 받을 수 있습니다.':'본인의 거래 데이터를 분석해 트레이딩 스타일을 진단하고<br>레버리지·분봉·전략 개선 방향을 제시합니다.'}</div>
-      <div class="ai-consent-note">🔒 <b>데이터 프라이버시</b><br>이 기능은 외부 서버로 데이터를 전송하지 않습니다.<br>분석은 본인 기기 내 거래 기록만을 사용하며,<br>언제든지 동의를 철회할 수 있습니다.</div>
+      <div class="ai-consent-desc">${declined?'AI 분석 기능 동의를 철회했습니다.<br>다시 동의하면 트레이딩 스타일 진단, 수익/손실 원인 분석, 코인별 롱/숏 추천을 받을 수 있습니다.':'본인의 거래 데이터와 공개 시장 데이터를 분석해<br>트레이딩 스타일 진단·코인별 롱/숏 추천을 제공합니다.'}</div>
+      <div class="ai-consent-note">🔒 <b>데이터 프라이버시</b><br>계정·거래 데이터는 외부로 전송하지 않습니다.<br>코인별 추천은 Binance 공개 시세만 조회해<br>본인 기기에서 계산하며, 언제든지 동의를 철회할 수 있습니다.</div>
       <div class="ai-consent-btns">
         <button class="ai-btn-agree" onclick="aiConsent(true)">동의하고 분석 받기</button>
         ${!declined?`<button class="ai-btn-decline" onclick="aiConsent(false)">거절</button>`:`<button class="ai-btn-decline" onclick="aiConsent(false)">거절 유지</button>`}
@@ -2465,22 +2680,24 @@ function renderAiAnalysis(){
   }
 
   const st=calcAiStats();
+  let html=`<div class="ai-refresh"><button class="ai-refresh-btn" onclick="renderAiAnalysis()">↻ 새로고침</button></div>`;
+  html+=renderAiSignalSection();
   if(st.total<5){
-    el.innerHTML=`<div class="ai-not-enough">
+    html+=`<div class="ai-not-enough">
       <div style="font-size:32px;margin-bottom:12px;">📊</div>
       <b>데이터가 부족합니다</b><br><br>
-      분석을 위해 최소 5회 이상의 거래가 필요합니다.<br>
+      개인 트레이딩 DNA 분석을 위해 최소 5회 이상의 거래가 필요합니다.<br>
       현재 ${st.total}회 · 앞으로 ${Math.max(0,5-st.total)}회 더 거래하면<br>트레이딩 스타일 진단이 시작됩니다.
       <div class="ai-revoke"><button onclick="aiConsent(false)">AI 분석 동의 철회</button></div>
     </div>`;
+    el.innerHTML=html;
+    if(S.aiSignalOn===true) ensureAiSignalData();
     return;
   }
 
   const style=calcTradingStyle(st);
   const recs=calcAiRecs(st, style);
   const pnlLines=calcPnlAnalysis(st);
-
-  let html=`<div class="ai-refresh"><button class="ai-refresh-btn" onclick="renderAiAnalysis()">↻ 새로고침</button></div>`;
 
   // 트레이딩 유형
   if(style){
@@ -2541,6 +2758,7 @@ function renderAiAnalysis(){
   html+=`<div class="ai-revoke"><button onclick="aiConsent(false)">AI 분석 동의 철회</button></div>`;
 
   el.innerHTML=html;
+  if(S.aiSignalOn===true) ensureAiSignalData();
 }
 
 function showLiqModal(lost, sym){
