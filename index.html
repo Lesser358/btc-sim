@@ -265,6 +265,52 @@
   .stat-chip .sl{font-size:10px;color:var(--muted);margin-bottom:2px;}
   .stat-chip .sv{font-size:12px;font-weight:700;}
 
+  /* AI 분석 패널 */
+  .ai-consent{padding:28px 20px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;}
+  .ai-consent-icon{font-size:42px;margin-bottom:2px;}
+  .ai-consent-title{font-size:15px;font-weight:700;color:var(--text);}
+  .ai-consent-desc{font-size:12px;color:var(--muted);line-height:1.7;max-width:340px;}
+  .ai-consent-note{font-size:11px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:9px 14px;max-width:340px;text-align:left;}
+  .ai-consent-btns{display:flex;gap:8px;margin-top:4px;}
+  .ai-btn-agree{background:var(--green);color:#000;border:none;border-radius:6px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;}
+  .ai-btn-agree:hover{opacity:.85;}
+  .ai-btn-decline{background:none;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:10px 18px;font-size:12px;cursor:pointer;}
+  .ai-btn-decline:hover{color:var(--text);border-color:var(--muted);}
+  .ai-section{padding:12px 14px;border-bottom:1px solid var(--line);}
+  .ai-section-title{font-size:10px;color:var(--muted);margin-bottom:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;}
+  .ai-dna{display:flex;gap:8px;flex-wrap:wrap;}
+  .ai-dna-card{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;flex:1;min-width:120px;}
+  .ai-dna-label{font-size:10px;color:var(--muted);margin-bottom:4px;}
+  .ai-dna-value{font-size:13px;font-weight:700;}
+  .ai-dna-desc{font-size:10px;color:var(--muted);margin-top:2px;}
+  .ai-type-badge{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--yellow);border-radius:10px;padding:12px 16px;margin-bottom:10px;}
+  .ai-type-icon{font-size:28px;flex-shrink:0;}
+  .ai-type-info{display:flex;flex-direction:column;gap:3px;}
+  .ai-type-name{font-size:14px;font-weight:700;color:var(--yellow);}
+  .ai-type-desc{font-size:11px;color:var(--muted);line-height:1.5;}
+  .ai-code{font-size:11px;color:var(--muted);font-family:monospace;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:2px 7px;display:inline-block;margin-top:4px;}
+  .ai-recs{display:flex;flex-direction:column;gap:8px;}
+  .ai-rec{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--panel2);border-radius:6px;border-left:3px solid var(--blue);}
+  .ai-rec.warn{border-left-color:var(--red);}
+  .ai-rec.good{border-left-color:var(--green);}
+  .ai-rec.info{border-left-color:var(--blue);}
+  .ai-rec-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+  .ai-rec-text{font-size:12px;line-height:1.6;color:var(--text);}
+  .ai-rec-text b{color:var(--yellow);}
+  .ai-pnl-analysis{display:flex;flex-direction:column;gap:8px;}
+  .ai-pnl-row{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--panel2);border-radius:6px;}
+  .ai-pnl-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+  .ai-pnl-text{font-size:12px;line-height:1.6;color:var(--text);}
+  .ai-pnl-text b{color:var(--yellow);}
+  .ai-revoke{text-align:center;padding:12px 14px;font-size:11px;color:var(--muted);}
+  .ai-revoke button{background:none;border:none;color:var(--muted);cursor:pointer;text-decoration:underline;font-size:11px;}
+  .ai-revoke button:hover{color:var(--text);}
+  .ai-not-enough{padding:24px 16px;text-align:center;color:var(--muted);font-size:12px;line-height:1.8;}
+  .ai-not-enough b{color:var(--text);}
+  .ai-refresh{display:flex;justify-content:flex-end;padding:8px 14px 0;}
+  .ai-refresh-btn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;}
+  .ai-refresh-btn:hover{color:var(--text);border-color:var(--muted);}
+
   /* close pct input */
   .close-pct-in{width:42px;background:var(--panel2);border:1px solid var(--line);
     color:var(--text);border-radius:4px;padding:2px 3px;text-align:center;font-size:11px;}
@@ -836,10 +882,12 @@
         <button class="tabbtn active" data-tab="pos">포지션</button>
         <button class="tabbtn" data-tab="ord">미체결 주문</button>
         <button class="tabbtn" data-tab="hist">거래 내역</button>
+        <button class="tabbtn" data-tab="ai">🤖 AI 분석</button>
       </div>
       <div id="tab-pos"></div>
       <div id="tab-ord" style="display:none;"></div>
       <div id="tab-hist" style="display:none;"></div>
+      <div id="tab-ai" style="display:none;"></div>
     </div>
   </div>
 
@@ -1226,6 +1274,7 @@ const defaultState = () => ({
   indicators: [],   // [{id, type, params}]
   indDefaults: {},  // 마지막으로 저장한 지표 타입별 파라미터
   alarms: { hmaProximity: { on: false, dist: 200, dir: 'both', count: 1 }, volume: 70 },
+  aiConsent: null,
 });
 let S = loadState();
 
@@ -1489,28 +1538,30 @@ function applyFill(side, qty, price, feeRate){
       S.walletBalance += realized;
       p.qty -= qty;
       p.margin = (p.qty*p.entry)/lev;
-      logHist("감소", side, qty, price, realized, fee, (qty*p.entry/lev)>0?(realized/(qty*p.entry/lev)*100):0);
+      logHist("감소", side, qty, price, realized, fee, (qty*p.entry/lev)>0?(realized/(qty*p.entry/lev)*100):0, curSymbol, lev, S.interval);
       finishFill(); return;
     } else if(Math.abs(qty-p.qty)<1e-9){
       const realized = p.side==="long" ? (price-p.entry)*qty : (p.entry-price)*qty;
       S.walletBalance += realized;
       const _roe2 = (qty*p.entry/lev)>0?(realized/(qty*p.entry/lev)*100):0;
+      const _dur2 = p.openTime ? Math.round((Date.now()-p.openTime)/60000) : null;
       delete S.positions[curSymbol];
       cancelReduceOnly();
-      logHist("종료", side, qty, price, realized, fee, _roe2);
+      logHist("종료", side, qty, price, realized, fee, _roe2, curSymbol, lev, S.interval, _dur2);
       finishFill(); return;
     } else {
       const closeQty = p.qty;
       const realized = p.side==="long" ? (price-p.entry)*closeQty : (p.entry-price)*closeQty;
       S.walletBalance += realized;
       const _roe3 = (closeQty*p.entry/lev)>0?(realized/(closeQty*p.entry/lev)*100):0;
+      const _dur3 = p.openTime ? Math.round((Date.now()-p.openTime)/60000) : null;
       const rem = qty - closeQty;
       S.positions[curSymbol] = {side, qty:rem, entry:price, margin:(rem*price)/S.leverage, openTime:Date.now(), lev:S.leverage, mode:S.marginMode};
-      logHist("전환", side, qty, price, realized, fee, _roe3);
+      logHist("전환", side, qty, price, realized, fee, _roe3, curSymbol, lev, S.interval, _dur3);
       finishFill(); return;
     }
   }
-  logHist("진입", side, qty, price, 0, fee);
+  logHist("진입", side, qty, price, 0, fee, 0, curSymbol, S.leverage, S.interval);
   finishFill();
 }
 function finishFill(){ addMarker(); updatePriceLines(); saveCritical(); renderAll(); }
@@ -1622,7 +1673,8 @@ function closePosition(fraction, label){
   if(p.qty<1e-8){ delete S.positions[curSymbol]; cancelReduceOnly(); }
   else p.margin = (p.qty*p.entry)/lev;
   const _roe = (qty*p.entry/lev)>0?(realized/(qty*p.entry/lev)*100):0;
-  logHist(frac>=1?"종료":"부분종료", p.side==="long"?"short":"long", qty, price, realized, fee, _roe);
+  const _durC = p.openTime ? Math.round((Date.now()-p.openTime)/60000) : null;
+  logHist(frac>=1?"종료":"부분종료", p.side==="long"?"short":"long", qty, price, realized, fee, _roe, curSymbol, lev, S.interval, _durC);
   addMarker(); updatePriceLines(); saveCritical(); renderAll();
   toast(`${label||'청산'} @ ${fmtPrice(price)} · 손익 ${fmtUsd(realized)} USDT`);
 }
@@ -1848,8 +1900,8 @@ window.savePendingEdit = function(){
   closePendingEdit();
 };
 
-function logHist(type, side, qty, price, pnl, fee, roe=0, sym=curSymbol){
-  S.history.unshift({time:Date.now(), type, side, qty, price, pnl, fee, roe, sym});
+function logHist(type, side, qty, price, pnl, fee, roe=0, sym=curSymbol, lev=null, iv=null, dur=null){
+  S.history.unshift({time:Date.now(), type, side, qty, price, pnl, fee, roe, sym, lev, iv, dur});
   if(S.history.length>200) S.history.length=200;
 }
 
@@ -1890,7 +1942,7 @@ function checkLiquidation(){
       const lostMargin = p.margin;
       S.walletBalance -= p.margin;
       if(S.walletBalance < 0) S.walletBalance = 0;
-      logHist("강제청산", p.side==="long"?"short":"long", p.qty, liq, -lostMargin, 0, -100, sym);
+      logHist("강제청산", p.side==="long"?"short":"long", p.qty, liq, -lostMargin, 0, -100, sym, p.lev||S.leverage, S.interval);
       delete S.positions[sym];
       // 해당 코인의 TP/SL 미체결 제거
       S.pending = S.pending.filter(o=> !((o.sym||curSymbol)===sym && (o.kind==='tp'||o.kind==='sl')) );
@@ -2216,6 +2268,279 @@ function renderHistory(){
         <td class="${roe>=0?'green':'red'}">${roeStr}</td>
         <td class="muted">${fmt(h.fee,3)}</td></tr>`;
     }).join("")+`</tbody></table></div>`;
+}
+
+/* ===================== AI 트레이딩 분석 ===================== */
+function calcAiStats(){
+  const hist = S.history||[];
+  const exits = hist.filter(h=>h.pnl!==0);
+  const pnlTrades = exits.filter(h=>h.type!=='강제청산');
+  const wins = pnlTrades.filter(h=>h.pnl>0);
+  const losses = pnlTrades.filter(h=>h.pnl<0);
+  const winPnl = wins.reduce((s,h)=>s+h.pnl,0);
+  const lossPnl = Math.abs(losses.reduce((s,h)=>s+h.pnl,0));
+  const total = pnlTrades.length;
+  const winRate = total>0 ? wins.length/total*100 : 0;
+  const avgWin = wins.length>0 ? winPnl/wins.length : 0;
+  const avgLoss = losses.length>0 ? lossPnl/losses.length : 0;
+  const profitFactor = lossPnl>0 ? winPnl/lossPnl : (winPnl>0?99:0);
+  const rrRatio = avgLoss>0 ? avgWin/avgLoss : 0;
+  const totalPnl = exits.reduce((s,h)=>s+h.pnl,0);
+  const liqCount = hist.filter(h=>h.type==='강제청산').length;
+
+  // 레버리지 분석
+  const withLev = hist.filter(h=>h.lev>0);
+  const avgLev = withLev.length>0 ? withLev.reduce((s,h)=>s+h.lev,0)/withLev.length : S.leverage;
+  const levBuckets={low:{wins:0,total:0,wr:0},mid:{wins:0,total:0,wr:0},high:{wins:0,total:0,wr:0}};
+  pnlTrades.filter(h=>h.lev>0).forEach(h=>{
+    const b=h.lev<10?'low':h.lev<25?'mid':'high';
+    levBuckets[b].total++; if(h.pnl>0) levBuckets[b].wins++;
+  });
+  Object.values(levBuckets).forEach(b=>{b.wr=b.total>0?b.wins/b.total*100:0;});
+
+  // 방향 편향
+  const entries=hist.filter(h=>h.type==='진입');
+  const longN=entries.filter(h=>h.side==='long').length;
+  const shortN=entries.filter(h=>h.side==='short').length;
+  const totalN=longN+shortN;
+  const longPct=totalN>0?longN/totalN*100:50;
+
+  // 심볼별 성과
+  const symMap={};
+  pnlTrades.forEach(h=>{
+    const s=h.sym||'BTCUSDT';
+    if(!symMap[s]) symMap[s]={wins:0,total:0,pnl:0};
+    symMap[s].total++; symMap[s].pnl+=h.pnl; if(h.pnl>0) symMap[s].wins++;
+  });
+  const symList=Object.entries(symMap).sort((a,b)=>b[1].total-a[1].total);
+
+  // 분봉별 성과
+  const ivMap={};
+  pnlTrades.filter(h=>h.iv).forEach(h=>{
+    if(!ivMap[h.iv]) ivMap[h.iv]={wins:0,total:0};
+    ivMap[h.iv].total++; if(h.pnl>0) ivMap[h.iv].wins++;
+  });
+  const ivList=Object.entries(ivMap).sort((a,b)=>b[1].total-a[1].total);
+
+  // 보유 시간
+  const withDur=hist.filter(h=>h.dur>0&&h.pnl!==0);
+  const avgDur=withDur.length>0?withDur.reduce((s,h)=>s+h.dur,0)/withDur.length:null;
+
+  return{total,wins:wins.length,losses:losses.length,winRate,avgWin,avgLoss,profitFactor,rrRatio,
+    totalPnl,winPnl,lossPnl,liqCount,avgLev,levBuckets,longPct,symList,ivList,avgDur,withLevCount:withLev.length};
+}
+
+function calcTradingStyle(st){
+  if(st.total<5) return null;
+  const{winRate,profitFactor,avgLev,liqCount,longPct,rrRatio}=st;
+
+  const riskCode=avgLev>=20?'A':avgLev>=8?'B':'C';
+  const riskLabel=avgLev>=20?'공격형':avgLev>=8?'균형형':'보수형';
+  const riskColor=avgLev>=20?'red':avgLev>=8?'yellow':'green';
+
+  const dirCode=longPct>=62?'L':longPct<=38?'S':'N';
+  const dirLabel=longPct>=62?'롱 편향':longPct<=38?'숏 편향':'중립형';
+  const dirColor=longPct>=62?'green':longPct<=38?'red':'';
+
+  const perfCode=profitFactor>=1.3?'P':profitFactor>=0.75?'E':'L';
+  const perfLabel=profitFactor>=1.3?'수익형':profitFactor>=0.75?'균형형':'손실형';
+  const perfColor=perfCode==='P'?'green':perfCode==='E'?'yellow':'red';
+
+  const discCode=liqCount===0?'D':liqCount<=2?'M':'I';
+  const discLabel=liqCount===0?'원칙형':liqCount<=2?'혼합형':'충동형';
+  const discColor=discCode==='D'?'green':discCode==='M'?'yellow':'red';
+
+  const code=riskCode+dirCode+perfCode+discCode;
+
+  let icon,name,desc;
+  if(perfCode==='P'&&discCode==='D'&&riskCode==='A')    {icon='🦅';name='프로 공격형 트레이더';desc='높은 레버리지에서도 원칙을 지키며 꾸준히 수익을 내는 상위권 트레이더입니다.';}
+  else if(perfCode==='P'&&discCode==='D'&&riskCode==='B'){icon='🎯';name='균형형 원칙 트레이더';desc='적절한 레버리지와 철저한 리스크 관리로 안정적인 수익을 내고 있습니다.';}
+  else if(perfCode==='P'&&discCode==='D'&&riskCode==='C'){icon='🛡️';name='보수적 원칙 트레이더';desc='낮은 레버리지로 꾸준히 수익을 쌓아가는 안정 지향형 트레이더입니다.';}
+  else if(perfCode==='L'&&discCode==='I')               {icon='🎲';name='고위험 충동형 트레이더';desc='청산이 잦고 손실이 누적되고 있습니다. 전략과 리스크 관리 재점검이 필요합니다.';}
+  else if(riskCode==='A'&&perfCode==='P')               {icon='⚡';name='공격적 수익 트레이더';desc='고레버리지에서도 수익을 내는 담대한 트레이더입니다.';}
+  else if(dirCode==='L'&&longPct>=75&&perfCode==='P')   {icon='📈';name='롱 전문 트레이더';desc='상승장 포착에 특화되어 롱 포지션에서 안정적인 수익을 내고 있습니다.';}
+  else if(dirCode==='S'&&longPct<=25&&perfCode==='P')   {icon='📉';name='숏 전문 트레이더';desc='하락장 포착에 특화되어 숏 포지션에서 안정적인 수익을 내고 있습니다.';}
+  else if(perfCode==='L'&&riskCode==='A')               {icon='🔥';name='고위험 손실형 트레이더';desc='레버리지는 높지만 손실이 지속됩니다. 레버리지를 낮추고 전략을 점검하세요.';}
+  else if(perfCode==='L')                               {icon='🔧';name='전략 개선 필요형';desc='아직 손실이 수익보다 많습니다. 진입 타이밍과 손절 기준을 다듬어야 합니다.';}
+  else                                                  {icon='🔍';name='균형 탐색형 트레이더';desc='다양한 전략을 시도하며 자신만의 스타일을 만들어가는 과정에 있습니다.';}
+
+  return{code,icon,name,desc,dimensions:[
+    {label:'리스크 성향',code:riskCode,value:riskLabel,color:riskColor,desc:`평균 레버리지 ${fmt(avgLev,1)}x`},
+    {label:'거래 방향',  code:dirCode, value:dirLabel, color:dirColor, desc:`롱 ${fmt(longPct,0)}% / 숏 ${fmt(100-longPct,0)}%`},
+    {label:'수익 구조',  code:perfCode,value:perfLabel,color:perfColor,desc:`손익비 ${fmt(Math.min(rrRatio,9.99),2)}`},
+    {label:'거래 규율',  code:discCode,value:discLabel,color:discColor,desc:`청산 ${liqCount}회`},
+  ]};
+}
+
+function calcAiRecs(st, style){
+  if(st.total<5) return [];
+  const recs=[];
+  const{winRate,avgLev,liqCount,longPct,rrRatio,avgWin,avgLoss,profitFactor,totalPnl,ivList,symList,levBuckets}=st;
+
+  // 레버리지 추천
+  if(avgLev>30&&winRate<55)
+    recs.push({icon:'⚠️',type:'warn',text:`<b>레버리지를 낮추세요.</b> 평균 ${fmt(avgLev,1)}x를 사용하고 있지만 승률이 ${fmt(winRate,1)}%로 낮습니다. 15~20x 수준에서 리스크를 관리하며 전략을 다듬어 보세요.`});
+  else if(avgLev<6&&winRate>62&&profitFactor>1.5)
+    recs.push({icon:'💡',type:'info',text:`<b>레버리지를 조금 높여볼 여지가 있습니다.</b> 승률 ${fmt(winRate,1)}%·손익비 ${fmt(profitFactor,2)}로 전략이 우수합니다. 레버리지를 조금 높이면 동일 전략으로 더 큰 수익이 가능합니다.`});
+  else{
+    const bestB=Object.entries(levBuckets).filter(([,b])=>b.total>=2).sort((a,b)=>b[1].wr-a[1].wr)[0];
+    if(bestB){const names={low:'2~9x',mid:'10~24x',high:'25x+'};const[bk,bv]=bestB;
+      recs.push({icon:'📊',type:'good',text:`<b>레버리지 ${names[bk]} 구간에서 승률 ${fmt(bv.wr,0)}%</b>로 가장 좋은 성과를 냈습니다. 이 구간을 중심으로 거래하세요.`});}
+  }
+
+  // 청산 경고
+  if(liqCount>0)
+    recs.push({icon:'💥',type:'warn',text:`<b>강제청산 ${liqCount}회.</b> 포지션 진입 시 반드시 손절가(SL)를 미리 설정해 청산을 방지하세요. SL 없이 버티다 청산되면 증거금 전액을 잃습니다.`});
+
+  // 손익비 개선
+  if(avgLoss>0&&rrRatio<1&&winRate<60)
+    recs.push({icon:'✂️',type:'warn',text:`<b>손실을 더 빠르게 자르세요.</b> 평균 수익 ${fmtUsd(avgWin)}보다 평균 손실 ${fmtUsd(avgLoss)}이 큽니다. 손익비를 1:1.5 이상으로 맞추면 승률 50%여도 수익이 납니다.`});
+  else if(rrRatio>=2&&st.wins>=3)
+    recs.push({icon:'✅',type:'good',text:`<b>손익비 ${fmt(rrRatio,2)}:1</b>로 매우 우수합니다. 수익 포지션을 길게 가져가는 전략이 잘 작동하고 있습니다.`});
+
+  // 방향 편향
+  if(longPct>=78)
+    recs.push({icon:'🔄',type:'info',text:`<b>롱 편향이 강합니다 (${fmt(longPct,0)}%).</b> 하락 추세에서는 숏 전략도 적극 활용하면 수익 기회를 2배로 늘릴 수 있습니다.`});
+  else if(longPct<=22)
+    recs.push({icon:'🔄',type:'info',text:`<b>숏 편향이 강합니다 (${fmt(100-longPct,0)}%).</b> 상승 추세에서는 롱을 활용하면 시장 방향과 함께 갈 수 있습니다.`});
+
+  // 최적 분봉 추천
+  const goodIv=ivList.filter(([,v])=>v.total>=3).sort((a,b)=>(b[1].wins/b[1].total)-(a[1].wins/a[1].total))[0];
+  if(goodIv){const[iv,ivv]=goodIv;
+    recs.push({icon:'⏱️',type:'good',text:`<b>${iv} 봉에서 승률 ${fmt(ivv.wins/ivv.total*100,0)}% (${ivv.total}회 중 ${ivv.wins}승)</b>으로 가장 좋은 성과를 보였습니다. 이 분봉을 주력으로 활용하세요.`});}
+
+  // 최적 심볼 추천
+  const goodSym=symList.filter(([,v])=>v.total>=3).sort((a,b)=>(b[1].wins/b[1].total)-(a[1].wins/a[1].total))[0];
+  if(goodSym){const[sym,sv]=goodSym;const coin=sym.replace(/usdt$/i,'').toUpperCase();
+    recs.push({icon:'💎',type:'good',text:`<b>${coin} 거래에서 승률 ${fmt(sv.wins/sv.total*100,0)}%</b>로 가장 좋은 성과를 기록했습니다.`});}
+
+  // 승률 총평
+  if(winRate>=65&&st.wins>=5)
+    recs.push({icon:'🏆',type:'good',text:`<b>승률 ${fmt(winRate,1)}%</b>는 매우 우수한 수준입니다. 현재 전략을 유지하되 포지션 규모를 점진적으로 키워보세요.`});
+  else if(winRate<38&&st.total>=10)
+    recs.push({icon:'🎯',type:'warn',text:`<b>승률 ${fmt(winRate,1)}%</b>는 개선이 필요합니다. 진입 조건을 더 엄격하게 정하고 거래 횟수를 줄여 질을 높이세요.`});
+
+  return recs.slice(0,5);
+}
+
+function calcPnlAnalysis(st){
+  const lines=[];
+  const{totalPnl,winRate,profitFactor,rrRatio,liqCount,avgWin,avgLoss,wins,losses}=st;
+  if(totalPnl>=0){
+    if(winRate>=55) lines.push({icon:'📈',text:`<b>높은 승률(${fmt(winRate,1)}%)</b> 덕분에 꾸준히 수익을 실현하고 있습니다. 전체 거래의 ${fmt(winRate,1)}%에서 이익이 났습니다.`});
+    if(rrRatio>=1.2) lines.push({icon:'⚖️',text:`<b>손익비 ${fmt(rrRatio,2)}:1</b>로 수익이 손실보다 큽니다. 수익 포지션을 충분히 길게 보유한 결과입니다.`});
+    if(liqCount===0) lines.push({icon:'🛡️',text:`<b>강제청산 0건.</b> 리스크 관리가 잘 되고 있어 증거금 손실 없이 수익을 쌓고 있습니다.`});
+    if(lines.length===0) lines.push({icon:'✅',text:`<b>현재 수익 중입니다.</b> 꾸준히 거래 데이터가 쌓이면 더 정밀한 분석이 가능합니다.`});
+  } else {
+    if(winRate<45) lines.push({icon:'📉',text:`<b>낮은 승률(${fmt(winRate,1)}%)</b>로 손실 거래가 많습니다. 전체 ${st.total}회 중 ${losses}회에서 손실이 발생했습니다.`});
+    if(avgLoss>avgWin&&wins>0) lines.push({icon:'⚖️',text:`<b>손익비 ${fmt(rrRatio,2)}:1</b>로 손실이 수익보다 큽니다. 수익 포지션을 너무 일찍 닫거나 손절 없이 손실을 키운 결과일 수 있습니다.`});
+    if(liqCount>0) lines.push({icon:'💥',text:`<b>강제청산 ${liqCount}회</b>로 인한 손실이 누적됐습니다. 청산은 증거금 전액 손실이므로 SL 설정이 최우선입니다.`});
+    if(lines.length===0) lines.push({icon:'⚠️',text:`<b>현재 손실 중입니다.</b> 거래 패턴을 검토하고 진입 조건을 다듬어 보세요.`});
+  }
+  return lines;
+}
+
+window.aiConsent = function(agree){
+  S.aiConsent = agree; save(); renderAiAnalysis();
+};
+
+function renderAiAnalysis(){
+  const el=document.getElementById('tab-ai');
+  if(!el) return;
+
+  // 동의 여부 확인
+  if(S.aiConsent!==true){
+    const declined=S.aiConsent===false;
+    el.innerHTML=`<div class="ai-consent">
+      <div class="ai-consent-icon">🤖</div>
+      <div class="ai-consent-title">AI 트레이딩 분석</div>
+      <div class="ai-consent-desc">${declined?'AI 분석 기능 동의를 철회했습니다.<br>다시 동의하면 트레이딩 스타일 진단, 수익/손실 원인 분석, 레버리지·분봉 추천을 받을 수 있습니다.':'본인의 거래 데이터를 분석해 트레이딩 스타일을 진단하고<br>레버리지·분봉·전략 개선 방향을 제시합니다.'}</div>
+      <div class="ai-consent-note">🔒 <b>데이터 프라이버시</b><br>이 기능은 외부 서버로 데이터를 전송하지 않습니다.<br>분석은 본인 기기 내 거래 기록만을 사용하며,<br>언제든지 동의를 철회할 수 있습니다.</div>
+      <div class="ai-consent-btns">
+        <button class="ai-btn-agree" onclick="aiConsent(true)">동의하고 분석 받기</button>
+        ${!declined?`<button class="ai-btn-decline" onclick="aiConsent(false)">거절</button>`:`<button class="ai-btn-decline" onclick="aiConsent(false)">거절 유지</button>`}
+      </div>
+    </div>`;
+    return;
+  }
+
+  const st=calcAiStats();
+  if(st.total<3){
+    el.innerHTML=`<div class="ai-not-enough">
+      <div style="font-size:32px;margin-bottom:12px;">📊</div>
+      <b>데이터가 부족합니다</b><br><br>
+      분석을 위해 최소 5회 이상의 거래가 필요합니다.<br>
+      현재 ${st.total}회 · 앞으로 ${Math.max(0,5-st.total)}회 더 거래하면<br>트레이딩 스타일 진단이 시작됩니다.
+      <div class="ai-revoke"><button onclick="aiConsent(false)">AI 분석 동의 철회</button></div>
+    </div>`;
+    return;
+  }
+
+  const style=calcTradingStyle(st);
+  const recs=calcAiRecs(st, style);
+  const pnlLines=calcPnlAnalysis(st);
+
+  let html=`<div class="ai-refresh"><button class="ai-refresh-btn" onclick="renderAiAnalysis()">↻ 새로고침</button></div>`;
+
+  // 트레이딩 유형
+  if(style){
+    html+=`<div class="ai-section">
+      <div class="ai-section-title">트레이딩 DNA</div>
+      <div class="ai-type-badge">
+        <div class="ai-type-icon">${style.icon}</div>
+        <div class="ai-type-info">
+          <div class="ai-type-name">${style.name}</div>
+          <div class="ai-type-desc">${style.desc}</div>
+          <div class="ai-code">유형코드 ${style.code}</div>
+        </div>
+      </div>
+      <div class="ai-dna">
+        ${style.dimensions.map(d=>`<div class="ai-dna-card">
+          <div class="ai-dna-label">${d.label}</div>
+          <div class="ai-dna-value ${d.color}">${d.value}</div>
+          <div class="ai-dna-desc">${d.desc}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // 수익/손실 원인 분석
+  html+=`<div class="ai-section">
+    <div class="ai-section-title">${st.totalPnl>=0?'📈 수익 요인 분석':'📉 손실 요인 분석'}</div>
+    <div class="ai-pnl-analysis">
+      ${pnlLines.map(l=>`<div class="ai-pnl-row"><div class="ai-pnl-icon">${l.icon}</div><div class="ai-pnl-text">${l.text}</div></div>`).join('')}
+    </div>
+  </div>`;
+
+  // 개선 추천
+  if(recs.length>0){
+    html+=`<div class="ai-section">
+      <div class="ai-section-title">💡 개선 추천</div>
+      <div class="ai-recs">
+        ${recs.map(r=>`<div class="ai-rec ${r.type}"><div class="ai-rec-icon">${r.icon}</div><div class="ai-rec-text">${r.text}</div></div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  // 핵심 통계 요약
+  const bestSym=st.symList.length>0?st.symList.reduce((a,b)=>b[1].pnl>a[1].pnl?b:a,st.symList[0]):null;
+  const worstSym=st.symList.length>0?st.symList.reduce((a,b)=>b[1].pnl<a[1].pnl?b:a,st.symList[0]):null;
+  html+=`<div class="ai-section">
+    <div class="ai-section-title">📋 데이터 요약 (${st.total}회 거래)</div>
+    <div class="stats-bar" style="flex-wrap:wrap;">
+      <div class="stat-chip"><div class="sl">승률</div><div class="sv ${st.winRate>=50?'green':'red'}">${fmt(st.winRate,1)}%</div></div>
+      <div class="stat-chip"><div class="sl">평균 수익</div><div class="sv green">${st.avgWin>0?fmtUsd(st.avgWin):'-'}</div></div>
+      <div class="stat-chip"><div class="sl">평균 손실</div><div class="sv red">${st.avgLoss>0?fmtUsd(st.avgLoss):'-'}</div></div>
+      <div class="stat-chip"><div class="sl">손익비</div><div class="sv ${st.rrRatio>=1?'green':'red'}">${st.avgLoss>0?fmt(st.rrRatio,2):'-'}</div></div>
+      <div class="stat-chip"><div class="sl">평균 레버리지</div><div class="sv">${fmt(st.avgLev,1)}x</div></div>
+      <div class="stat-chip"><div class="sl">청산 횟수</div><div class="sv ${st.liqCount>0?'red':''}">${st.liqCount}</div></div>
+      ${bestSym&&bestSym[1].pnl>0?`<div class="stat-chip"><div class="sl">최고 코인</div><div class="sv green">${bestSym[0].replace(/usdt$/i,'').toUpperCase()}</div></div>`:''}
+    </div>
+  </div>`;
+
+  html+=`<div class="ai-revoke"><button onclick="aiConsent(false)">AI 분석 동의 철회</button></div>`;
+
+  el.innerHTML=html;
 }
 
 function showLiqModal(lost, sym){
@@ -3871,7 +4196,8 @@ function bindUI(){
   document.querySelectorAll(".tabbtn").forEach(b=>{
     b.onclick = ()=>{
       document.querySelectorAll(".tabbtn").forEach(x=>x.classList.remove("active")); b.classList.add("active");
-      ["pos","ord","hist"].forEach(t=>document.getElementById("tab-"+t).style.display=(t===b.dataset.tab?"block":"none"));
+      ["pos","ord","hist","ai"].forEach(t=>document.getElementById("tab-"+t).style.display=(t===b.dataset.tab?"block":"none"));
+      if(b.dataset.tab==="ai") renderAiAnalysis();
     };
   });
 
@@ -4825,7 +5151,8 @@ function checkBgTpSl(){
         const lev = p.lev||S.leverage;
         const roe = (closeQty*p.entry/lev)>0 ? (realized/(closeQty*p.entry/lev)*100) : 0;
         const lbl = frac<0.999 ? ` (${cm==='usdt'?'$'+fmt(amt,0):cm==='coin'?fmt(amt,4)+'코인':Math.round(frac*100)+'%'})` : '';
-        logHist(frac>=0.999?'종료':'부분종료', p.side==='long'?'short':'long', closeQty, o.price, realized, fee, roe, sym);
+        const _durBg = p.openTime ? Math.round((Date.now()-p.openTime)/60000) : null;
+        logHist(frac>=0.999?'종료':'부분종료', p.side==='long'?'short':'long', closeQty, o.price, realized, fee, roe, sym, lev, S.interval, _durBg);
         p.qty -= closeQty;
         if(p.qty < 1e-8){
           delete S.positions[sym];
