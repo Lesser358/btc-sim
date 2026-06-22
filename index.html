@@ -444,7 +444,7 @@
   /* ===== 네비게이션 바 ===== */
   /* ===== 상단 네비게이션 ===== */
   #topNav{background:var(--panel);border-bottom:1px solid var(--line);padding:0 12px;display:flex;align-items:center;height:46px;position:sticky;top:0;z-index:500;gap:0;}
-  #topNavLogo{font-size:13px;font-weight:900;color:var(--yellow);margin-right:20px;white-space:nowrap;flex-shrink:0;letter-spacing:-.3px;user-select:none;}
+  #topNavLogo{font-size:18px;font-weight:900;color:var(--yellow);margin-right:22px;white-space:nowrap;flex-shrink:0;letter-spacing:-.3px;user-select:none;}
   #topNavItems{display:flex;align-items:stretch;list-style:none;margin:0;padding:0;gap:0;flex:1;overflow-x:auto;scrollbar-width:none;}
   #topNavItems::-webkit-scrollbar{display:none;}
   .tn-item{position:relative;display:flex;align-items:center;flex-shrink:0;}
@@ -459,7 +459,7 @@
   .tn-dd-item span{font-size:10.5px;color:var(--muted);opacity:.7;}
   .tn-dd-sep{border-top:1px solid var(--line);margin:4px 0;}
   @media(max-width:520px){
-    #topNavLogo{font-size:12px;margin-right:10px;}
+    #topNavLogo{font-size:14px;margin-right:10px;}
     .tn-item>span{padding:0 9px;font-size:12px;}
   }
   /* 신호 스캐너 스타일 탭 */
@@ -879,10 +879,10 @@
 
 
 <nav id="topNav">
-  <div id="topNavLogo">🚀 선물 모의투자</div>
+  <div id="topNavLogo">선물 모의투자</div>
   <ul id="topNavItems">
     <li class="tn-item tn-has-dd" id="tnSignalItem">
-      <span id="tnSignalLbl">📡 신호 스캐너 <small>▾</small></span>
+      <span id="tnSignalLbl" onclick="toggleTopNavDD(event,'tnSignalItem')">📡 신호 스캐너 ▾</span>
       <div class="tn-dd-wrap"><div class="tn-dd">
         <div class="tn-dd-item" onclick="openSignalStyle('scalp')">⚡ 단타 <span>5m/15m · 빠른 진출입</span></div>
         <div class="tn-dd-item" onclick="openSignalStyle('swing')">📈 스윙 <span>1H/4H · 수시간~수일</span></div>
@@ -893,10 +893,10 @@
       <span>🏆 랭킹</span>
     </li>
     <li class="tn-item" id="tnAiItem" onclick="openAiTab()">
-      <span>🤖 내 분석</span>
+      <span>🤖 AI 분석</span>
     </li>
     <li class="tn-item tn-has-dd" id="navManualBtn">
-      <span id="tnHelpLbl">도움말 <small>▾</small></span>
+      <span id="tnHelpLbl" onclick="toggleTopNavDD(event,'navManualBtn')">도움말 ▾</span>
       <div class="tn-dd-wrap"><div class="tn-dd">
         <div class="tn-dd-item" onclick="closeTopNavDD();openManual()">📖 사용설명서</div>
         <div class="tn-dd-sep"></div>
@@ -2822,6 +2822,13 @@ window.openAiTab=function(){
 window.closeTopNavDD=function(){
   document.querySelectorAll('.tn-item.tn-open').forEach(el=>el.classList.remove('tn-open'));
 };
+window.toggleTopNavDD=function(e,itemId){
+  e.stopPropagation();
+  const li=document.getElementById(itemId);
+  const wasOpen=li.classList.contains('tn-open');
+  closeTopNavDD();
+  if(!wasOpen) li.classList.add('tn-open');
+};
 window.showAiHelp=function(){
   if(document.getElementById('aiHelpOverlay')) return;
   const ov=document.createElement('div');
@@ -4687,27 +4694,11 @@ function bindUI(){
 
   renderIndicatorChips();
 
-  // ===== 상단 네비게이션 드롭다운 =====
-  (function(){
-    // ▾ 토글 — 클릭 시 해당 li.tn-has-dd 열기/닫기
-    document.querySelectorAll('.tn-has-dd>span').forEach(btn=>{
-      btn.addEventListener('click',function(e){
-        e.stopPropagation();
-        const li=btn.closest('.tn-item');
-        const wasOpen=li.classList.contains('tn-open');
-        document.querySelectorAll('.tn-item.tn-open').forEach(el=>el.classList.remove('tn-open'));
-        if(!wasOpen) li.classList.add('tn-open');
-      });
-    });
-    // 드롭다운 안 클릭은 닫히지 않도록 이벤트 버블 차단
-    document.querySelectorAll('.tn-dd').forEach(dd=>{
-      dd.addEventListener('click',e=>e.stopPropagation());
-    });
-    // 외부 클릭 → 전체 닫기
-    document.addEventListener('click',function(){
-      document.querySelectorAll('.tn-item.tn-open').forEach(el=>el.classList.remove('tn-open'));
-    });
-  })();
+  // ===== 상단 네비게이션: 외부 클릭 시 드롭다운 닫기 =====
+  // 드롭다운 토글은 각 span의 onclick="toggleTopNavDD(event,id)"로 처리
+  document.addEventListener('click', function(e){
+    if(!e.target.closest('#topNav')) closeTopNavDD();
+  });
 
 }
 
