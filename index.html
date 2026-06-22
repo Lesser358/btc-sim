@@ -1563,9 +1563,9 @@ function buildTpSlOrders(side, tp, sl, tpCloseAmt=100, slCloseAmt=100, tpCloseMo
   return out;
 }
 
-/* 기존 TP/SL 주문을 교체 */
+/* 기존 TP/SL 주문을 교체 (현재 코인 것만 제거 — 다른 코인 TP/SL 보존) */
 function applyTpSlOrders(side, tp, sl, tpCloseAmt=100, slCloseAmt=100, tpCloseMode='pct', slCloseMode='pct'){
-  S.pending = S.pending.filter(o=>o.kind!=="tp"&&o.kind!=="sl")
+  S.pending = S.pending.filter(o=> !((o.kind==="tp"||o.kind==="sl")&&(o.sym||curSymbol)===curSymbol))
     .concat(buildTpSlOrders(side, tp, sl, tpCloseAmt, slCloseAmt, tpCloseMode, slCloseMode));
   updatePriceLines();
 }
@@ -1770,7 +1770,7 @@ window.applyPosTpSl = function(){
 };
 window.setPosTpSlMode = function(m){ posTpSlMode = m; renderPositions(); };
 window.clearPosTpSl = function(){
-  S.pending = S.pending.filter(o=>o.kind!=="tp"&&o.kind!=="sl");
+  S.pending = S.pending.filter(o=> !((o.kind==="tp"||o.kind==="sl")&&(o.sym||curSymbol)===curSymbol));
   updatePriceLines(); save(); renderAll();
   toast('TP/SL이 해제되었습니다.');
 };
@@ -3314,6 +3314,9 @@ function _tslMove(e){
     el.style.cursor=near?'ns-resize':'';
     return;
   }
+  // 확인 모달이 열려 있으면 드래그 중이 아니므로 가격 업데이트 금지
+  // (모달로 마우스를 이동하는 동안 newPrice가 계속 바뀌면 confirmTslDrag에서 엉뚱한 가격이 검증됨)
+  if(_tslDrag.frozen) return;
   // 드래그 중 — 가격선 실시간 이동
   const np=candleSeries.coordinateToPrice(y);
   if(np==null||!(np>0)) return;
@@ -3341,6 +3344,7 @@ function _tslUp(){
   const roeEl=document.getElementById('tslDragRoe');
   roeEl.textContent=(pos?'+':'')+fmt(roe,2)+'%';
   roeEl.style.color=pos?'var(--green)':'var(--red)';
+  _tslDrag.frozen = true; // 모달 열림 → 마우스 이동해도 newPrice 변경 금지
   document.getElementById('tslDragModal').style.display='flex';
 }
 function _tslCancel(){
