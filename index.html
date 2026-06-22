@@ -339,6 +339,27 @@
     .ai-signal-row{grid-template-columns:1fr;gap:6px;align-items:flex-start;}
     .ai-signal-badge{text-align:left;width:max-content;max-width:100%;}
   }
+  /* 롱/숏 추천 탭 전용 */
+  .ai-signal-tab-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px 0;flex-wrap:wrap;}
+  .ai-signal-tab-title{font-size:13px;font-weight:700;color:var(--text);}
+  .ai-signal-tab-actions{display:flex;gap:6px;align-items:center;}
+  .ai-help-btn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:50%;width:22px;height:22px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;}
+  .ai-help-btn:hover{border-color:var(--yellow);color:var(--yellow);}
+  .ai-score-info{display:flex;align-items:center;gap:8px;padding:7px 14px;font-size:10.5px;color:var(--muted);border-bottom:1px solid var(--line);margin-top:8px;}
+  .ai-score-bar-wrap{flex:1;display:flex;flex-direction:column;gap:2px;}
+  .ai-score-bar{height:5px;border-radius:3px;background:linear-gradient(to right,var(--red) 0%,var(--yellow) 45%,var(--yellow) 55%,var(--green) 100%);}
+  .ai-score-bar-labels{display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);}
+  /* 도움말 모달 */
+  .ai-help-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.65);}
+  .ai-help-box{background:var(--panel);border:1px solid var(--line);border-radius:10px;max-width:370px;width:92%;max-height:82vh;overflow-y:auto;padding:18px 18px 14px;}
+  .ai-help-box h3{font-size:14px;font-weight:700;color:var(--text);margin:0 0 14px;display:flex;align-items:center;gap:6px;}
+  .ai-help-term{margin-bottom:13px;padding-bottom:11px;border-bottom:1px solid var(--line);}
+  .ai-help-term:last-of-type{border-bottom:none;margin-bottom:6px;}
+  .ai-help-term b{font-size:12px;color:var(--yellow);display:block;margin-bottom:4px;}
+  .ai-help-term p{font-size:11.5px;color:var(--muted);line-height:1.65;margin:0;}
+  .ai-help-term p em{color:var(--text);font-style:normal;}
+  .ai-help-close{display:block;margin:10px auto 0;background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:7px 24px;font-size:12px;cursor:pointer;}
+  .ai-help-close:hover{color:var(--text);border-color:var(--muted);}
 
   /* close pct input */
   .close-pct-in{width:42px;background:var(--panel2);border:1px solid var(--line);
@@ -911,11 +932,13 @@
         <button class="tabbtn active" data-tab="pos">포지션</button>
         <button class="tabbtn" data-tab="ord">미체결 주문</button>
         <button class="tabbtn" data-tab="hist">거래 내역</button>
+        <button class="tabbtn" data-tab="signal">📈 롱/숏 추천</button>
         <button class="tabbtn" data-tab="ai">🤖 AI 분석</button>
       </div>
       <div id="tab-pos"></div>
       <div id="tab-ord" style="display:none;"></div>
       <div id="tab-hist" style="display:none;"></div>
+      <div id="tab-signal" style="display:none;"></div>
       <div id="tab-ai" style="display:none;"></div>
     </div>
   </div>
@@ -2537,8 +2560,10 @@ function calcAiMarketSignal(sym,h1,m15,ticker,premium){
   if(rsi>=74) reasons.push('RSI 과열');
   else if(rsi<=26) reasons.push('RSI 과매도');
   if(!reasons.length) reasons.push(type==='wait'?'추세와 모멘텀이 엇갈림':`${coin} 단기 우위 신호`);
+  const volume24h = ticker&&ticker.quoteVolume ? +ticker.quoteVolume : 0;
   return{
-    sym,type,label,score:Math.round(raw),confidence,
+    sym,type,label,score:Math.round(raw),confidence,volume24h,
+    rsiVal:Math.round(rsi), atrPctVal:+fmt(atrPct,2), fundingPctVal:+fmt(fundingPct,3),
     reason:reasons.slice(0,3).join(' · '),
     metrics:`24h ${fmt(change24,1)}% · RSI ${fmt(rsi,0)} · 펀딩 ${fmt(fundingPct,3)}% · ATR ${fmt(atrPct,2)}%`,
     risk:type==='wait'?'방향성 확인 전까지 관망':'진입 전 손절가(SL) 필수 · 1H ATR 기준 변동성 확인'
@@ -2565,7 +2590,7 @@ async function loadAiCoinSignals(){
       return{sym,type:'wait',label:'관망',score:0,confidence:0,reason:'시장 데이터 조회 실패',metrics:'-',risk:'잠시 후 새로고침'};
     }
   }));
-  return rows.sort((a,b)=>((b.type==='wait'?0:1)-(a.type==='wait'?0:1)) || (b.confidence-a.confidence) || (Math.abs(b.score)-Math.abs(a.score)));
+  return rows.sort((a,b)=> b.volume24h - a.volume24h);
 }
 
 function renderAiSignalRows(rows){
@@ -2574,13 +2599,16 @@ function renderAiSignalRows(rows){
     const icon=COIN_IMG[r.sym]
       ? `<img class="ai-signal-coin" src="${COIN_IMG[r.sym]}" alt="">`
       : `<span class="ai-signal-fb" style="background:${COIN_COLOR[r.sym]||'#888'}">${_symShort(r.sym).slice(0,3)}</span>`;
-    const score=(r.score>0?'+':'')+r.score;
+    const scoreNum=r.score||0;
+    const scoreStr=(scoreNum>0?'+':'')+scoreNum;
+    const scoreCol=scoreNum>=10?'style="color:var(--green)"':scoreNum<=-10?'style="color:var(--red)"':'style="color:var(--yellow)"';
     return `<div class="ai-signal-row ${r.type}">
       <div class="ai-signal-sym">${icon}<span>${_symShort(r.sym)}</span></div>
-      <div class="ai-signal-badge ${r.type}">${r.label} ${r.confidence?`${r.confidence}`:''}</div>
+      <div class="ai-signal-badge ${r.type}">${r.label} ${r.confidence?`${r.confidence}%`:''}</div>
       <div class="ai-signal-detail">
         <div class="ai-signal-reason">${r.reason}</div>
-        <div class="ai-signal-metrics">점수 ${score} · ${r.metrics} · ${r.risk}</div>
+        <div class="ai-signal-metrics">점수 <span ${scoreCol}>${scoreStr}</span> · ${r.metrics}</div>
+        <div class="ai-signal-metrics">${r.risk}</div>
       </div>
     </div>`;
   }).join('')}</div>`;
@@ -2620,26 +2648,8 @@ function ensureAiSignalData(force=false){
 }
 
 function renderAiSignalSection(){
-  const on=S.aiSignalOn===true;
-  const body=!on
-      ? '<div class="ai-signal-empty">OFF 상태입니다. 켜면 Binance 공개 시장 빅데이터를 불러와 코인별 롱/숏 우위를 계산합니다.</div>'
-    : (_aiSignalCache&&_aiSignalCache.rows&&Date.now()-_aiSignalCache.ts<AI_SIGNAL_CACHE_MS)
-      ? renderAiSignalRows(_aiSignalCache.rows)
-      : '<div class="ai-signal-empty">공개 시장 데이터를 분석 중입니다...</div>';
-  return `<div class="ai-section">
-    <div class="ai-signal-head">
-      <div class="ai-signal-title">
-        <b>AI 빅데이터 롱/숏 추천</b>
-        <span>1H 150개 + 15M 96개 캔들, 24h 등락률, 펀딩비를 기기에서 계산합니다.</span>
-      </div>
-      <div class="ai-signal-actions">
-        ${on?'<button class="ai-signal-smallbtn" onclick="refreshAiSignals()">새로고침</button>':''}
-        <button class="ai-signal-toggle ${on?'on':''}" onclick="toggleAiSignals(${on?'false':'true'})">추천 ${on?'ON':'OFF'}</button>
-      </div>
-    </div>
-    <div class="ai-signal-note">외부 AI 서버나 API 키는 사용하지 않습니다. 공개 시장데이터 기반 보조 지표이므로 실제 진입 전 손절가와 포지션 크기를 먼저 정하세요.</div>
-    <div id="aiSignalBody">${body}</div>
-  </div>`;
+  // 레거시 호환 — 더 이상 AI 분석 탭에서는 사용 안 함
+  return '';
 }
 
 window.toggleAiSignals=function(on){
@@ -2647,13 +2657,101 @@ window.toggleAiSignals=function(on){
   if(!S.aiSignalOn){ _aiSignalReq++; _aiSignalLoading=false; }
   else _aiSignalCache=null;
   save();
-  renderAiAnalysis();
+  renderAiSignal();
 };
 window.refreshAiSignals=function(){
   if(S.aiSignalOn!==true) return;
   _aiSignalCache=null; _aiSignalLoading=false;
-  renderAiAnalysis();
+  renderAiSignal();
 };
+window.showAiHelp=function(){
+  if(document.getElementById('aiHelpOverlay')) return;
+  const ov=document.createElement('div');
+  ov.id='aiHelpOverlay';
+  ov.className='ai-help-overlay';
+  ov.innerHTML=`<div class="ai-help-box">
+    <h3>📖 지표 및 점수 설명</h3>
+    <div class="ai-help-term">
+      <b>점수 (-100 ~ +100)</b>
+      <p>추세·모멘텀·RSI·거래량·펀딩비를 합산한 종합 신호 점수입니다.<br>
+      <em>+10 이상 → 롱 우위</em> &nbsp;/&nbsp; <em>-10 이하 → 숏 우위</em> &nbsp;/&nbsp; 그 사이 → 관망<br>
+      절대값이 클수록 신호가 강하며, 최대치(±100)는 모든 지표가 한 방향으로 일치할 때 나옵니다.</p>
+    </div>
+    <div class="ai-help-term">
+      <b>신뢰도 (%)</b>
+      <p>현재 신호의 확신 정도입니다. 점수 절대값이 클수록 높아집니다.<br>
+      <em>50% 미만은 약한 신호</em>로 관망을 권장합니다.</p>
+    </div>
+    <div class="ai-help-term">
+      <b>RSI (Relative Strength Index)</b>
+      <p>최근 14봉의 상승/하락 크기를 비교하는 <em>과매수·과매도</em> 지표입니다.<br>
+      <em>70 이상</em> → 과매수 (조정 가능) &nbsp;/&nbsp; <em>30 이하</em> → 과매도 (반등 가능)<br>
+      30~70 구간은 중립입니다.</p>
+    </div>
+    <div class="ai-help-term">
+      <b>ATR% (Average True Range)</b>
+      <p>최근 14봉의 평균 변동폭을 현재가 대비 비율(%)로 표시합니다.<br>
+      <em>높을수록 변동성이 크다</em>는 의미이며, 손절가(SL) 설정 시 ATR의 1~2배 거리를 참고하세요.<br>
+      4% 초과 시 점수 신뢰도가 약간 낮아집니다.</p>
+    </div>
+    <div class="ai-help-term">
+      <b>펀딩비 (%)</b>
+      <p>롱/숏 포지션 보유자가 8시간마다 교환하는 비용입니다.<br>
+      <em>양수(+)</em> → 롱 포지션이 많음 (롱 과열 경고) &nbsp;/&nbsp; <em>음수(-)</em> → 숏 과열<br>
+      일반적으로 ±0.05% 이내가 정상 범위입니다.</p>
+    </div>
+    <div class="ai-help-term">
+      <b>24h %</b>
+      <p>최근 24시간 동안의 가격 등락률입니다. 단기 모멘텀 파악에 활용됩니다.</p>
+    </div>
+    <div class="ai-help-term">
+      <b>EMA20 / EMA50 추세</b>
+      <p>지수이동평균(Exponential Moving Average)입니다.<br>
+      <em>EMA20 &gt; EMA50</em> → 상승 추세 &nbsp;/&nbsp; <em>EMA20 &lt; EMA50</em> → 하락 추세</p>
+    </div>
+    <div class="ai-help-term">
+      <b>4H 모멘텀 / 2H 모멘텀</b>
+      <p>최근 4시간·2시간 구간의 가격 변화율입니다. 단기 추세 가속도를 확인합니다.</p>
+    </div>
+    <p style="font-size:10.5px;color:var(--muted);line-height:1.6;margin-top:4px;">※ 이 지표는 Binance 공개 시장 데이터 기반 <b>보조 참고용</b>이며, 실제 진입 전 손절가·포지션 크기를 반드시 먼저 정하세요.</p>
+    <button class="ai-help-close" onclick="closeAiHelp()">닫기</button>
+  </div>`;
+  ov.addEventListener('click', e=>{ if(e.target===ov) closeAiHelp(); });
+  document.body.appendChild(ov);
+};
+window.closeAiHelp=function(){
+  const ov=document.getElementById('aiHelpOverlay');
+  if(ov) ov.remove();
+};
+
+function renderAiSignal(){
+  const el=document.getElementById('tab-signal');
+  if(!el) return;
+  const on=S.aiSignalOn===true;
+  const body=!on
+    ? '<div class="ai-signal-empty">OFF 상태입니다. 켜면 Binance 공개 시장 빅데이터를 불러와 코인별 롱/숏 우위를 계산합니다.</div>'
+    : (_aiSignalCache&&_aiSignalCache.rows&&Date.now()-_aiSignalCache.ts<AI_SIGNAL_CACHE_MS)
+      ? renderAiSignalRows(_aiSignalCache.rows)
+      : '<div class="ai-signal-empty">공개 시장 데이터를 분석 중입니다...</div>';
+  el.innerHTML=`
+    <div class="ai-signal-tab-head">
+      <span class="ai-signal-tab-title">AI 빅데이터 롱/숏 추천</span>
+      <div class="ai-signal-tab-actions">
+        ${on?'<button class="ai-signal-smallbtn" onclick="refreshAiSignals()">새로고침</button>':''}
+        <button class="ai-signal-toggle ${on?'on':''}" onclick="toggleAiSignals(${on?'false':'true'})">추천 ${on?'ON':'OFF'}</button>
+        <button class="ai-help-btn" onclick="showAiHelp()" title="지표 설명">?</button>
+      </div>
+    </div>
+    <div class="ai-score-info">
+      <div class="ai-score-bar-wrap">
+        <div class="ai-score-bar"></div>
+        <div class="ai-score-bar-labels"><span>숏 (-100)</span><span>관망 (0)</span><span>롱 (+100)</span></div>
+      </div>
+    </div>
+    <div class="ai-signal-note" style="padding:0 14px 8px;">1H 150개 + 15M 96개 캔들, 24h 등락률, 펀딩비를 기기에서 계산 · 외부 AI 서버·API 키 없음 · 거래량 많은 순 정렬<br>보조 지표이므로 실제 진입 전 손절가와 포지션 크기를 먼저 정하세요.</div>
+    <div id="aiSignalBody" style="padding:0 14px 14px;">${body}</div>`;
+  if(on) ensureAiSignalData();
+}
 
 window.aiConsent = function(agree){
   S.aiConsent = agree; save(); renderAiAnalysis();
@@ -2669,8 +2767,8 @@ function renderAiAnalysis(){
     el.innerHTML=`<div class="ai-consent">
       <div class="ai-consent-icon">🤖</div>
       <div class="ai-consent-title">AI 트레이딩 분석</div>
-      <div class="ai-consent-desc">${declined?'AI 분석 기능 동의를 철회했습니다.<br>다시 동의하면 트레이딩 스타일 진단, 수익/손실 원인 분석, 코인별 롱/숏 추천을 받을 수 있습니다.':'본인의 거래 데이터와 공개 시장 데이터를 분석해<br>트레이딩 스타일 진단·코인별 롱/숏 추천을 제공합니다.'}</div>
-      <div class="ai-consent-note">🔒 <b>데이터 프라이버시</b><br>계정·거래 데이터는 외부로 전송하지 않습니다.<br>코인별 추천은 Binance 공개 시세만 조회해<br>본인 기기에서 계산하며, 언제든지 동의를 철회할 수 있습니다.</div>
+      <div class="ai-consent-desc">${declined?'AI 분석 기능 동의를 철회했습니다.<br>다시 동의하면 트레이딩 스타일 진단과 수익/손실 원인 분석을 받을 수 있습니다.':'본인의 거래 데이터를 분석해<br>트레이딩 스타일 진단·수익/손실 원인 분석·개선 추천을 제공합니다.<br><span style="font-size:10.5px;opacity:.75;">(코인별 롱/숏 추천은 동의 없이 [📈 롱/숏 추천] 탭에서 이용하세요)</span>'}</div>
+      <div class="ai-consent-note">🔒 <b>데이터 프라이버시</b><br>거래 데이터는 외부로 전송하지 않으며<br>본인 기기에서만 계산됩니다. 언제든지 동의를 철회할 수 있습니다.</div>
       <div class="ai-consent-btns">
         <button class="ai-btn-agree" onclick="aiConsent(true)">동의하고 분석 받기</button>
         ${!declined?`<button class="ai-btn-decline" onclick="aiConsent(false)">거절</button>`:`<button class="ai-btn-decline" onclick="aiConsent(false)">거절 유지</button>`}
@@ -2681,7 +2779,6 @@ function renderAiAnalysis(){
 
   const st=calcAiStats();
   let html=`<div class="ai-refresh"><button class="ai-refresh-btn" onclick="renderAiAnalysis()">↻ 새로고침</button></div>`;
-  html+=renderAiSignalSection();
   if(st.total<5){
     html+=`<div class="ai-not-enough">
       <div style="font-size:32px;margin-bottom:12px;">📊</div>
@@ -2691,7 +2788,6 @@ function renderAiAnalysis(){
       <div class="ai-revoke"><button onclick="aiConsent(false)">AI 분석 동의 철회</button></div>
     </div>`;
     el.innerHTML=html;
-    if(S.aiSignalOn===true) ensureAiSignalData();
     return;
   }
 
@@ -2758,7 +2854,6 @@ function renderAiAnalysis(){
   html+=`<div class="ai-revoke"><button onclick="aiConsent(false)">AI 분석 동의 철회</button></div>`;
 
   el.innerHTML=html;
-  if(S.aiSignalOn===true) ensureAiSignalData();
 }
 
 function showLiqModal(lost, sym){
@@ -4414,8 +4509,9 @@ function bindUI(){
   document.querySelectorAll(".tabbtn").forEach(b=>{
     b.onclick = ()=>{
       document.querySelectorAll(".tabbtn").forEach(x=>x.classList.remove("active")); b.classList.add("active");
-      ["pos","ord","hist","ai"].forEach(t=>document.getElementById("tab-"+t).style.display=(t===b.dataset.tab?"block":"none"));
+      ["pos","ord","hist","signal","ai"].forEach(t=>document.getElementById("tab-"+t).style.display=(t===b.dataset.tab?"block":"none"));
       if(b.dataset.tab==="ai") renderAiAnalysis();
+      if(b.dataset.tab==="signal") renderAiSignal();
     };
   });
 
