@@ -1,0 +1,11 @@
+﻿{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "btc-sim",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "7823", "--directory", "C:\\\\Users\\\\user\\\\Desktop\\\\btc-futures-sim"],
+      "port": 7823
+    }
+  ]
+}

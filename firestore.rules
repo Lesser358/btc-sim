@@ -1,0 +1,79 @@
+rules_version = '2';
+
+// ============================================================================
+// BTC 선물 모의투자 — Firestore 보안 규칙
+// ----------------------------------------------------------------------------
+// 적용 방법:
+//   1) Firebase 콘솔 → Firestore Database → "규칙(Rules)" 탭
+//   2) 아래 내용을 통째로 붙여넣고 "게시(Publish)"
+//   (또는 Firebase CLI: `firebase deploy --only firestore:rules`)
+//
+// 관리자 만들기(최초 1회, 소유자 수동):
+//   Firebase 콘솔 → Firestore → users → (본인 uid 문서) → role 필드를 'admin'으로 변경.
+//   ※ 클라이언트는 role을 절대 바꿀 수 없도록 아래 규칙이 막는다(권한 상승 차단).
+//   ※ C단계에서 커스텀 클레임으로 고도화 예정.
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+
+    // 관리자 판정: 요청자 본인의 users 문서 role == 'admin'.
+    // role은 create 시 'user' 강제 + update 시 변경 금지라 위조 불가 → 신뢰 가능.
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ── 사용자 프로필 ──────────────────────────────────────────────
+    match /users/{uid} {
+      // 열람: 본인 문서, 또는 관리자(관리자 패널 전체 목록)
+      allow read: if isOwner(uid) || isAdmin();
+
+      // 가입: 본인 문서만 생성, role은 반드시 'user'(자가 관리자화 차단), 허용 필드만
+      allow create: if isOwner(uid)
+        && request.resource.data.role == 'user'
+        && request.resource.data.username is string
+        && request.resource.data.keys().hasOnly(['username','nickname','bio','avatar','role','createdAt']);
+
+      // 수정: 본인만. role·username·createdAt 변경 금지(★권한 상승 차단). nickname/bio/avatar만 변경 가능.
+      //   avatar(퍼스나콘)는 선택 필드 — 있으면 문자열·60KB 이하(문서 용량 남용 방지). 클라는 base64 이미지 data URI만 저장.
+      allow update: if isOwner(uid)
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.username == resource.data.username
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.nickname is string && request.resource.data.nickname.size() <= 20
+        && request.resource.data.bio is string && request.resource.data.bio.size() <= 100
+        && (!('avatar' in request.resource.data) || (request.resource.data.avatar is string && request.resource.data.avatar.size() <= 60000));
+
+      // 삭제: 관리자만(관리자 패널 회원 삭제)
+      allow delete: if isAdmin();
+
+      // 클라우드 동기화(거래 상태 + 그림) 서브컬렉션
+      match /data/{docId} {
+        allow read, write: if isOwner(uid);
+        allow delete: if isOwner(uid) || isAdmin();   // 관리자 회원 삭제 시 상태도 함께 제거
+      }
+    }
+
+    // ── 랭킹(리더보드) ────────────────────────────────────────────
+    match /rankings/{uid} {
+      // 리더보드는 공개(게스트 포함). 닉네임·손익은 본래 공개 정보.
+      allow read: if true;
+
+      // 본인 문서만 작성 가능(보안 경계). 필드 제약은 두지 않음 — 출력은 escHtml로 이스케이프되고,
+      // 본인 문서라 깨질 위험만 키우므로. ⚠️ 클라가 자기 수치를 직접 쓰므로 '위조' 가능(가짜 1위).
+      //    완전한 무결성은 서버(Cloud Functions) 집계 필요 — 중간 우선순위 개선 항목.
+      allow create, update: if isOwner(uid);
+      allow delete: if isOwner(uid) || isAdmin();
+    }
+
+    // ── 그 외 모든 경로: 기본 차단(명시되지 않은 접근 거부) ──
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
