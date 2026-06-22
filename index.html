@@ -442,10 +442,31 @@
   .adm-avatar-ph{display:flex;align-items:center;justify-content:center;font-size:12px;}
 
   /* ===== 네비게이션 바 ===== */
-  #navBar{background:var(--panel2);border-bottom:1px solid var(--line);padding:0 16px;display:flex;align-items:center;gap:2px;height:34px;}
-  #navBar button{background:transparent;border:none;border-bottom:2px solid transparent;color:var(--muted);padding:0 12px;height:34px;font-size:12px;font-weight:600;cursor:pointer;transition:color .15s;}
-  #navBar button:hover{color:var(--text);}
-  #navBar .nb-active{color:var(--yellow);border-bottom-color:var(--yellow);}
+  /* ===== 상단 네비게이션 ===== */
+  #topNav{background:var(--panel);border-bottom:1px solid var(--line);padding:0 12px;display:flex;align-items:center;height:46px;position:sticky;top:0;z-index:500;gap:0;}
+  #topNavLogo{font-size:13px;font-weight:900;color:var(--yellow);margin-right:20px;white-space:nowrap;flex-shrink:0;letter-spacing:-.3px;user-select:none;}
+  #topNavItems{display:flex;align-items:stretch;list-style:none;margin:0;padding:0;gap:0;flex:1;overflow-x:auto;scrollbar-width:none;}
+  #topNavItems::-webkit-scrollbar{display:none;}
+  .tn-item{position:relative;display:flex;align-items:center;flex-shrink:0;}
+  .tn-item>span{padding:0 13px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;user-select:none;transition:color .15s;height:46px;display:flex;align-items:center;gap:3px;}
+  .tn-item>span:hover,.tn-item.tn-open>span{color:var(--text);}
+  .tn-item.nb-active>span{color:var(--yellow);}
+  .tn-dd-wrap{position:absolute;top:100%;left:0;padding-top:4px;z-index:1000;display:none;}
+  .tn-item.tn-open .tn-dd-wrap{display:block;}
+  .tn-dd{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 0;min-width:190px;box-shadow:0 8px 28px rgba(0,0,0,.55);}
+  .tn-dd-item{padding:9px 16px;font-size:12.5px;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;gap:2px;transition:background .1s,color .1s;}
+  .tn-dd-item:hover{background:var(--panel2);color:var(--text);}
+  .tn-dd-item span{font-size:10.5px;color:var(--muted);opacity:.7;}
+  .tn-dd-sep{border-top:1px solid var(--line);margin:4px 0;}
+  @media(max-width:520px){
+    #topNavLogo{font-size:12px;margin-right:10px;}
+    .tn-item>span{padding:0 9px;font-size:12px;}
+  }
+  /* 신호 스캐너 스타일 탭 */
+  .ai-style-tabs{display:flex;gap:6px;padding:10px 14px 0;}
+  .ai-style-btn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:700;cursor:pointer;transition:all .12s;}
+  .ai-style-btn.active{background:rgba(240,185,11,.13);border-color:var(--yellow);color:var(--yellow);}
+  .ai-style-btn:hover:not(.active){border-color:var(--muted);color:var(--text);}
 
   /* ===== 사용설명서 모달 ===== */
   #manualOverlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:5000;display:none;align-items:center;justify-content:center;}
@@ -857,6 +878,34 @@
 
 
 
+<nav id="topNav">
+  <div id="topNavLogo">🚀 선물 모의투자</div>
+  <ul id="topNavItems">
+    <li class="tn-item tn-has-dd" id="tnSignalItem">
+      <span id="tnSignalLbl">📡 신호 스캐너 <small>▾</small></span>
+      <div class="tn-dd-wrap"><div class="tn-dd">
+        <div class="tn-dd-item" onclick="openSignalStyle('scalp')">⚡ 단타 <span>5m/15m · 빠른 진출입</span></div>
+        <div class="tn-dd-item" onclick="openSignalStyle('swing')">📈 스윙 <span>1H/4H · 수시간~수일</span></div>
+        <div class="tn-dd-item" onclick="openSignalStyle('mid')">🏔️ 중기 <span>4H/1D · 수일~수주</span></div>
+      </div></div>
+    </li>
+    <li class="tn-item" id="navRankBtn" onclick="showRankPage()">
+      <span>🏆 랭킹</span>
+    </li>
+    <li class="tn-item" id="tnAiItem" onclick="openAiTab()">
+      <span>🤖 내 분석</span>
+    </li>
+    <li class="tn-item tn-has-dd" id="navManualBtn">
+      <span id="tnHelpLbl">도움말 <small>▾</small></span>
+      <div class="tn-dd-wrap"><div class="tn-dd">
+        <div class="tn-dd-item" onclick="closeTopNavDD();openManual()">📖 사용설명서</div>
+        <div class="tn-dd-sep"></div>
+        <div class="tn-dd-item" onclick="closeTopNavDD();showAiHelp()">❓ 지표 설명</div>
+      </div></div>
+    </li>
+  </ul>
+</nav>
+
 <header>
   <div class="sym" style="display:flex;align-items:center;">
     <img id="symIcon" src="" alt="" onerror="this.style.display='none';document.getElementById('symIconFb').style.display='inline-flex'">
@@ -877,11 +926,6 @@
   </div>
   <div id="conn" class="wait">● 연결 중...</div>
 </header>
-
-<nav id="navBar">
-  <button onclick="openManual()" id="navManualBtn">📖 사용설명서</button>
-  <button onclick="showRankPage()" id="navRankBtn">🏆 랭킹</button>
-</nav>
 
 <main>
   <!-- ===== LEFT: chart + tables ===== -->
@@ -932,7 +976,7 @@
         <button class="tabbtn active" data-tab="pos">포지션</button>
         <button class="tabbtn" data-tab="ord">미체결 주문</button>
         <button class="tabbtn" data-tab="hist">거래 내역</button>
-        <button class="tabbtn" data-tab="signal">📈 롱/숏 추천</button>
+        <button class="tabbtn" data-tab="signal">📡 신호 스캐너</button>
         <button class="tabbtn" data-tab="ai">🤖 AI 분석</button>
       </div>
       <div id="tab-pos"></div>
@@ -1328,6 +1372,7 @@ const defaultState = () => ({
   alarms: { hmaProximity: { on: false, dist: 200, dir: 'both', count: 1 }, volume: 70 },
   aiConsent: null,
   aiSignalOn: false,
+  signalStyle: 'swing',
 });
 let S = loadState();
 
@@ -2509,6 +2554,93 @@ async function _aiFetchJson(url){
   return await r.json();
 }
 
+/* ===== 신호 스캐너 매매 스타일 설정 ===== */
+const SIGNAL_STYLE_CFG = {
+  scalp: {
+    label:'단타', iv1:'15m',lim1:100, iv2:'5m',lim2:100,
+    emaFast:9,emaSlow:21, mom1BarsBack:4,mom2BarsBack:8,
+    rsiPrd:14,atrPrd:14, volRecentN:3,volBaseN:15,
+    rsiHigh:72,rsiLow:28,
+    wTrend:10,wMom1:10,wMom2:8,wChg24:1.0,wRsi:6,wFund:80,wVol:6,atrWarnPct:3.5,
+    minBars1:40,minBars2:20,
+    tip:'단타 — 1~15분 내 목표가·SL 설정 권장, 수수료 고려 필수'
+  },
+  swing: {
+    label:'스윙', iv1:'1h',lim1:150, iv2:'15m',lim2:96,
+    emaFast:20,emaSlow:50, mom1BarsBack:5,mom2BarsBack:9,
+    rsiPrd:14,atrPrd:14, volRecentN:12,volBaseN:48,
+    rsiHigh:74,rsiLow:26,
+    wTrend:15,wMom1:8,wMom2:6,wChg24:1.2,wRsi:8,wFund:140,wVol:8,atrWarnPct:4.8,
+    minBars1:60,minBars2:20,
+    tip:'스윙 — 수시간~수일 보유, 1H ATR 기준 SL 설정'
+  },
+  mid: {
+    label:'중기', iv1:'4h',lim1:120, iv2:'1d',lim2:60,
+    emaFast:20,emaSlow:50, mom1BarsBack:6,mom2BarsBack:14,
+    rsiPrd:14,atrPrd:14, volRecentN:6,volBaseN:30,
+    rsiHigh:74,rsiLow:26,
+    wTrend:22,wMom1:5,wMom2:4,wChg24:0.8,wRsi:6,wFund:100,wVol:5,atrWarnPct:7.0,
+    minBars1:60,minBars2:10,
+    tip:'중기 — 수일~수주 보유, 4H ATR 기준 넓은 SL 권장'
+  },
+};
+
+function calcAiMarketSignalStyled(sym,h1,h2,ticker,premium,cfg){
+  const fail={sym,type:'wait',label:'관망',score:0,confidence:0,reason:'시장 데이터가 부족합니다.',metrics:'-',risk:'잠시 후 새로고침',volume24h:0};
+  if(!h1||h1.length<cfg.minBars1||!h2||h2.length<cfg.minBars2) return fail;
+  const close=h1[h1.length-1].close;
+  const prevMom1=h1[Math.max(0,h1.length-1-cfg.mom1BarsBack)].close;
+  const prevMom2=h1[Math.max(0,h1.length-1-cfg.mom2BarsBack)].close;
+  const emaFast=_aiLastVal(calcEMA(h1,cfg.emaFast));
+  const emaSlow=_aiLastVal(calcEMA(h1,cfg.emaSlow));
+  const rsi=_aiLastVal(calcRSI(h1,cfg.rsiPrd))??50;
+  const atr=_aiLastVal(calcATR(h1,cfg.atrPrd))||close*0.02;
+  if(!(close>0)||!(emaFast>0)||!(emaSlow>0)) return fail;
+  const trendPct=(emaFast/emaSlow-1)*100;
+  const mom1=prevMom1>0?(close/prevMom1-1)*100:0;
+  const mom2=prevMom2>0?(close/prevMom2-1)*100:0;
+  const change24=ticker?.priceChangePercent!=null?+ticker.priceChangePercent:0;
+  const fundingPct=premium?.lastFundingRate!=null?+premium.lastFundingRate*100:0;
+  const recentVol=_aiAvg(h1.slice(-cfg.volRecentN).map(c=>c.volume));
+  const baseVol=_aiAvg(h1.slice(-cfg.volBaseN,-cfg.volRecentN).map(c=>c.volume))||recentVol||1;
+  const volRel=recentVol/baseVol;
+  const atrPct=atr/close*100;
+  let raw=0;
+  raw+=_aiClamp(trendPct*cfg.wTrend,-28,28);
+  raw+=_aiClamp(mom1*cfg.wMom1,-24,24);
+  raw+=_aiClamp(mom2*cfg.wMom2,-18,18);
+  raw+=_aiClamp(change24*cfg.wChg24,-14,14);
+  if(rsi>=cfg.rsiHigh) raw-=cfg.wRsi;
+  else if(rsi<=cfg.rsiLow) raw+=cfg.wRsi;
+  else if(rsi>=62&&trendPct>0) raw+=Math.round(cfg.wRsi*0.6);
+  else if(rsi<=38&&trendPct<0) raw-=Math.round(cfg.wRsi*0.6);
+  raw-=_aiClamp(fundingPct*cfg.wFund,-10,10);
+  const signBase=raw||mom1||change24;
+  if(volRel>1.25&&signBase) raw+=Math.sign(signBase)*Math.min(cfg.wVol,(volRel-1)*cfg.wVol);
+  if(atrPct>cfg.atrWarnPct) raw*=0.85;
+  const type=raw>=10?'long':raw<=-10?'short':'wait';
+  const label=type==='long'?'롱 우위':type==='short'?'숏 우위':'관망';
+  const confidence=type==='wait'
+    ?Math.max(30,Math.round(55-Math.min(20,Math.abs(raw))))
+    :Math.min(95,Math.round(52+Math.abs(raw)*1.15));
+  const reasons=[];
+  if(Math.abs(trendPct)>0.15) reasons.push(`EMA ${trendPct>0?'상승':'하락'} 추세`);
+  if(Math.abs(mom1)>0.35) reasons.push(`모멘텀 ${mom1>0?'강세':'약세'}`);
+  if(volRel>1.25) reasons.push(`거래량 ${fmt(volRel,1)}배 증가`);
+  if(fundingPct>0.04) reasons.push('롱 과열 펀딩');
+  else if(fundingPct<-0.02) reasons.push('숏 과열 펀딩');
+  if(rsi>=cfg.rsiHigh) reasons.push('RSI 과열');
+  else if(rsi<=cfg.rsiLow) reasons.push('RSI 과매도');
+  if(!reasons.length) reasons.push(type==='wait'?'추세와 모멘텀이 엇갈림':`${_symShort(sym)} 단기 ${type==='long'?'롱':'숏'} 우위`);
+  const volume24h=ticker?.quoteVolume?+ticker.quoteVolume:0;
+  return{
+    sym,type,label,score:Math.round(raw),confidence,volume24h,
+    reason:reasons.slice(0,3).join(' · '),
+    metrics:`24h ${fmt(change24,1)}% · RSI ${fmt(rsi,0)} · 펀딩 ${fmt(fundingPct,3)}% · ATR ${fmt(atrPct,2)}%`,
+    risk:type==='wait'?'방향성 확인 전까지 관망':cfg.tip
+  };
+}
+
 function calcAiMarketSignal(sym,h1,m15,ticker,premium){
   const coin=_symShort(sym);
   const fail={sym,type:'wait',label:'관망',score:0,confidence:0,reason:'시장 데이터가 부족합니다.',metrics:'-',risk:'잠시 후 새로고침'};
@@ -2571,6 +2703,8 @@ function calcAiMarketSignal(sym,h1,m15,ticker,premium){
 }
 
 async function loadAiCoinSignals(){
+  const style = S.signalStyle||'swing';
+  const cfg = SIGNAL_STYLE_CFG[style]||SIGNAL_STYLE_CFG.swing;
   const [tickers,premiums]=await Promise.all([
     _aiFetchJson('https://fapi.binance.com/fapi/v1/ticker/24hr').catch(()=>[]),
     _aiFetchJson('https://fapi.binance.com/fapi/v1/premiumIndex').catch(()=>[]),
@@ -2581,16 +2715,16 @@ async function loadAiCoinSignals(){
   const rows=await Promise.all(_SYM_LIST.map(async sym=>{
     try{
       const up=sym.toUpperCase();
-      const [h1Raw,m15Raw]=await Promise.all([
-        _aiFetchJson(`https://fapi.binance.com/fapi/v1/klines?symbol=${up}&interval=1h&limit=150`),
-        _aiFetchJson(`https://fapi.binance.com/fapi/v1/klines?symbol=${up}&interval=15m&limit=96`),
+      const [h1Raw,h2Raw]=await Promise.all([
+        _aiFetchJson(`https://fapi.binance.com/fapi/v1/klines?symbol=${up}&interval=${cfg.iv1}&limit=${cfg.lim1}`),
+        _aiFetchJson(`https://fapi.binance.com/fapi/v1/klines?symbol=${up}&interval=${cfg.iv2}&limit=${cfg.lim2}`),
       ]);
-      return calcAiMarketSignal(sym,_aiKlines(h1Raw),_aiKlines(m15Raw),tickerMap[sym],premiumMap[sym]);
+      return calcAiMarketSignalStyled(sym,_aiKlines(h1Raw),_aiKlines(h2Raw),tickerMap[sym],premiumMap[sym],cfg);
     }catch(e){
-      return{sym,type:'wait',label:'관망',score:0,confidence:0,reason:'시장 데이터 조회 실패',metrics:'-',risk:'잠시 후 새로고침'};
+      return{sym,type:'wait',label:'관망',score:0,confidence:0,reason:'시장 데이터 조회 실패',metrics:'-',risk:'잠시 후 새로고침',volume24h:0};
     }
   }));
-  return rows.sort((a,b)=> b.volume24h - a.volume24h);
+  return rows.sort((a,b)=>b.volume24h-a.volume24h);
 }
 
 function renderAiSignalRows(rows){
@@ -2626,23 +2760,25 @@ function updateAiSignalDom(){
 
 function ensureAiSignalData(force=false){
   if(S.aiSignalOn!==true) return;
-  const fresh=_aiSignalCache&&_aiSignalCache.rows&&(Date.now()-_aiSignalCache.ts<AI_SIGNAL_CACHE_MS);
+  const curStyle=S.signalStyle||'swing';
+  const fresh=_aiSignalCache&&_aiSignalCache.rows&&_aiSignalCache.style===curStyle&&(Date.now()-_aiSignalCache.ts<AI_SIGNAL_CACHE_MS);
   if(!force&&fresh){ updateAiSignalDom(); return; }
   if(_aiSignalLoading) return;
   _aiSignalLoading=true;
   const req=++_aiSignalReq;
   const host=document.getElementById('aiSignalBody');
-  if(host) host.innerHTML='<div class="ai-signal-empty">공개 시장 데이터를 분석 중입니다...</div>';
+  const cfg=SIGNAL_STYLE_CFG[curStyle]||SIGNAL_STYLE_CFG.swing;
+  if(host) host.innerHTML=`<div class="ai-signal-empty">${cfg.label} 신호 분석 중입니다...</div>`;
   loadAiCoinSignals().then(rows=>{
     if(req!==_aiSignalReq) return;
     _aiSignalLoading=false;
     if(S.aiSignalOn!==true) return;
-    _aiSignalCache={ts:Date.now(),rows};
+    _aiSignalCache={ts:Date.now(),rows,style:curStyle};
     updateAiSignalDom();
   }).catch(()=>{
     if(req!==_aiSignalReq) return;
     _aiSignalLoading=false;
-    _aiSignalCache={ts:Date.now(),error:true};
+    _aiSignalCache={ts:Date.now(),error:true,style:curStyle};
     updateAiSignalDom();
   });
 }
@@ -2663,6 +2799,28 @@ window.refreshAiSignals=function(){
   if(S.aiSignalOn!==true) return;
   _aiSignalCache=null; _aiSignalLoading=false;
   renderAiSignal();
+};
+window.switchSignalStyle=function(style){
+  if((S.signalStyle||'swing')===style) return;
+  S.signalStyle=style;
+  _aiSignalCache=null; _aiSignalReq++; _aiSignalLoading=false;
+  save();
+  renderAiSignal();
+};
+window.openSignalStyle=function(style){
+  closeTopNavDD();
+  if(style) { S.signalStyle=style; _aiSignalCache=null; _aiSignalReq++; _aiSignalLoading=false; save(); }
+  const signalBtn=[...document.querySelectorAll('.tabbtn')].find(b=>b.dataset.tab==='signal');
+  if(signalBtn) signalBtn.click();
+  else renderAiSignal();
+};
+window.openAiTab=function(){
+  closeTopNavDD();
+  const aiBtn=[...document.querySelectorAll('.tabbtn')].find(b=>b.dataset.tab==='ai');
+  if(aiBtn) aiBtn.click();
+};
+window.closeTopNavDD=function(){
+  document.querySelectorAll('.tn-item.tn-open').forEach(el=>el.classList.remove('tn-open'));
 };
 window.showAiHelp=function(){
   if(document.getElementById('aiHelpOverlay')) return;
@@ -2728,27 +2886,35 @@ function renderAiSignal(){
   const el=document.getElementById('tab-signal');
   if(!el) return;
   const on=S.aiSignalOn===true;
+  const style=S.signalStyle||'swing';
+  const cfg=SIGNAL_STYLE_CFG[style]||SIGNAL_STYLE_CFG.swing;
+  const cacheOk=_aiSignalCache&&_aiSignalCache.rows&&_aiSignalCache.style===style&&(Date.now()-_aiSignalCache.ts<AI_SIGNAL_CACHE_MS);
   const body=!on
-    ? '<div class="ai-signal-empty">OFF 상태입니다. 켜면 Binance 공개 시장 빅데이터를 불러와 코인별 롱/숏 우위를 계산합니다.</div>'
-    : (_aiSignalCache&&_aiSignalCache.rows&&Date.now()-_aiSignalCache.ts<AI_SIGNAL_CACHE_MS)
-      ? renderAiSignalRows(_aiSignalCache.rows)
-      : '<div class="ai-signal-empty">공개 시장 데이터를 분석 중입니다...</div>';
+    ? `<div class="ai-signal-empty">OFF 상태입니다. 켜면 Binance 공개 시장 데이터를 불러와<br>${cfg.label} 매매 스타일 기반으로 코인별 신호를 계산합니다.</div>`
+    : cacheOk ? renderAiSignalRows(_aiSignalCache.rows)
+    : `<div class="ai-signal-empty">${cfg.label} 신호 분석 중입니다...</div>`;
+  const styleDesc={scalp:'5m/15m 캔들 · EMA9/21 · 타이트한 SL',swing:'1H/4H 캔들 · EMA20/50 · ATR 기준 SL',mid:'4H/1D 캔들 · EMA20/50 · 넓은 SL'};
   el.innerHTML=`
     <div class="ai-signal-tab-head">
-      <span class="ai-signal-tab-title">AI 빅데이터 롱/숏 추천</span>
+      <span class="ai-signal-tab-title">📡 AI 신호 스캐너</span>
       <div class="ai-signal-tab-actions">
         ${on?'<button class="ai-signal-smallbtn" onclick="refreshAiSignals()">새로고침</button>':''}
-        <button class="ai-signal-toggle ${on?'on':''}" onclick="toggleAiSignals(${on?'false':'true'})">추천 ${on?'ON':'OFF'}</button>
+        <button class="ai-signal-toggle ${on?'on':''}" onclick="toggleAiSignals(${on?'false':'true'})">스캔 ${on?'ON':'OFF'}</button>
         <button class="ai-help-btn" onclick="showAiHelp()" title="지표 설명">?</button>
       </div>
     </div>
-    <div class="ai-score-info">
+    <div class="ai-style-tabs">
+      <button class="ai-style-btn ${style==='scalp'?'active':''}" onclick="switchSignalStyle('scalp')">⚡ 단타</button>
+      <button class="ai-style-btn ${style==='swing'?'active':''}" onclick="switchSignalStyle('swing')">📈 스윙</button>
+      <button class="ai-style-btn ${style==='mid'?'active':''}" onclick="switchSignalStyle('mid')">🏔️ 중기</button>
+    </div>
+    <div class="ai-signal-note" style="padding:5px 14px 6px;font-size:10px;">${styleDesc[style]} · 거래량 많은 순 정렬 · 외부 AI 없음</div>
+    <div class="ai-score-info" style="margin-top:0;">
       <div class="ai-score-bar-wrap">
         <div class="ai-score-bar"></div>
         <div class="ai-score-bar-labels"><span>숏 (-100)</span><span>관망 (0)</span><span>롱 (+100)</span></div>
       </div>
     </div>
-    <div class="ai-signal-note" style="padding:0 14px 8px;">1H 150개 + 15M 96개 캔들, 24h 등락률, 펀딩비를 기기에서 계산 · 외부 AI 서버·API 키 없음 · 거래량 많은 순 정렬<br>보조 지표이므로 실제 진입 전 손절가와 포지션 크기를 먼저 정하세요.</div>
     <div id="aiSignalBody" style="padding:0 14px 14px;">${body}</div>`;
   if(on) ensureAiSignalData();
 }
@@ -4520,6 +4686,28 @@ function bindUI(){
   renderIntervalSeg();
 
   renderIndicatorChips();
+
+  // ===== 상단 네비게이션 드롭다운 =====
+  (function(){
+    // ▾ 토글 — 클릭 시 해당 li.tn-has-dd 열기/닫기
+    document.querySelectorAll('.tn-has-dd>span').forEach(btn=>{
+      btn.addEventListener('click',function(e){
+        e.stopPropagation();
+        const li=btn.closest('.tn-item');
+        const wasOpen=li.classList.contains('tn-open');
+        document.querySelectorAll('.tn-item.tn-open').forEach(el=>el.classList.remove('tn-open'));
+        if(!wasOpen) li.classList.add('tn-open');
+      });
+    });
+    // 드롭다운 안 클릭은 닫히지 않도록 이벤트 버블 차단
+    document.querySelectorAll('.tn-dd').forEach(dd=>{
+      dd.addEventListener('click',e=>e.stopPropagation());
+    });
+    // 외부 클릭 → 전체 닫기
+    document.addEventListener('click',function(){
+      document.querySelectorAll('.tn-item.tn-open').forEach(el=>el.classList.remove('tn-open'));
+    });
+  })();
 
 }
 
