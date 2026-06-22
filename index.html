@@ -2245,6 +2245,7 @@ let highLowLines=[];                   // 현재 화면 고점/저점 표시선
 let showHighLow = localStorage.getItem('btcSim_showHL') !== 'false';
 let lastKlineSync=0;                   // 마지막 klines 재동기화 시각
 let loadingMore=false, noMoreHistory=false;   // 과거 봉 지연로딩 상태
+let _pendingRestoreRange = null;             // 시간봉 전환 시 이전 가시 범위 복원용
 
 function initChart(){
   const el = document.getElementById('chart');
@@ -2292,11 +2293,27 @@ async function loadHistory(retry=0){
     if(S.indicators) for(const ind of S.indicators) renderIndicator(ind);
     checkOscPane();
     setTimeout(updateHighLow, 100);
-    // RAF에서 한 번 더 autoScale 보장 (LWC가 setData 후 scale을 덮어쓸 수 있음)
-    requestAnimationFrame(()=>{
-      try{ chart.priceScale('right').applyOptions({ autoScale: true }); }catch(e){}
-      try{ candleSeries && candleSeries.priceScale().applyOptions({ autoScale: true }); }catch(e){}
-    });
+    // 시간봉 전환 시 이전 가시 시간 범위 복원 (그리기 채널 등이 화면 밖으로 사라지는 버그 방지)
+    // setVisibleRange 대신 logical 인덱스 기반으로 변환: 새 봉 간격(sec)으로 타임스탬프 → 인덱스
+    if(_pendingRestoreRange && candles.length){
+      const r = _pendingRestoreRange; _pendingRestoreRange = null;
+      const sec = IV_SEC[curInterval] || 60;
+      const lastIdx = candles.length - 1;
+      const lastT = candles[lastIdx].time;
+      const fromLogical = lastIdx + (r.from - lastT) / sec;
+      const toLogical   = lastIdx + (r.to   - lastT) / sec;
+      requestAnimationFrame(()=>{
+        try{ chart.timeScale().setVisibleLogicalRange({ from: fromLogical, to: toLogical }); }catch(e){}
+        try{ chart.priceScale('right').applyOptions({ autoScale: true }); }catch(e){}
+        try{ candleSeries && candleSeries.priceScale().applyOptions({ autoScale: true }); }catch(e){}
+      });
+    } else {
+      // RAF에서 한 번 더 autoScale 보장 (LWC가 setData 후 scale을 덮어쓸 수 있음)
+      requestAnimationFrame(()=>{
+        try{ chart.priceScale('right').applyOptions({ autoScale: true }); }catch(e){}
+        try{ candleSeries && candleSeries.priceScale().applyOptions({ autoScale: true }); }catch(e){}
+      });
+    }
     _setChartMsg('');                           // 성공 시 메시지 제거
   }catch(e){
     if(ver !== _loadHistVer) return; // 구버전 요청 실패는 무시
@@ -2990,6 +3007,8 @@ function renderIntervalSeg(){
 
 window.selectIv = function(iv){
   if(iv === curInterval) return;
+  // 전환 전 현재 가시 시간 범위 저장 → loadHistory 완료 후 동일 시간대 복원 (그리기 도구 유지)
+  try{ _pendingRestoreRange = chart.timeScale().getVisibleRange(); }catch(e){ _pendingRestoreRange = null; }
   curInterval = iv; S.interval = iv; save();
   hmaZoneState = null; alarmFiredCount = 0; _hmaPrevSide = null;
   renderIntervalSeg();
@@ -3987,7 +4006,8 @@ function renderShape(d, pw, ph, sel){
     const dx=x1-x0, dy=y1-y0, len=Math.hypot(dx,dy); if(len<1) return;
     const nx=-dy/len, ny=dx/len;
     const cross=(( x2-x0)*dy-(y2-y0)*dx)/len;
-    const EXT=pw*3;
+    // 두 점이 모두 화면 밖(왼쪽)에 있어도 채널이 보이도록 EXT를 동적으로 결정
+    const EXT=Math.max(pw*3, Math.abs(x0)+pw*2, Math.abs(x1)+pw*2);
     const dirX=dx/len, dirY=dy/len;
     // 기준선 (연장)
     const a0x=x0-dirX*EXT, a0y=y0-dirY*EXT, a1x=x0+dirX*EXT, a1y=y0+dirY*EXT;
