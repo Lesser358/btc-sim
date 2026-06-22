@@ -95,15 +95,29 @@
   .iv-dd-star{padding:7px 12px;font-size:13px;cursor:pointer;color:var(--muted);user-select:none;}
   .iv-dd-star:hover{color:var(--yellow);}
   .iv-dd-star.starred{color:var(--yellow);}
-  .iv-fav-ctrl{border-top:1px solid var(--line);padding:8px 12px;display:flex;align-items:center;gap:8px;}
-  .iv-fav-ctrl span{font-size:11px;color:var(--muted);}
-  .iv-fav-btn{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:3px;
-    width:22px;height:22px;cursor:pointer;font-size:14px;padding:0;display:flex;align-items:center;justify-content:center;}
-  .iv-fav-btn:hover{color:var(--text);}
-  #ivFavCountLbl{font-size:12px;color:var(--text);min-width:18px;text-align:center;font-weight:700;}
-  .iv-fav-edit-btn{margin-left:auto;background:none;border:1px solid var(--line);color:var(--muted);border-radius:3px;
+  .iv-fav-ctrl{border-top:1px solid var(--line);padding:8px 12px;display:flex;align-items:center;}
+  .iv-fav-edit-btn{background:none;border:1px solid var(--line);color:var(--muted);border-radius:3px;
     font-size:11px;padding:2px 7px;cursor:pointer;white-space:nowrap;}
   .iv-fav-edit-btn:hover{color:var(--text);border-color:var(--text);}
+  /* H/L 고점저점 토글 */
+  #hlToggleBtn{background:transparent;border:1px solid var(--line);color:var(--muted);
+    padding:4px 8px;border-radius:5px;font-size:11px;}
+  #hlToggleBtn.on{color:var(--yellow);border-color:var(--yellow);}
+  /* 날짜 이동 */
+  #dateJumpBtn{background:transparent;border:1px solid var(--line);color:var(--muted);
+    padding:4px 8px;border-radius:5px;font-size:11px;}
+  #dateJumpPanel{display:none;position:fixed;z-index:600;background:var(--panel);
+    border:1px solid var(--line);border-radius:8px;padding:12px;box-shadow:0 4px 20px #0008;
+    flex-direction:column;gap:8px;min-width:260px;}
+  #dateJumpPanel.show{display:flex;}
+  .dj-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .dj-sel{background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:4px;padding:4px 6px;font-size:12px;cursor:pointer;}
+  .dj-go{background:var(--yellow);border:none;color:#000;font-weight:700;
+    border-radius:4px;padding:5px 14px;font-size:12px;cursor:pointer;}
+  /* 지표 모달 — 추가됨 표시 */
+  .ind-item.ind-item-added{color:var(--yellow);border-color:rgba(240,185,11,.4);}
+  .ind-item.ind-item-added::after{content:' ✓';font-size:10px;}
   #ivFavEditModal{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;
     background:rgba(0,0,0,.55);}
   #ivFavEditModal.open{display:flex;}
@@ -780,6 +794,8 @@
       <div style="display:flex;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;">
         <button id="soundBtn" class="on" title="소리 알림 켜기/끄기">소리 ON</button>
 <div class="ivseg" id="intervalSeg"><!-- renderIntervalSeg()로 동적 생성 --></div>
+        <button id="hlToggleBtn" class="on" onclick="toggleHighLow()" title="차트 고점/저점 표시 ON/OFF">H/L</button>
+        <button id="dateJumpBtn" onclick="toggleDateJump()" title="날짜로 이동">📅 날짜</button>
         <button id="addIndBtn" onclick="openIndModal()">지표+</button>
         <button id="alarmBtn" onclick="toggleAlarmPanel()">알람</button>
       </div>
@@ -790,6 +806,7 @@
         <div id="spFields"></div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
           <button class="closebtn go" onclick="applyIndSettings()">적용</button>
+          <button class="closebtn" onclick="resetIndSettings()" title="기본값으로 초기화">초기화</button>
           <button class="closebtn" onclick="removeIndicator(settingsInd&&settingsInd.id)">삭제</button>
           <button onclick="closeIndSettings()" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;line-height:1;padding:0 4px;">×</button>
         </div>
@@ -1000,6 +1017,9 @@
   </div>
 </div>
 
+<!-- 날짜 이동 패널 (fixed 위치) -->
+<div id="dateJumpPanel"></div>
+
 <!-- 지표 검색 모달 -->
 <div class="modal" id="indModal">
   <div class="indModalBox">
@@ -1014,31 +1034,31 @@
       <div class="ind-group" data-group="기타">
         <div class="ind-group-title">기타</div>
         <div class="ind-items">
-          <button class="ind-item" data-name="거래량 Volume" onclick="addIndicator('vol')">거래량 (Volume)</button>
+          <button class="ind-item" data-name="거래량 Volume" data-type="vol" onclick="addIndicator('vol')">거래량 (Volume)</button>
         </div>
       </div>
       <div class="ind-group" data-group="이동평균">
         <div class="ind-group-title">이동평균</div>
         <div class="ind-items">
-          <button class="ind-item" data-name="SMA 단순이동평균" onclick="addIndicator('sma')">SMA</button>
-          <button class="ind-item" data-name="EMA 지수이동평균" onclick="addIndicator('ema')">EMA</button>
-          <button class="ind-item" data-name="WMA 가중이동평균" onclick="addIndicator('wma')">WMA</button>
-          <button class="ind-item" data-name="Hull MA 헐이동평균" onclick="addIndicator('hma')">Hull MA</button>
+          <button class="ind-item" data-name="SMA 단순이동평균" data-type="sma" onclick="addIndicator('sma')">SMA</button>
+          <button class="ind-item" data-name="EMA 지수이동평균" data-type="ema" onclick="addIndicator('ema')">EMA</button>
+          <button class="ind-item" data-name="WMA 가중이동평균" data-type="wma" onclick="addIndicator('wma')">WMA</button>
+          <button class="ind-item" data-name="Hull MA 헐이동평균" data-type="hma" onclick="addIndicator('hma')">Hull MA</button>
         </div>
       </div>
       <div class="ind-group" data-group="밴드">
         <div class="ind-group-title">밴드 / 채널</div>
         <div class="ind-items">
-          <button class="ind-item" data-name="BB 볼린저밴드 Bollinger Bands" onclick="addIndicator('bb')">볼린저밴드 (BB)</button>
+          <button class="ind-item" data-name="BB 볼린저밴드 Bollinger Bands" data-type="bb" onclick="addIndicator('bb')">볼린저밴드 (BB)</button>
         </div>
       </div>
       <div class="ind-group" data-group="오실레이터">
         <div class="ind-group-title">오실레이터</div>
         <div class="ind-items">
-          <button class="ind-item" data-name="RSI 상대강도지수" onclick="addIndicator('rsi')">RSI</button>
-          <button class="ind-item" data-name="MACD" onclick="addIndicator('macd')">MACD</button>
-          <button class="ind-item" data-name="Stoch 스토캐스틱" onclick="addIndicator('stoch')">스토캐스틱</button>
-          <button class="ind-item" data-name="ATR 평균진폭" onclick="addIndicator('atr')">ATR</button>
+          <button class="ind-item" data-name="RSI 상대강도지수" data-type="rsi" onclick="addIndicator('rsi')">RSI</button>
+          <button class="ind-item" data-name="MACD" data-type="macd" onclick="addIndicator('macd')">MACD</button>
+          <button class="ind-item" data-name="Stoch 스토캐스틱" data-type="stoch" onclick="addIndicator('stoch')">스토캐스틱</button>
+          <button class="ind-item" data-name="ATR 평균진폭" data-type="atr" onclick="addIndicator('atr')">ATR</button>
         </div>
       </div>
     </div>
@@ -2222,6 +2242,7 @@ let curInterval = S.interval || '1m';
 let priceLines=[];                     // 차트 가격선(진입/청산/TP/SL/지정가)
 let tpPriceLine=null, slPriceLine=null; // TP/SL 드래그용 ref
 let highLowLines=[];                   // 현재 화면 고점/저점 표시선
+let showHighLow = localStorage.getItem('btcSim_showHL') !== 'false';
 let lastKlineSync=0;                   // 마지막 klines 재동기화 시각
 let loadingMore=false, noMoreHistory=false;   // 과거 봉 지연로딩 상태
 
@@ -2652,7 +2673,16 @@ function renderIndicatorChips(){
 }
 
 /* ---- 모달 / 검색 ---- */
-window.openIndModal=function(){ document.getElementById('indModal').classList.add('show'); };
+window.openIndModal=function(){
+  document.getElementById('indModal').classList.add('show');
+  _updateIndModalAdded();
+};
+function _updateIndModalAdded(){
+  const addedTypes = new Set(S.indicators.map(i=>i.type));
+  document.querySelectorAll('.ind-item[data-type]').forEach(btn=>{
+    btn.classList.toggle('ind-item-added', addedTypes.has(btn.dataset.type));
+  });
+}
 window.closeIndModal=function(){
   document.getElementById('indModal').classList.remove('show');
   const s=document.getElementById('indSearch'); if(s){s.value='';} filterIndSearch();
@@ -2671,6 +2701,18 @@ window.addIndicator=function(type){
   checkOscPane(); // 먼저 패널 표시 → getOscChart()가 정상 크기로 생성됨
   renderIndicator(ind); renderIndicatorChips();
   closeIndModal(); openIndSettings(ind.id);
+};
+window.resetIndSettings = function(){
+  if(!settingsInd) return;
+  const def = INDICATOR_DEFS.find(d=>d.type===settingsInd.type);
+  if(!def) return;
+  settingsInd.params = {...def.defaults};
+  if(S.indDefaults) delete S.indDefaults[settingsInd.type];
+  save();
+  renderIndicator(settingsInd);
+  renderIndicatorChips();
+  renderSettingsPanel();
+  toast(def.name+' 기본값으로 초기화됨');
 };
 window.removeIndicator=function(id){
   if(!id) return;
@@ -2924,23 +2966,21 @@ const IV_ALL = ['1m','3m','5m','15m','30m','1h','2h','4h','6h','8h','12h','1d','
 const IV_LABEL = {'1m':'1분','3m':'3분','5m':'5분','15m':'15분','30m':'30분','1h':'1시간','2h':'2시간','4h':'4시간','6h':'6시간','8h':'8시간','12h':'12시간','1d':'1일','3d':'3일','1w':'1주','1M':'1월'};
 
 let ivFavs = ['1m','5m','15m','1h','4h'];
-let ivFavCount = 5;
 
 function _loadIvFavs(){
   try{
     const s = localStorage.getItem('btcSim_ivFavs');
-    if(s){ const d=JSON.parse(s); if(d.favs) ivFavs=d.favs; if(d.count) ivFavCount=d.count; }
+    if(s){ const d=JSON.parse(s); if(d.favs) ivFavs=d.favs; }
   }catch(e){}
 }
 function _saveIvFavs(){
-  try{ localStorage.setItem('btcSim_ivFavs', JSON.stringify({favs:ivFavs, count:ivFavCount})); }catch(e){}
+  try{ localStorage.setItem('btcSim_ivFavs', JSON.stringify({favs:ivFavs})); }catch(e){}
 }
 
 function renderIntervalSeg(){
   const seg = document.getElementById('intervalSeg');
   if(!seg) return;
-  const visible = ivFavs.slice(0, ivFavCount);
-  const favBtns = visible.map(iv =>
+  const favBtns = ivFavs.map(iv =>
     `<button data-iv="${iv}" class="${iv===curInterval?'active':''}" onclick="selectIv('${iv}')">` +
     `${IV_LABEL[iv]||iv}<span class="iv-cd">${iv===curInterval?fmtCountdown(iv):''}</span></button>`
   ).join('');
@@ -2983,10 +3023,6 @@ window.toggleIvDropdown = function(){
     `</div>`
   ).join('') +
   `<div class="iv-fav-ctrl">` +
-  `<span>즐겨찾기 수</span>` +
-  `<button class="iv-fav-btn" onclick="event.stopPropagation();changeIvFavCount(-1)">−</button>` +
-  `<span id="ivFavCountLbl">${ivFavCount}</span>` +
-  `<button class="iv-fav-btn" onclick="event.stopPropagation();changeIvFavCount(1)">+</button>` +
   `<button class="iv-fav-edit-btn" onclick="event.stopPropagation();showIvFavEdit()">✏️ 편집</button>` +
   `</div>`;
   // 위치 결정
@@ -3009,10 +3045,6 @@ window.toggleIvFav = function(iv){
     if(ivFavs.length <= 1){ toast('즐겨찾기는 최소 1개 이상이어야 합니다.'); return; }
     ivFavs.splice(idx, 1);
   } else {
-    if(ivFavs.length >= ivFavCount){
-      toast(`즐겨찾기가 가득 찼습니다 (${ivFavCount}개). ＋ 버튼으로 갯수를 늘려주세요.`);
-      return;
-    }
     ivFavs.push(iv);
     ivFavs.sort((a,b) => IV_ALL.indexOf(a) - IV_ALL.indexOf(b));
   }
@@ -3029,13 +3061,6 @@ window.toggleIvFav = function(iv){
   }
 };
 
-window.changeIvFavCount = function(delta){
-  ivFavCount = Math.max(1, Math.min(10, ivFavCount + delta));
-  _saveIvFavs();
-  const el = document.getElementById('ivFavCountLbl');
-  if(el) el.textContent = ivFavCount;
-  renderIntervalSeg();
-};
 
 window.showIvFavEdit = function(){
   // 드롭다운 닫기
@@ -3403,7 +3428,7 @@ window.cancelTslDrag=function(){ _tslCancel(); };
 function updateHighLow(){
   highLowLines.forEach(l=>{ try{ candleSeries.removePriceLine(l); }catch(e){} });
   highLowLines=[];
-  if(!candleSeries || !candles.length) return;
+  if(!showHighLow || !candleSeries || !candles.length) return;
   const range = chart.timeScale().getVisibleRange();
   if(!range) return;
   const vis = candles.filter(c=>c.time>=range.from && c.time<=range.to);
@@ -3412,6 +3437,100 @@ function updateHighLow(){
   const lo = Math.min(...vis.map(c=>c.low));
   highLowLines.push(candleSeries.createPriceLine({ price:hi, color:'#26a17b', lineWidth:1, lineStyle:2, axisLabelVisible:true, title:'H' }));
   highLowLines.push(candleSeries.createPriceLine({ price:lo, color:'#cf304a', lineWidth:1, lineStyle:2, axisLabelVisible:true, title:'L' }));
+}
+
+function toggleHighLow(){
+  showHighLow = !showHighLow;
+  localStorage.setItem('btcSim_showHL', showHighLow);
+  const btn = document.getElementById('hlToggleBtn');
+  if(btn){ btn.classList.toggle('on', showHighLow); }
+  updateHighLow();
+}
+
+/* ============================ 날짜 이동 ============================ */
+window.toggleDateJump = function(){
+  const panel = document.getElementById('dateJumpPanel');
+  if(!panel) return;
+  if(panel.classList.contains('show')){ panel.classList.remove('show'); return; }
+  const now = new Date();
+  const curY = now.getFullYear();
+  const years = [];
+  for(let y=curY; y>=2020; y--) years.push(y);
+  const months = Array.from({length:12},(_,i)=>i+1);
+  const days   = Array.from({length:31},(_,i)=>i+1);
+  const hours  = Array.from({length:24},(_,i)=>i);
+  const sel = (id,opts,cur) =>
+    `<select class="dj-sel" id="${id}">${opts.map(v=>`<option value="${v}"${v===cur?' selected':''}>${id==='djMonth'?v+'월':id==='djDay'?v+'일':id==='djHour'?String(v).padStart(2,'0')+'시':v+'년'}</option>`).join('')}</select>`;
+  panel.innerHTML =
+    `<div style="font-size:11px;color:var(--muted);margin-bottom:2px;">날짜로 이동</div>`+
+    `<div class="dj-row">`+
+      sel('djYear',  years,   curY)+
+      sel('djMonth', months,  now.getMonth()+1)+
+      sel('djDay',   days,    now.getDate())+
+      sel('djHour',  hours,   now.getHours())+
+      `<button class="dj-go" onclick="doDateJump()">이동</button>`+
+    `</div>`;
+  const btn = document.getElementById('dateJumpBtn');
+  if(btn){
+    const r = btn.getBoundingClientRect();
+    panel.style.left = Math.min(r.left, window.innerWidth-280)+'px';
+    panel.style.top  = (r.bottom+4)+'px';
+  }
+  panel.classList.add('show');
+  const closer = (e)=>{
+    const b=document.getElementById('dateJumpBtn');
+    if(!panel.contains(e.target)&&(!b||!b.contains(e.target))){
+      panel.classList.remove('show');
+      document.removeEventListener('mousedown',closer,true);
+    }
+  };
+  setTimeout(()=>document.addEventListener('mousedown',closer,true),0);
+};
+
+window.doDateJump = async function(){
+  const year  = parseInt(document.getElementById('djYear').value);
+  const month = parseInt(document.getElementById('djMonth').value);
+  const day   = parseInt(document.getElementById('djDay').value);
+  const hour  = parseInt(document.getElementById('djHour').value);
+  // 날짜 유효성 검사
+  const d = new Date(year, month-1, day);
+  if(d.getMonth() !== month-1){ toast('잘못된 날짜입니다 (해당 월에 없는 일).'); return; }
+  document.getElementById('dateJumpPanel').classList.remove('show');
+  // 캔들 저장 방식: time = floor(UTC_ms/1000) + TZ_OFFSET
+  // new Date(year,month-1,day,hour) 는 로컬 시간 → getTime()/1000 = UTC_sec
+  // 캔들 time 비교를 위해 동일 오프셋 적용
+  const targetSec = Math.floor(new Date(year, month-1, day, hour, 0, 0).getTime()/1000) + TZ_OFFSET;
+  if(targetSec > Math.floor(Date.now()/1000) + TZ_OFFSET + 300){
+    toast('미래 날짜는 이동할 수 없습니다.'); return;
+  }
+  if(candles.length && targetSec >= candles[0].time){
+    _scrollToTime(targetSec); return;
+  }
+  // 로드된 범위 밖 → Binance에서 직접 조회 후 병합
+  toast('데이터 로딩 중...');
+  try{
+    const startMs = (targetSec - TZ_OFFSET)*1000;
+    const r = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${curSymbol.toUpperCase()}&interval=${curInterval}&startTime=${startMs}&limit=500`);
+    const raw = await r.json();
+    if(!Array.isArray(raw)||!raw.length){ toast('해당 날짜의 데이터가 없습니다.'); return; }
+    const hist = raw.map(k=>({time:Math.floor(k[0]/1000)+TZ_OFFSET,open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]}));
+    const firstT = candles.length ? candles[0].time : Infinity;
+    const toAdd = hist.filter(c=>c.time < firstT);
+    if(toAdd.length){ candles=toAdd.concat(candles); candleSeries.setData(candles); renderAllIndicators(); }
+    _scrollToTime(targetSec);
+  }catch(e){ toast('데이터 로드 실패'); }
+};
+
+function _scrollToTime(targetSec){
+  if(!candles.length) return;
+  let idx = candles.findIndex(c=>c.time>=targetSec);
+  if(idx<0) idx=candles.length-1;
+  let plotW=0;
+  try{ plotW=chart.timeScale().width(); }catch(e){}
+  if(!plotW){ const el=document.getElementById('chart'); plotW=el?el.clientWidth-80:600; }
+  const half=Math.max(20,Math.floor(plotW/8/2));
+  try{ chart.timeScale().setVisibleLogicalRange({from:Math.max(0,idx-half),to:Math.min(candles.length-1,idx+half)}); }catch(e){}
+  updateHighLow();
 }
 
 
@@ -3659,6 +3778,10 @@ function bindUI(){
     sndBtn.textContent = soundOn ? "소리 ON" : "소리 OFF";
     sndBtn.className = soundOn ? "on" : "";
   };
+
+  // H/L 고점/저점 토글 초기 상태
+  const hlBtn = document.getElementById('hlToggleBtn');
+  if(hlBtn) hlBtn.classList.toggle('on', showHighLow);
 
 
   // 알람 버튼 초기 상태
