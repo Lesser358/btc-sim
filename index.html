@@ -882,7 +882,7 @@
   <div id="topNavLogo">선물 모의투자</div>
   <ul id="topNavItems">
     <li class="tn-item tn-has-dd" id="tnSignalItem">
-      <span id="tnSignalLbl" onclick="toggleTopNavDD(event,'tnSignalItem')">📡 신호 스캐너 ▾</span>
+      <span id="tnSignalLbl">📡 신호 스캐너 ▾</span>
       <div class="tn-dd-wrap"><div class="tn-dd">
         <div class="tn-dd-item" onclick="openSignalStyle('scalp')">⚡ 단타 <span>5m/15m · 빠른 진출입</span></div>
         <div class="tn-dd-item" onclick="openSignalStyle('swing')">📈 스윙 <span>1H/4H · 수시간~수일</span></div>
@@ -896,7 +896,7 @@
       <span>🤖 AI 분석</span>
     </li>
     <li class="tn-item tn-has-dd" id="navManualBtn">
-      <span id="tnHelpLbl" onclick="toggleTopNavDD(event,'navManualBtn')">도움말 ▾</span>
+      <span id="tnHelpLbl">도움말 ▾</span>
       <div class="tn-dd-wrap"><div class="tn-dd">
         <div class="tn-dd-item" onclick="closeTopNavDD();openManual()">📖 사용설명서</div>
         <div class="tn-dd-sep"></div>
@@ -2822,12 +2822,12 @@ window.openAiTab=function(){
 window.closeTopNavDD=function(){
   document.querySelectorAll('.tn-item.tn-open').forEach(el=>el.classList.remove('tn-open'));
 };
-window.toggleTopNavDD=function(e,itemId){
-  e.stopPropagation();
+let _ddJustToggled=false;
+window.toggleTopNavDD=function(itemId){
   const li=document.getElementById(itemId);
   const wasOpen=li.classList.contains('tn-open');
   closeTopNavDD();
-  if(!wasOpen) li.classList.add('tn-open');
+  if(!wasOpen){ li.classList.add('tn-open'); _ddJustToggled=true; }
 };
 window.showAiHelp=function(){
   if(document.getElementById('aiHelpOverlay')) return;
@@ -4694,9 +4694,11 @@ function bindUI(){
 
   renderIndicatorChips();
 
-  // ===== 상단 네비게이션: 외부 클릭 시 드롭다운 닫기 =====
-  // 드롭다운 토글은 각 span의 onclick="toggleTopNavDD(event,id)"로 처리
+  // ===== 상단 네비게이션 드롭다운 =====
+  document.getElementById('tnSignalLbl').addEventListener('click', function(){ toggleTopNavDD('tnSignalItem'); });
+  document.getElementById('tnHelpLbl').addEventListener('click', function(){ toggleTopNavDD('navManualBtn'); });
   document.addEventListener('click', function(e){
+    if(_ddJustToggled){ _ddJustToggled=false; return; }
     if(!e.target.closest('#topNav')) closeTopNavDD();
   });
 
