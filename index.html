@@ -1250,13 +1250,20 @@ function loadState(){
   }catch(e){}
   return defaultState();
 }
+/* 상태 변경 '논리 시각'(리비전). 여러 기기(로컬 파일 ↔ 깃허브 사이트)가 같은 계정을
+   공유할 때, 충돌 시 "가장 최근에 바뀐 쪽이 이긴다"를 판정하는 기준. 단조 증가 보장
+   (같은 ms에 두 번 저장돼도 항상 +1). 실제 상태 변경(매매·종료·설정)에서만 올라가고
+   loadState/단순 로드에서는 올라가지 않음 — 그래야 '새로고침했다고 더 최신'이 되지 않음. */
+function bumpRev(){ S._rev = Math.max(Date.now(), (S._rev||0) + 1); }
 function save(){
+  bumpRev();
   try{ localStorage.setItem("btcSimState", JSON.stringify(S)); }catch(e){}
   scheduleSyncSave();
 }
 /* 포지션 개폐·청산 등 즉시 클라우드 반영이 필요한 중요 변경용 저장.
    타이머 없이 doSyncSave를 바로 호출해 "2초 내 재로드" 경쟁조건을 차단한다. */
 function saveCritical(){
+  bumpRev();
   try{ localStorage.setItem("btcSimState", JSON.stringify(S)); }catch(e){}
   localStorage.setItem('btcSimLastCritical', String(Date.now()));
   if(fbUser && _firstSyncDone){ clearTimeout(_syncTimer); _syncTimer=null; doSyncSave(); }
@@ -4937,39 +4944,38 @@ function startCloudListener(){
         _firstSyncDone = true; // 클라우드에 데이터 없음 → 로컬이 원본, 이제부터 저장 허용
         setSyncStatus(''); return;
       }
-      // 내 기기가 방금 저장한 것이면 무시 (6초 이내)
-      if(Date.now() - _lastSelfSaveTime < 6000){
-        _firstSyncDone = true; // 내 저장에 대한 반향 → 이미 최신, 저장 허용
-        setSyncStatus('✓ 저장됨'); setTimeout(()=>setSyncStatus(''),3000); return;
-      }
-      // 클라우드 데이터가 로컬 포지션을 지울 경우 → 로컬 우선 보존 후 클라우드 재저장
-      const localPos = S.positions ? {...S.positions} : {};
-      const cloudRaw = doc.data();
+      const cloudRaw    = doc.data();
       const cloudLoaded = cloudRaw.state ? JSON.parse(cloudRaw.state) : {};
-      const cloudPositions = cloudLoaded.positions || (cloudLoaded.position ? {[cloudLoaded.symbol||'btcusdt']:cloudLoaded.position} : {});
-      const localPosCount  = Object.keys(localPos).length;
-      const cloudPosCount  = Object.keys(cloudPositions).length;
-      if(localPosCount > 0 && cloudPosCount === 0){
-        // 로컬에 포지션 있는데 클라우드는 없음 → 로컬이 올바름, 클라우드 재저장
+      const cloudRev    = cloudLoaded._rev || 0;   // 클라우드 상태의 논리 시각
+      const localRev    = S._rev || 0;             // 내 현재 상태의 논리 시각
+
+      // ── 최초 스냅샷(로그인 직후 초기 로드) ──
+      //   기본은 클라우드를 불러옴. 단, 비로그인 중 만든 로컬 변경이 더 최신(rev 큼)이면 보존.
+      //   둘 다 rev 없음(구버전 마이그레이션 과도기): 포지션 있는 쪽을 보존해
+      //   '로그인 시 포지션 증발'을 막음(이 분기는 양쪽이 _rev를 갖게 되면 자연 소멸).
+      if(!_firstSyncDone){
         _firstSyncDone = true;
-        doSyncSave();
-        setSyncStatus('✓ 로컬 보존');
-        setTimeout(()=>setSyncStatus(''), 3000);
+        const lpos = Object.keys(S.positions || {}).length;
+        const cpos = Object.keys(cloudLoaded.positions || (cloudLoaded.position ? {x:1} : {})).length;
+        const keepLocal = (cloudRev !== localRev) ? (localRev > cloudRev) : (lpos > 0 && cpos === 0);
+        if(keepLocal){ doSyncSave();            setSyncStatus('✓ 최신 유지'); }
+        else         { applyCloudData(cloudRaw); setSyncStatus('✓ 동기화됨'); }
+        setTimeout(()=>setSyncStatus(''), 2500);
         return;
       }
-      // 로컬은 포지션 없고 클라우드에만 있는 경우 → 60초 이내 saveCritical 했으면 로컬(종료)이 올바름
-      const lastCritical = parseInt(localStorage.getItem('btcSimLastCritical')||'0', 10);
-      if(localPosCount === 0 && cloudPosCount > 0 && (Date.now() - lastCritical < 60000)){
-        _firstSyncDone = true;
-        doSyncSave();
-        setSyncStatus('✓ 종료 보존');
-        setTimeout(()=>setSyncStatus(''), 3000);
-        return;
+
+      // ── 이후 실시간 스냅샷: 리비전으로 '가장 최근에 바뀐 쪽'이 이김 ──
+      if(cloudRev === localRev){              // 내가 올린 것의 반향 → 무시
+        setSyncStatus('✓ 저장됨'); setTimeout(()=>setSyncStatus(''), 2500); return;
       }
-      _firstSyncDone = true; // 클라우드 데이터 수신 완료 → 이제부터 저장 허용
-      applyCloudData(cloudRaw);
-      setSyncStatus('✓ 동기화됨');
-      setTimeout(()=>setSyncStatus(''), 3000);
+      if(cloudRev > localRev){                // 다른 기기가 더 나중에 변경 → 적용
+        applyCloudData(cloudRaw);             //   (예: 깃허브에서 포지션 종료 → 여기도 종료 반영)
+        setSyncStatus('✓ 동기화됨');
+      } else {                                // 내 로컬이 더 최신 → 클라우드가 구버전, 내 상태로 덮어씀
+        doSyncSave();
+        setSyncStatus('✓ 최신 유지');
+      }
+      setTimeout(()=>setSyncStatus(''), 2500);
     }, err=>{ _firstSyncDone = true; setSyncStatus('동기화 오류'); }); // 오류 시에도 차단 해제
 }
 
