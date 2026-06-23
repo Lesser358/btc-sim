@@ -545,11 +545,15 @@
   .prof-msg.ok{color:var(--green);}
 
   /* ===== 랭킹 페이지 ===== */
-  #rankPage{display:none;flex-direction:column;padding:16px 24px;overflow:hidden;}
-  #rankPage.show{display:flex;}
+  #rankPage,#signalPage,#aiPage{display:none;flex-direction:column;padding:16px 24px;overflow:hidden;}
+  #rankPage.show,#signalPage.show,#aiPage.show{display:flex;}
   #rankPageWrap{max-width:980px;width:100%;margin:0 auto;display:flex;flex-direction:column;flex:1;overflow:hidden;}
   #rankPageHdr{display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;}
   #rankPageHdr h2{margin:0;font-size:17px;font-weight:700;color:var(--yellow);}
+  .tool-page-wrap{max-width:980px;width:100%;margin:0 auto;display:flex;flex-direction:column;flex:1;overflow:hidden;}
+  .tool-page-hdr{display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;gap:10px;}
+  .tool-page-hdr h2{margin:0;font-size:17px;font-weight:700;color:var(--yellow);}
+  .tool-page-body{overflow-y:auto;min-height:0;}
   .rank-tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0;}
   .rank-tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);padding:10px 0;font-size:13px;font-weight:600;cursor:pointer;transition:color .15s;}
   .rank-tab.active{color:var(--yellow);border-bottom-color:var(--yellow);}
@@ -882,18 +886,18 @@
   <div id="topNavLogo">선물 모의투자</div>
   <ul id="topNavItems">
     <li class="tn-item tn-has-dd" id="tnSignalItem">
-      <span id="tnSignalLbl">📡 신호 스캐너 ▾</span>
+      <span id="tnSignalLbl">신호 스캐너 ▾</span>
       <div class="tn-dd-wrap"><div class="tn-dd">
-        <div class="tn-dd-item" onclick="openSignalStyle('scalp')">⚡ 단타 <span>5m/15m · 빠른 진출입</span></div>
-        <div class="tn-dd-item" onclick="openSignalStyle('swing')">📈 스윙 <span>1H/4H · 수시간~수일</span></div>
-        <div class="tn-dd-item" onclick="openSignalStyle('mid')">🏔️ 중기 <span>4H/1D · 수일~수주</span></div>
+        <div class="tn-dd-item" onclick="openSignalStyle('scalp')">단타 <span>5m/15m · 빠른 진출입</span></div>
+        <div class="tn-dd-item" onclick="openSignalStyle('swing')">스윙 <span>1H/4H · 수시간~수일</span></div>
+        <div class="tn-dd-item" onclick="openSignalStyle('mid')">중기 <span>4H/1D · 수일~수주</span></div>
       </div></div>
     </li>
     <li class="tn-item" id="navRankBtn" onclick="showRankPage()">
-      <span>🏆 랭킹</span>
+      <span>랭킹</span>
     </li>
     <li class="tn-item" id="tnAiItem" onclick="openAiTab()">
-      <span>🤖 AI 분석</span>
+      <span>AI 분석</span>
     </li>
     <li class="tn-item tn-has-dd" id="navManualBtn">
       <span id="tnHelpLbl">도움말 ▾</span>
@@ -962,7 +966,7 @@
         <button id="drawDelBtn" title="선택한 도형 삭제">삭제</button>
         <button id="drawClearBtn" title="모든 도형 삭제">전체삭제</button>
         <span class="db-sep"></span>
-        <span class="db-label" id="chartSizeLabel">📏 차트</span>
+        <span class="db-label" id="chartSizeLabel">차트</span>
         <input type="range" id="chartSizeRange" class="chart-size-range" min="320" max="900" step="20" title="차트 크기 조절 (← 축소 / 확대 →)">
         <span class="db-sep db-hint"></span>
         <span class="db-label db-hint" style="opacity:.55;">도형 우클릭(모바일: 더블탭) → 잠금·색상·굵기·속성</span>
@@ -976,14 +980,10 @@
         <button class="tabbtn active" data-tab="pos">포지션</button>
         <button class="tabbtn" data-tab="ord">미체결 주문</button>
         <button class="tabbtn" data-tab="hist">거래 내역</button>
-        <button class="tabbtn" data-tab="signal">📡 신호 스캐너</button>
-        <button class="tabbtn" data-tab="ai">🤖 AI 분석</button>
       </div>
       <div id="tab-pos"></div>
       <div id="tab-ord" style="display:none;"></div>
       <div id="tab-hist" style="display:none;"></div>
-      <div id="tab-signal" style="display:none;"></div>
-      <div id="tab-ai" style="display:none;"></div>
     </div>
   </div>
 
@@ -1089,7 +1089,7 @@
 <div id="rankPage">
   <div id="rankPageWrap">
     <div id="rankPageHdr">
-      <h2>🏆 랭킹 대시보드</h2>
+      <h2>랭킹 대시보드</h2>
       <div style="display:flex;gap:8px;align-items:center;">
         <button class="rank-refresh" onclick="loadRanking(_rankPeriod)">새로고침</button>
         <button class="rank-back-btn" onclick="hideRankPage()">← 차트로 돌아가기</button>
@@ -1130,6 +1130,30 @@
     </div>
     <div class="rank-body" id="rankBody">
       <div class="rank-empty">불러오는 중...</div>
+    </div>
+  </div>
+</div>
+
+<div id="signalPage">
+  <div class="tool-page-wrap">
+    <div class="tool-page-hdr">
+      <h2>신호 스캐너</h2>
+      <button class="rank-back-btn" onclick="hideSignalPage()">← 차트로 돌아가기</button>
+    </div>
+    <div class="tool-page-body">
+      <div id="tab-signal"></div>
+    </div>
+  </div>
+</div>
+
+<div id="aiPage">
+  <div class="tool-page-wrap">
+    <div class="tool-page-hdr">
+      <h2>AI 분석</h2>
+      <button class="rank-back-btn" onclick="hideAiPage()">← 차트로 돌아가기</button>
+    </div>
+    <div class="tool-page-body">
+      <div id="tab-ai"></div>
     </div>
   </div>
 </div>
@@ -2455,9 +2479,9 @@ function calcTradingStyle(st){
   else if(perfCode==='P'&&discCode==='D'&&riskCode==='B'){icon='🎯';name='균형형 원칙 트레이더';desc='적절한 레버리지와 철저한 리스크 관리로 안정적인 수익을 내고 있습니다.';}
   else if(perfCode==='P'&&discCode==='D'&&riskCode==='C'){icon='🛡️';name='보수적 원칙 트레이더';desc='낮은 레버리지로 꾸준히 수익을 쌓아가는 안정 지향형 트레이더입니다.';}
   else if(perfCode==='L'&&discCode==='I')               {icon='🎲';name='고위험 충동형 트레이더';desc='청산이 잦고 손실이 누적되고 있습니다. 전략과 리스크 관리 재점검이 필요합니다.';}
-  else if(riskCode==='A'&&perfCode==='P')               {icon='⚡';name='공격적 수익 트레이더';desc='고레버리지에서도 수익을 내는 담대한 트레이더입니다.';}
-  else if(dirCode==='L'&&longPct>=75&&perfCode==='P')   {icon='📈';name='롱 전문 트레이더';desc='상승장 포착에 특화되어 롱 포지션에서 안정적인 수익을 내고 있습니다.';}
-  else if(dirCode==='S'&&longPct<=25&&perfCode==='P')   {icon='📉';name='숏 전문 트레이더';desc='하락장 포착에 특화되어 숏 포지션에서 안정적인 수익을 내고 있습니다.';}
+  else if(riskCode==='A'&&perfCode==='P')               {icon='A';name='공격적 수익 트레이더';desc='고레버리지에서도 수익을 내는 담대한 트레이더입니다.';}
+  else if(dirCode==='L'&&longPct>=75&&perfCode==='P')   {icon='L';name='롱 전문 트레이더';desc='상승장 포착에 특화되어 롱 포지션에서 안정적인 수익을 내고 있습니다.';}
+  else if(dirCode==='S'&&longPct<=25&&perfCode==='P')   {icon='S';name='숏 전문 트레이더';desc='하락장 포착에 특화되어 숏 포지션에서 안정적인 수익을 내고 있습니다.';}
   else if(perfCode==='L'&&riskCode==='A')               {icon='🔥';name='고위험 손실형 트레이더';desc='레버리지는 높지만 손실이 지속됩니다. 레버리지를 낮추고 전략을 점검하세요.';}
   else if(perfCode==='L')                               {icon='🔧';name='전략 개선 필요형';desc='아직 손실이 수익보다 많습니다. 진입 타이밍과 손절 기준을 다듬어야 합니다.';}
   else                                                  {icon='🔍';name='균형 탐색형 트레이더';desc='다양한 전략을 시도하며 자신만의 스타일을 만들어가는 과정에 있습니다.';}
@@ -2479,11 +2503,11 @@ function calcAiRecs(st, style){
   if(avgLev>30&&winRate<55)
     recs.push({icon:'⚠️',type:'warn',text:`<b>레버리지를 낮추세요.</b> 평균 ${fmt(avgLev,1)}x를 사용하고 있지만 승률이 ${fmt(winRate,1)}%로 낮습니다. 15~20x 수준에서 리스크를 관리하며 전략을 다듬어 보세요.`});
   else if(avgLev<6&&winRate>62&&profitFactor>1.5)
-    recs.push({icon:'💡',type:'info',text:`<b>레버리지를 조금 높여볼 여지가 있습니다.</b> 승률 ${fmt(winRate,1)}%·손익비 ${fmt(profitFactor,2)}로 전략이 우수합니다. 레버리지를 조금 높이면 동일 전략으로 더 큰 수익이 가능합니다.`});
+    recs.push({icon:'i',type:'info',text:`<b>레버리지를 조금 높여볼 여지가 있습니다.</b> 승률 ${fmt(winRate,1)}%·손익비 ${fmt(profitFactor,2)}로 전략이 우수합니다. 레버리지를 조금 높이면 동일 전략으로 더 큰 수익이 가능합니다.`});
   else{
     const bestB=Object.entries(levBuckets).filter(([,b])=>b.total>=2).sort((a,b)=>b[1].wr-a[1].wr)[0];
     if(bestB){const names={low:'2~9x',mid:'10~24x',high:'25x+'};const[bk,bv]=bestB;
-      recs.push({icon:'📊',type:'good',text:`<b>레버리지 ${names[bk]} 구간에서 승률 ${fmt(bv.wr,0)}%</b>로 가장 좋은 성과를 냈습니다. 이 구간을 중심으로 거래하세요.`});}
+      recs.push({icon:'OK',type:'good',text:`<b>레버리지 ${names[bk]} 구간에서 승률 ${fmt(bv.wr,0)}%</b>로 가장 좋은 성과를 냈습니다. 이 구간을 중심으로 거래하세요.`});}
   }
 
   // 청산 경고
@@ -2514,7 +2538,7 @@ function calcAiRecs(st, style){
 
   // 승률 총평
   if(winRate>=65&&st.wins>=5)
-    recs.push({icon:'🏆',type:'good',text:`<b>승률 ${fmt(winRate,1)}%</b>는 매우 우수한 수준입니다. 현재 전략을 유지하되 포지션 규모를 점진적으로 키워보세요.`});
+    recs.push({icon:'TOP',type:'good',text:`<b>승률 ${fmt(winRate,1)}%</b>는 매우 우수한 수준입니다. 현재 전략을 유지하되 포지션 규모를 점진적으로 키워보세요.`});
   else if(winRate<38&&st.total>=10)
     recs.push({icon:'🎯',type:'warn',text:`<b>승률 ${fmt(winRate,1)}%</b>는 개선이 필요합니다. 진입 조건을 더 엄격하게 정하고 거래 횟수를 줄여 질을 높이세요.`});
 
@@ -2525,12 +2549,12 @@ function calcPnlAnalysis(st){
   const lines=[];
   const{totalPnl,winRate,profitFactor,rrRatio,liqCount,avgWin,avgLoss,wins,losses}=st;
   if(totalPnl>=0){
-    if(winRate>=55) lines.push({icon:'📈',text:`<b>높은 승률(${fmt(winRate,1)}%)</b> 덕분에 꾸준히 수익을 실현하고 있습니다. 전체 거래의 ${fmt(winRate,1)}%에서 이익이 났습니다.`});
+    if(winRate>=55) lines.push({icon:'+',text:`<b>높은 승률(${fmt(winRate,1)}%)</b> 덕분에 꾸준히 수익을 실현하고 있습니다. 전체 거래의 ${fmt(winRate,1)}%에서 이익이 났습니다.`});
     if(rrRatio>=1.2) lines.push({icon:'⚖️',text:`<b>손익비 ${fmt(rrRatio,2)}:1</b>로 수익이 손실보다 큽니다. 수익 포지션을 충분히 길게 보유한 결과입니다.`});
     if(liqCount===0) lines.push({icon:'🛡️',text:`<b>강제청산 0건.</b> 리스크 관리가 잘 되고 있어 증거금 손실 없이 수익을 쌓고 있습니다.`});
     if(lines.length===0) lines.push({icon:'✅',text:`<b>현재 수익 중입니다.</b> 꾸준히 거래 데이터가 쌓이면 더 정밀한 분석이 가능합니다.`});
   } else {
-    if(winRate<45) lines.push({icon:'📉',text:`<b>낮은 승률(${fmt(winRate,1)}%)</b>로 손실 거래가 많습니다. 전체 ${st.total}회 중 ${losses}회에서 손실이 발생했습니다.`});
+    if(winRate<45) lines.push({icon:'-',text:`<b>낮은 승률(${fmt(winRate,1)}%)</b>로 손실 거래가 많습니다. 전체 ${st.total}회 중 ${losses}회에서 손실이 발생했습니다.`});
     if(avgLoss>avgWin&&wins>0) lines.push({icon:'⚖️',text:`<b>손익비 ${fmt(rrRatio,2)}:1</b>로 손실이 수익보다 큽니다. 수익 포지션을 너무 일찍 닫거나 손절 없이 손실을 키운 결과일 수 있습니다.`});
     if(liqCount>0) lines.push({icon:'💥',text:`<b>강제청산 ${liqCount}회</b>로 인한 손실이 누적됐습니다. 청산은 증거금 전액 손실이므로 SL 설정이 최우선입니다.`});
     if(lines.length===0) lines.push({icon:'⚠️',text:`<b>현재 손실 중입니다.</b> 거래 패턴을 검토하고 진입 조건을 다듬어 보세요.`});
@@ -2810,19 +2834,15 @@ window.switchSignalStyle=function(style){
 window.openSignalStyle=function(style){
   closeTopNavDD();
   if(style) { S.signalStyle=style; _aiSignalCache=null; _aiSignalReq++; _aiSignalLoading=false; save(); }
-  const signalBtn=[...document.querySelectorAll('.tabbtn')].find(b=>b.dataset.tab==='signal');
-  if(signalBtn) signalBtn.click();
-  else renderAiSignal();
+  showSignalPage();
 };
 window.openAiTab=function(){
   closeTopNavDD();
-  const aiBtn=[...document.querySelectorAll('.tabbtn')].find(b=>b.dataset.tab==='ai');
-  if(aiBtn) aiBtn.click();
+  showAiPage();
 };
 window.openMainPage=function(){
   closeTopNavDD();
-  if(document.getElementById('rankPage')?.classList.contains('show')) hideRankPage();
-  document.getElementById('navManualBtn')?.classList.remove('nb-active');
+  hideToolPages(false);
   const firstTab=document.querySelector('.tabbtn');
   if(firstTab) firstTab.click();
   window.scrollTo({top:0,behavior:'smooth'});
@@ -2923,7 +2943,7 @@ function renderAiSignal(){
   const styleDesc={scalp:'5m/15m 캔들 · EMA9/21 · 타이트한 SL',swing:'1H/4H 캔들 · EMA20/50 · ATR 기준 SL',mid:'4H/1D 캔들 · EMA20/50 · 넓은 SL'};
   el.innerHTML=`
     <div class="ai-signal-tab-head">
-      <span class="ai-signal-tab-title">📡 AI 신호 스캐너</span>
+      <span class="ai-signal-tab-title">AI 신호 스캐너</span>
       <div class="ai-signal-tab-actions">
         ${on?'<button class="ai-signal-smallbtn" onclick="refreshAiSignals()">새로고침</button>':''}
         <button class="ai-signal-toggle ${on?'on':''}" onclick="toggleAiSignals(${on?'false':'true'})">스캔 ${on?'ON':'OFF'}</button>
@@ -2931,9 +2951,9 @@ function renderAiSignal(){
       </div>
     </div>
     <div class="ai-style-tabs">
-      <button class="ai-style-btn ${style==='scalp'?'active':''}" onclick="switchSignalStyle('scalp')">⚡ 단타</button>
-      <button class="ai-style-btn ${style==='swing'?'active':''}" onclick="switchSignalStyle('swing')">📈 스윙</button>
-      <button class="ai-style-btn ${style==='mid'?'active':''}" onclick="switchSignalStyle('mid')">🏔️ 중기</button>
+      <button class="ai-style-btn ${style==='scalp'?'active':''}" onclick="switchSignalStyle('scalp')">단타</button>
+      <button class="ai-style-btn ${style==='swing'?'active':''}" onclick="switchSignalStyle('swing')">스윙</button>
+      <button class="ai-style-btn ${style==='mid'?'active':''}" onclick="switchSignalStyle('mid')">중기</button>
     </div>
     <div class="ai-signal-note" style="padding:5px 14px 6px;font-size:10px;">${styleDesc[style]} · 거래량 많은 순 정렬 · 외부 AI 없음</div>
     <div class="ai-score-info" style="margin-top:0;">
@@ -2958,10 +2978,10 @@ function renderAiAnalysis(){
   if(S.aiConsent!==true){
     const declined=S.aiConsent===false;
     el.innerHTML=`<div class="ai-consent">
-      <div class="ai-consent-icon">🤖</div>
+      <div class="ai-consent-icon">AI</div>
       <div class="ai-consent-title">AI 트레이딩 분석</div>
-      <div class="ai-consent-desc">${declined?'AI 분석 기능 동의를 철회했습니다.<br>다시 동의하면 트레이딩 스타일 진단과 수익/손실 원인 분석을 받을 수 있습니다.':'본인의 거래 데이터를 분석해<br>트레이딩 스타일 진단·수익/손실 원인 분석·개선 추천을 제공합니다.<br><span style="font-size:10.5px;opacity:.75;">(코인별 롱/숏 추천은 동의 없이 [📈 롱/숏 추천] 탭에서 이용하세요)</span>'}</div>
-      <div class="ai-consent-note">🔒 <b>데이터 프라이버시</b><br>거래 데이터는 외부로 전송하지 않으며<br>본인 기기에서만 계산됩니다. 언제든지 동의를 철회할 수 있습니다.</div>
+      <div class="ai-consent-desc">${declined?'AI 분석 기능 동의를 철회했습니다.<br>다시 동의하면 트레이딩 스타일 진단과 수익/손실 원인 분석을 받을 수 있습니다.':'본인의 거래 데이터를 분석해<br>트레이딩 스타일 진단·수익/손실 원인 분석·개선 추천을 제공합니다.<br><span style="font-size:10.5px;opacity:.75;">(코인별 롱/숏 추천은 동의 없이 [롱/숏 추천] 탭에서 이용하세요)</span>'}</div>
+      <div class="ai-consent-note"><b>데이터 프라이버시</b><br>거래 데이터는 외부로 전송하지 않으며<br>본인 기기에서만 계산됩니다. 언제든지 동의를 철회할 수 있습니다.</div>
       <div class="ai-consent-btns">
         <button class="ai-btn-agree" onclick="aiConsent(true)">동의하고 분석 받기</button>
         ${!declined?`<button class="ai-btn-decline" onclick="aiConsent(false)">거절</button>`:`<button class="ai-btn-decline" onclick="aiConsent(false)">거절 유지</button>`}
@@ -2974,7 +2994,7 @@ function renderAiAnalysis(){
   let html=`<div class="ai-refresh"><button class="ai-refresh-btn" onclick="renderAiAnalysis()">↻ 새로고침</button></div>`;
   if(st.total<5){
     html+=`<div class="ai-not-enough">
-      <div style="font-size:32px;margin-bottom:12px;">📊</div>
+      <div style="font-size:22px;margin-bottom:12px;font-weight:800;">DATA</div>
       <b>데이터가 부족합니다</b><br><br>
       개인 트레이딩 DNA 분석을 위해 최소 5회 이상의 거래가 필요합니다.<br>
       현재 ${st.total}회 · 앞으로 ${Math.max(0,5-st.total)}회 더 거래하면<br>트레이딩 스타일 진단이 시작됩니다.
@@ -3012,7 +3032,7 @@ function renderAiAnalysis(){
 
   // 수익/손실 원인 분석
   html+=`<div class="ai-section">
-    <div class="ai-section-title">${st.totalPnl>=0?'📈 수익 요인 분석':'📉 손실 요인 분석'}</div>
+    <div class="ai-section-title">${st.totalPnl>=0?'수익 요인 분석':'손실 요인 분석'}</div>
     <div class="ai-pnl-analysis">
       ${pnlLines.map(l=>`<div class="ai-pnl-row"><div class="ai-pnl-icon">${l.icon}</div><div class="ai-pnl-text">${l.text}</div></div>`).join('')}
     </div>
@@ -3021,7 +3041,7 @@ function renderAiAnalysis(){
   // 개선 추천
   if(recs.length>0){
     html+=`<div class="ai-section">
-      <div class="ai-section-title">💡 개선 추천</div>
+      <div class="ai-section-title">개선 추천</div>
       <div class="ai-recs">
         ${recs.map(r=>`<div class="ai-rec ${r.type}"><div class="ai-rec-icon">${r.icon}</div><div class="ai-rec-text">${r.text}</div></div>`).join('')}
       </div>
@@ -3032,7 +3052,7 @@ function renderAiAnalysis(){
   const bestSym=st.symList.length>0?st.symList.reduce((a,b)=>b[1].pnl>a[1].pnl?b:a,st.symList[0]):null;
   const worstSym=st.symList.length>0?st.symList.reduce((a,b)=>b[1].pnl<a[1].pnl?b:a,st.symList[0]):null;
   html+=`<div class="ai-section">
-    <div class="ai-section-title">📋 데이터 요약 (${st.total}회 거래)</div>
+    <div class="ai-section-title">데이터 요약 (${st.total}회 거래)</div>
     <div class="stats-bar" style="flex-wrap:wrap;">
       <div class="stat-chip"><div class="sl">승률</div><div class="sv ${st.winRate>=50?'green':'red'}">${fmt(st.winRate,1)}%</div></div>
       <div class="stat-chip"><div class="sl">평균 수익</div><div class="sv green">${st.avgWin>0?fmtUsd(st.avgWin):'-'}</div></div>
@@ -4702,9 +4722,7 @@ function bindUI(){
   document.querySelectorAll(".tabbtn").forEach(b=>{
     b.onclick = ()=>{
       document.querySelectorAll(".tabbtn").forEach(x=>x.classList.remove("active")); b.classList.add("active");
-      ["pos","ord","hist","signal","ai"].forEach(t=>document.getElementById("tab-"+t).style.display=(t===b.dataset.tab?"block":"none"));
-      if(b.dataset.tab==="ai") renderAiAnalysis();
-      if(b.dataset.tab==="signal") renderAiSignal();
+      ["pos","ord","hist"].forEach(t=>document.getElementById("tab-"+t).style.display=(t===b.dataset.tab?"block":"none"));
     };
   });
 
@@ -5006,11 +5024,11 @@ function evtXY(e){
   const src = e.touches ? (e.touches[0]||e.changedTouches[0]) : e;
   return { x:src.clientX-r.left, y:src.clientY-r.top };
 }
-// 전체화면 오버레이(사용설명서·프로필·관리자·랭킹·인증)가 열려 있으면 차트 작도 입력을 무시
+// 전체화면 오버레이/별도 페이지가 열려 있으면 차트 작도 입력을 무시
 function _overlayOpen(){
   const sh = id => { const el=document.getElementById(id); return el && (el.classList.contains('show') || el.style.display==='flex'); };
   return sh('manualOverlay') || sh('profileOverlay') || sh('adminOverlay') || sh('authOverlay')
-      || (document.getElementById('rankPage') && document.getElementById('rankPage').classList.contains('show'));
+      || sh('rankPage') || sh('signalPage') || sh('aiPage');
 }
 function onDrawDown(e){
   if(_overlayOpen()) return;
@@ -5730,7 +5748,9 @@ window.showManualTab = function(idx, btn){
 document.addEventListener('keydown', function(e){
   if(e.key!=='Escape') return;
   if(document.getElementById('profileOverlay').classList.contains('show')){ closeProfileModal(); return; }
-  if(document.getElementById('rankPage').classList.contains('show')){ hideRankPage(); return; }
+  if(document.getElementById('rankPage').classList.contains('show')
+    || document.getElementById('signalPage').classList.contains('show')
+    || document.getElementById('aiPage').classList.contains('show')){ hideToolPages(); return; }
   closeManual();
 });
 
@@ -6129,7 +6149,22 @@ let _rankPeriod = 'daily';
 let _rankSort = 'pnl';
 let _rankUsersCache = [];
 
+function hideToolPages(updateHistory=true){
+  document.querySelector('main').style.display = '';
+  document.getElementById('rankPage').classList.remove('show');
+  document.getElementById('signalPage').classList.remove('show');
+  document.getElementById('aiPage').classList.remove('show');
+  document.getElementById('navRankBtn').classList.remove('nb-active');
+  document.getElementById('tnSignalItem').classList.remove('nb-active');
+  document.getElementById('tnAiItem').classList.remove('nb-active');
+  document.getElementById('navManualBtn').classList.remove('nb-active');
+  if(updateHistory && ['#ranking','#signal','#ai'].includes(location.hash)){
+    history.pushState({page:'chart'}, '', location.pathname+location.search);
+  }
+}
+
 window.showRankPage = function(){
+  hideToolPages(false);
   document.querySelector('main').style.display = 'none';
   document.getElementById('rankPage').classList.add('show');
   document.getElementById('navRankBtn').classList.add('nb-active');
@@ -6138,14 +6173,35 @@ window.showRankPage = function(){
   loadRanking(_rankPeriod);
 };
 window.hideRankPage = function(){
-  document.querySelector('main').style.display = '';
-  document.getElementById('rankPage').classList.remove('show');
-  document.getElementById('navRankBtn').classList.remove('nb-active');
-  if(location.hash === '#ranking') history.pushState({page:'chart'}, '', location.pathname+location.search);
+  hideToolPages();
+};
+window.showSignalPage = function(){
+  hideToolPages(false);
+  document.querySelector('main').style.display = 'none';
+  document.getElementById('signalPage').classList.add('show');
+  document.getElementById('tnSignalItem').classList.add('nb-active');
+  if(location.hash !== '#signal') history.pushState({page:'signal'}, '', '#signal');
+  renderAiSignal();
+};
+window.hideSignalPage = function(){
+  hideToolPages();
+};
+window.showAiPage = function(){
+  hideToolPages(false);
+  document.querySelector('main').style.display = 'none';
+  document.getElementById('aiPage').classList.add('show');
+  document.getElementById('tnAiItem').classList.add('nb-active');
+  if(location.hash !== '#ai') history.pushState({page:'ai'}, '', '#ai');
+  renderAiAnalysis();
+};
+window.hideAiPage = function(){
+  hideToolPages();
 };
 // 브라우저 뒤로가기 / 백스페이스 처리
 window.addEventListener('popstate', function(){
-  if(document.getElementById('rankPage').classList.contains('show')) hideRankPage();
+  if(document.getElementById('rankPage').classList.contains('show')
+    || document.getElementById('signalPage').classList.contains('show')
+    || document.getElementById('aiPage').classList.contains('show')) hideToolPages(false);
 });
 window.switchRankTab = function(period, idx){
   _rankPeriod = period;
@@ -6213,7 +6269,7 @@ window.renderRankingBySymbol = function(){
   const sym = (document.getElementById('rankSymbolSel')||{}).value || 'BTCUSDT';
   const symLabel = {'BTCUSDT':'BTC/USDT','ETHUSDT':'ETH/USDT','SOLUSDT':'SOL/USDT','BNBUSDT':'BNB/USDT',
     'XRPUSDT':'XRP/USDT','DOGEUSDT':'DOGE/USDT','ADAUSDT':'ADA/USDT','AVAXUSDT':'AVAX/USDT'}[sym]||sym;
-  const medals = ['🥇','🥈','🥉'];
+  const medals = ['1','2','3'];
   // symbols 데이터가 있는 유저만 필터링
   const users = _rankUsersCache.filter(u=> u.symbols && u.symbols[sym] && u.symbols[sym].tr>0);
   if(!users.length){
@@ -6260,7 +6316,7 @@ function _rankSortValue(u, period, sort){
 }
 function renderRanking(users, period){
   const body = document.getElementById('rankBody');
-  const medals = ['🥇','🥈','🥉'];
+  const medals = ['1','2','3'];
   const START_BAL = 5000;
   const sorted = [...users].sort((a,b)=>_rankSortValue(b,period,_rankSort)-_rankSortValue(a,period,_rankSort));
   const periodLabel = {daily:'오늘',weekly:'이번 주',monthly:'이번 달',total:'전체 누적'}[period];
