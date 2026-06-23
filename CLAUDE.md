@@ -10,10 +10,25 @@
 
 ## ✅ 완료 보고 전 직접 확인·검수 (필수)
 추측으로 "고쳤다" 보고 금지. 코드 수정 후 **프리뷰에서 직접 재현·측정·검증**한 뒤에만 완료 보고. 사용자가 다시 확인하게 만들지 말 것.
+
+### 🚨 "상태"가 아니라 "사용자가 보는 결과"를 검증하라 (반복 실수 — 절대 재발 금지)
+**클래스가 붙었나·`display`값이 뭔가만 보고 "된다"고 보고하는 것 = 검수 실패.** 실제 사례: 드롭다운 클릭 시 `tn-open` 클래스는 정상으로 붙었지만, 부모(`overflow-x:auto`→`overflow-y`도 auto 강제)에 **잘려서 화면에 안 보이고 클릭도 안 됨**. 클래스/`display:block`만 확인하고 여러 번 "완료" 보고 → 토큰·신뢰 대량 낭비.
+- **`element.click()` 는 진짜 클릭이 아니다.** hit-test·좌표·가림·클리핑을 전부 우회해 **거짓 통과(false positive)**를 만든다. 상태 토글 확인용으로만 쓰고, "동작한다"의 근거로 삼지 말 것.
+- **보여야 하는 UI는 반드시 "그 좌표에 그 요소가 실제로 잡히는지"를 측정**:
+  ```js
+  const r = el.getBoundingClientRect();
+  const hit = document.elementFromPoint(r.left+r.width/2, r.top+r.height/2);
+  const ok = !!(hit && (hit===el || el.contains(hit) || hit.closest('.그클래스')===el));
+  ```
+  `ok=false`면 잘렸거나·가려졌거나·화면 밖이거나·크기 0 → **안 보이는 것**. `display:block`이어도 안 보일 수 있다(overflow 클리핑/다른 요소가 위/오프스크린/zero-size).
+- 측정 전 **뷰포트가 살아있는지 먼저 확인**: `document.documentElement.clientWidth>0`. 0이면 `elementFromPoint`가 전부 null이라 검증 자체가 무의미 → `preview_resize`로 폭 잡고 값 재확인 후 측정.
+- 드롭다운/메뉴/모달 등 **펼쳐지는 UI는 가장 좁은 폭(375)에서 반드시** 재측정 — 클리핑·가로폭발은 좁을 때 터진다.
+
 - **빈 화면이 아니라 실제 사용 상태로 테스트** — 조건부 버그(예: "포지션 없을 땐 정상, 잡으면 깨짐")는 기본 화면만 보면 못 잡는다. `preview_eval`로 상태 주입(`S.positions[curSymbol]={side:'long',qty,entry,margin,...}; renderAll()`), 로그인 분기는 `authOverlay.style.display='none'`로 재현, 측정 후 `S.positions={}`로 정리.
 - **모바일도 반드시** — `preview_resize` mobile(375). 기준은 `window.innerWidth`(부정확) 말고 **`document.documentElement.clientWidth`**. 가로 폭발은 `body.scrollWidth`로 검사(정상=뷰포트와 동일).
 - **요청 범위만 수정** — 시키지 않은 폰트·간격·레이아웃을 임의로 바꿔 새 문제를 만들지 말 것.
 - 콘솔 에러 0 확인 후 보고.
+- **테스트 상태 오염 금지** — 직전 테스트가 남긴 상태(예: 열어둔 `tn-open`)가 다음 측정을 오염시킨다. 매 측정 전 초기화(`closeTopNavDD()` 등) 후 단일 동작만 측정.
 
 ## ♻️ 회귀(regression) 금지 — 한 번 고친 버그는 다시 깨지면 안 됨
 작업 중 새 버그가 생기는 건 어쩔 수 없지만, **이미 고친 버그를 이후 수정 과정에서 재발시키는 것은 절대 금지**.

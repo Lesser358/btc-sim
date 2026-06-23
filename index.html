@@ -444,14 +444,14 @@
   /* ===== 네비게이션 바 ===== */
   /* ===== 상단 네비게이션 ===== */
   #topNav{background:var(--panel);border-bottom:1px solid var(--line);padding:0 12px;display:flex;align-items:center;height:46px;position:sticky;top:0;z-index:500;gap:0;}
-  #topNavLogo{font-size:18px;font-weight:900;color:var(--yellow);margin-right:22px;white-space:nowrap;flex-shrink:0;letter-spacing:-.3px;user-select:none;}
+  #topNavLogo{font-size:18px;font-weight:900;color:var(--yellow);margin-right:22px;white-space:nowrap;flex-shrink:0;letter-spacing:-.3px;user-select:none;cursor:pointer;}
   #topNavItems{display:flex;align-items:stretch;list-style:none;margin:0;padding:0;gap:0;flex:1;overflow-x:auto;scrollbar-width:none;}
   #topNavItems::-webkit-scrollbar{display:none;}
   .tn-item{position:relative;display:flex;align-items:center;flex-shrink:0;}
   .tn-item>span{padding:0 13px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;user-select:none;transition:color .15s;height:46px;display:flex;align-items:center;gap:3px;}
   .tn-item>span:hover,.tn-item.tn-open>span{color:var(--text);}
   .tn-item.nb-active>span{color:var(--yellow);}
-  .tn-dd-wrap{position:absolute;top:100%;left:0;padding-top:4px;z-index:1000;display:none;}
+  .tn-dd-wrap{position:fixed;padding-top:4px;z-index:9000;display:none;}
   .tn-item.tn-open .tn-dd-wrap{display:block;}
   .tn-dd{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 0;min-width:190px;box-shadow:0 8px 28px rgba(0,0,0,.55);}
   .tn-dd-item{padding:9px 16px;font-size:12.5px;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;gap:2px;transition:background .1s,color .1s;}
@@ -2819,15 +2819,35 @@ window.openAiTab=function(){
   const aiBtn=[...document.querySelectorAll('.tabbtn')].find(b=>b.dataset.tab==='ai');
   if(aiBtn) aiBtn.click();
 };
+window.openMainPage=function(){
+  closeTopNavDD();
+  if(document.getElementById('rankPage')?.classList.contains('show')) hideRankPage();
+  document.getElementById('navManualBtn')?.classList.remove('nb-active');
+  const firstTab=document.querySelector('.tabbtn');
+  if(firstTab) firstTab.click();
+  window.scrollTo({top:0,behavior:'smooth'});
+};
 window.closeTopNavDD=function(){
   document.querySelectorAll('.tn-item.tn-open').forEach(el=>el.classList.remove('tn-open'));
 };
-let _ddJustToggled=false;
 window.toggleTopNavDD=function(itemId){
   const li=document.getElementById(itemId);
+  if(!li) return;
   const wasOpen=li.classList.contains('tn-open');
   closeTopNavDD();
-  if(!wasOpen){ li.classList.add('tn-open'); _ddJustToggled=true; }
+  if(!wasOpen){
+    li.classList.add('tn-open');
+    // 드롭다운은 position:fixed — overflow 컨테이너(#topNavItems)에 잘리지 않도록 화면 기준으로 위치 계산
+    const wrap=li.querySelector('.tn-dd-wrap');
+    if(wrap){
+      const r=li.getBoundingClientRect();
+      wrap.style.top=r.bottom+'px';
+      // 우측 화면 밖으로 넘치지 않게 클램핑
+      const ddW=wrap.offsetWidth||200;
+      const left=Math.min(r.left, document.documentElement.clientWidth-ddW-8);
+      wrap.style.left=Math.max(8,left)+'px';
+    }
+  }
 };
 window.showAiHelp=function(){
   if(document.getElementById('aiHelpOverlay')) return;
@@ -4695,10 +4715,25 @@ function bindUI(){
   renderIndicatorChips();
 
   // ===== 상단 네비게이션 드롭다운 =====
-  document.getElementById('tnSignalLbl').addEventListener('click', function(){ toggleTopNavDD('tnSignalItem'); });
-  document.getElementById('tnHelpLbl').addEventListener('click', function(){ toggleTopNavDD('navManualBtn'); });
+  document.getElementById('topNavLogo').addEventListener('click', openMainPage);
+  const bindTopNavDD=function(el,itemId){
+    let pointerHandled=false;
+    el.addEventListener('pointerdown', function(e){
+      pointerHandled=true;
+      e.preventDefault();
+      e.stopPropagation();
+      toggleTopNavDD(itemId);
+    });
+    el.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      if(pointerHandled){ pointerHandled=false; return; }
+      toggleTopNavDD(itemId);
+    });
+  };
+  bindTopNavDD(document.getElementById('tnSignalLbl'), 'tnSignalItem');
+  bindTopNavDD(document.getElementById('tnHelpLbl'), 'navManualBtn');
   document.addEventListener('click', function(e){
-    if(_ddJustToggled){ _ddJustToggled=false; return; }
     if(!e.target.closest('#topNav')) closeTopNavDD();
   });
 
