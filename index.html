@@ -3672,10 +3672,32 @@ function showAlarmToast(msg){
 // AudioContext + AudioBuffer 방식은 한 번 unlock 되면 배경탭에서도 재생 가능.
 let _alarmCtx = null;
 let _alarmBuffer = null;
+let _keepAliveNode = null;   // 백그라운드 suspend 방지용 무음 소스
+
+// ── keep-alive: 무음 소스를 계속 재생해 AudioContext가 백그라운드에서
+//    suspended 되지 않게 유지. suspended가 되면 resume()이 유저 제스처 전까지
+//    완료되지 않아, 백그라운드에서 알람이 안 울리고 창을 클릭해야 그제서야 울림.
+function _startAlarmKeepAlive(){
+  if(!_alarmCtx || _alarmCtx.state==='closed') return;
+  if(_keepAliveNode) return;   // 이미 가동 중
+  try{
+    // 1프레임짜리 무음 버퍼를 무한 루프 + gain 0 으로 재생 → 컨텍스트 항상 'running'
+    const buf = _alarmCtx.createBuffer(1, 1, _alarmCtx.sampleRate);
+    const src = _alarmCtx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const g = _alarmCtx.createGain();
+    g.gain.value = 0;            // 완전 무음 (소리 안 남)
+    src.connect(g);
+    g.connect(_alarmCtx.destination);
+    src.start(0);
+    _keepAliveNode = src;
+  }catch(e){ _keepAliveNode = null; }
+}
 
 async function _initAlarmAudio(){
-  // 이미 준비 완료면 재시도 불필요
-  if(_alarmCtx && _alarmBuffer) return;
+  // 이미 준비 완료면 keep-alive만 보장하고 종료
+  if(_alarmCtx && _alarmBuffer){ _startAlarmKeepAlive(); return; }
   try{
     // AudioContext가 없거나 닫혔으면 새로 생성 (유저 제스처 내에서 동기 생성 필수 — iOS 정책)
     if(!_alarmCtx || _alarmCtx.state === 'closed'){
@@ -3689,6 +3711,8 @@ async function _initAlarmAudio(){
       const arr  = await resp.arrayBuffer();
       _alarmBuffer = await _alarmCtx.decodeAudioData(arr);
     }
+    // 무음 keep-alive 시작 → 백그라운드 suspend 방지
+    _startAlarmKeepAlive();
   }catch(e){ _alarmCtx=null; _alarmBuffer=null; }
 }
 
@@ -3697,11 +3721,14 @@ function _tryInitAlarm(){ if(!_alarmBuffer) _initAlarmAudio(); }
 document.addEventListener('click',      _tryInitAlarm, {passive:true});
 document.addEventListener('touchstart', _tryInitAlarm, {passive:true});
 
-// 뒷탭→앞탭 전환 시 suspended 된 AudioContext 재개
-document.addEventListener('visibilitychange', ()=>{
-  if(!document.hidden && _alarmCtx && _alarmCtx.state==='suspended')
-    _alarmCtx.resume().catch(()=>{});
-});
+// 뒷탭→앞탭 전환 / 창 포커스 복귀 시 suspended 된 AudioContext 재개 + keep-alive 보장
+function _resumeAlarmCtx(){
+  if(!_alarmCtx) return;
+  if(_alarmCtx.state==='suspended') _alarmCtx.resume().catch(()=>{});
+  _startAlarmKeepAlive();   // keep-alive 노드가 사라졌으면 재가동
+}
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) _resumeAlarmCtx(); });
+window.addEventListener('focus', _resumeAlarmCtx);
 
 function _playAlarmBuffer(){
   const vol = (S.alarms?.volume ?? 70) / 100;
