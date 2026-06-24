@@ -1,0 +1,45 @@
+name: Cleanup old runs
+
+# main 에 푸시할 때마다(올리기.bat 실행 시) 오래된 워크플로 실행 기록을 자동 정리.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # 깃허브에서 수동 실행도 가능
+
+permissions:
+  actions: write            # 실행 기록 삭제 권한
+
+# 같은 정리 작업이 겹쳐 돌지 않게
+concurrency:
+  group: cleanup-old-runs
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old workflow runs (keep latest 3 per workflow)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          KEEP=3   # 워크플로별로 남길 최근 실행 개수
+
+          # 정리 대상 워크플로 이름들 (페이지 배포 기록 + 이 정리 워크플로 자신)
+          for WF in "pages build and deployment" "Cleanup old runs"; do
+            echo "::group::Cleaning '$WF'"
+
+            # 완료된(in_progress 가 아닌) 실행만, 최신순으로 id 목록 뽑기
+            ids=$(gh api --paginate \
+              "repos/$REPO/actions/runs?per_page=100" \
+              -q ".workflow_runs[] | select(.name == \"$WF\") | select(.status == \"completed\") | .id")
+
+            # 최근 KEEP 개는 남기고 나머지 삭제
+            echo "$ids" | sed '/^$/d' | tail -n +$((KEEP + 1)) | while read -r id; do
+              [ -z "$id" ] && continue
+              echo "deleting run $id"
+              gh api -X DELETE "repos/$REPO/actions/runs/$id" || true
+            done
+
+            echo "::endgroup::"
+          done
