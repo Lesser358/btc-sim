@@ -4338,6 +4338,7 @@ function showAlarmToast(msg){
 // AudioContext + AudioBuffer 방식은 한 번 unlock 되면 배경탭에서도 재생 가능.
 let _alarmCtx = null;
 let _alarmBuffer = null;
+let _alarmDecodeTried = false;
 let _keepAliveNode = null;   // 백그라운드 suspend 방지용 무음 소스
 
 // ── keep-alive: 무음 소스를 계속 재생해 AudioContext가 백그라운드에서
@@ -4363,7 +4364,7 @@ function _startAlarmKeepAlive(){
 
 async function _initAlarmAudio(){
   // 이미 준비 완료면 keep-alive만 보장하고 종료
-  if(_alarmCtx && _alarmBuffer){ _startAlarmKeepAlive(); return; }
+  if(_alarmCtx && (_alarmBuffer || _alarmDecodeTried)){ _startAlarmKeepAlive(); return; }
   try{
     // AudioContext가 없거나 닫혔으면 새로 생성 (유저 제스처 내에서 동기 생성 필수 — iOS 정책)
     if(!_alarmCtx || _alarmCtx.state === 'closed'){
@@ -4372,18 +4373,23 @@ async function _initAlarmAudio(){
     // suspended 상태면 resume (백그라운드 복귀 시)
     if(_alarmCtx.state === 'suspended') await _alarmCtx.resume().catch(()=>{});
     // 버퍼가 아직 없으면 파일 로드
-    if(!_alarmBuffer){
-      const resp = await fetch('핑구 알림음.mp3.mp4');
-      const arr  = await resp.arrayBuffer();
-      _alarmBuffer = await _alarmCtx.decodeAudioData(arr);
+    if(!_alarmBuffer && !_alarmDecodeTried){
+      _alarmDecodeTried = true;
+      try{
+        const resp = await fetch(encodeURI('핑구 알림음.mp3.mp4'));
+        const arr  = await resp.arrayBuffer();
+        _alarmBuffer = await _alarmCtx.decodeAudioData(arr);
+      }catch(e){
+        _alarmBuffer = null; // MP4 디코딩 실패 시 합성 알람음 fallback 사용
+      }
     }
     // 무음 keep-alive 시작 → 백그라운드 suspend 방지
     _startAlarmKeepAlive();
-  }catch(e){ _alarmCtx=null; _alarmBuffer=null; }
+  }catch(e){ _alarmCtx=null; _alarmBuffer=null; _alarmDecodeTried=false; }
 }
 
 // 클릭·터치 모두 캡처 (모바일은 touchstart가 먼저 — once 제거로 실패 시 재시도 허용)
-function _tryInitAlarm(){ if(!_alarmBuffer) _initAlarmAudio(); }
+function _tryInitAlarm(){ if(!_alarmBuffer && !_alarmDecodeTried) _initAlarmAudio(); }
 document.addEventListener('click',      _tryInitAlarm, {passive:true});
 document.addEventListener('touchstart', _tryInitAlarm, {passive:true});
 
@@ -4398,8 +4404,9 @@ window.addEventListener('focus', _resumeAlarmCtx);
 
 function _playAlarmBuffer(){
   const vol = (S.alarms?.volume ?? 70) / 100;
-  if(_alarmCtx && _alarmBuffer){
-    const doPlay = () => {
+  if(_alarmCtx){
+    const playBuffer = () => {
+      if(!_alarmBuffer) return false;
       try{
         const src  = _alarmCtx.createBufferSource();
         src.buffer = _alarmBuffer;
@@ -4408,8 +4415,33 @@ function _playAlarmBuffer(){
         src.connect(gain);
         gain.connect(_alarmCtx.destination);
         src.start(0);
-      }catch(e){}
+        return true;
+      }catch(e){ return false; }
     };
+    const playSynth = () => {
+      try{
+        const now = _alarmCtx.currentTime;
+        const master = _alarmCtx.createGain();
+        master.gain.setValueAtTime(Math.max(0.08, vol*0.7), now);
+        master.gain.exponentialRampToValueAtTime(0.001, now + 1.15);
+        master.connect(_alarmCtx.destination);
+        [[880,0,0.22],[1320,0.18,0.22],[1760,0.36,0.32]].forEach(([freq,start,dur])=>{
+          const osc = _alarmCtx.createOscillator();
+          const g = _alarmCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now+start);
+          g.gain.setValueAtTime(0.001, now+start);
+          g.gain.exponentialRampToValueAtTime(0.9, now+start+0.02);
+          g.gain.exponentialRampToValueAtTime(0.001, now+start+dur);
+          osc.connect(g);
+          g.connect(master);
+          osc.start(now+start);
+          osc.stop(now+start+dur+0.03);
+        });
+        return true;
+      }catch(e){ return false; }
+    };
+    const doPlay = () => playBuffer() || playSynth();
     // resume()은 비동기 — 완전히 재개된 뒤에 재생해야 소리가 남
     if(_alarmCtx.state === 'suspended'){
       _alarmCtx.resume().then(doPlay).catch(()=>{});
@@ -4436,7 +4468,7 @@ window.testAlarmSound = function(){
   // testAlarmSound 는 직접 클릭이므로 AudioContext 즉시 초기화 후 재생
   _initAlarmAudio().then(()=>{
     const ok = _playAlarmBuffer();
-    if(!_alarmCtx)
+    if(!ok && !_alarmCtx)
       alert('오디오 초기화 실패.\n브라우저 설정에서 이 사이트의 소리를 허용해 주세요.');
   });
 };
