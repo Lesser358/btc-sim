@@ -909,6 +909,7 @@
     <li class="tn-item tn-has-dd" id="tnSignalItem">
       <span id="tnSignalLbl">신호 스캐너 ▾</span>
       <div class="tn-dd-wrap"><div class="tn-dd">
+        <div class="tn-dd-item" onclick="openSignalStyle('scalping')">스캘핑 <span>1m/3m · 초단타</span></div>
         <div class="tn-dd-item" onclick="openSignalStyle('scalp')">단타 <span>5m/15m · 빠른 진출입</span></div>
         <div class="tn-dd-item" onclick="openSignalStyle('swing')">스윙 <span>1H/4H · 수시간~수일</span></div>
         <div class="tn-dd-item" onclick="openSignalStyle('mid')">중기 <span>4H/1D · 수일~수주</span></div>
@@ -2631,6 +2632,26 @@ const AI_SIGNAL_CACHE_MS = 3*60*1000;
 function _aiClamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
 function _aiLastVal(data){ return data&&data.length ? data[data.length-1].value : null; }
 function _aiAvg(arr){ return arr&&arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0; }
+// 최근 n봉 거래량가중평균가(VWAP) — 스캘핑에서 가격 편향 판단에 사용
+function _aiVwap(arr,n){
+  if(!arr||!arr.length) return null;
+  const s=arr.slice(-Math.min(n||40,arr.length));
+  let pv=0,v=0;
+  for(const c of s){ const tp=(c.high+c.low+c.close)/3; pv+=tp*c.volume; v+=c.volume; }
+  return v>0?pv/v:null;
+}
+// 보조(빠른) 타임프레임의 추세 방향(+1/-1/0)과 단기 모멘텀(%) — 멀티 타임프레임 확인용
+function _aiTfConfirm(h2,cfg){
+  const out={dir:0,mom:0};
+  if(!h2||h2.length<cfg.emaSlow+2) return out;
+  const f2=_aiLastVal(calcEMA(h2,cfg.emaFast));
+  const s2=_aiLastVal(calcEMA(h2,cfg.emaSlow));
+  if(f2>0&&s2>0) out.dir=Math.sign(f2-s2);
+  const back=Math.min(h2.length-1,cfg.mom1BarsBack);
+  const p2=h2[h2.length-1-back].close;
+  if(p2>0) out.mom=(h2[h2.length-1].close/p2-1)*100;
+  return out;
+}
 function _aiKlines(raw){
   return (Array.isArray(raw)?raw:[]).map(k=>({
     time:Math.floor(+k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5]
@@ -2644,12 +2665,23 @@ async function _aiFetchJson(url){
 
 /* ===== 신호 스캐너 매매 스타일 설정 ===== */
 const SIGNAL_STYLE_CFG = {
+  scalping: {
+    label:'스캘핑', iv1:'3m',lim1:120, iv2:'1m',lim2:120,
+    emaFast:7,emaSlow:25, mom1BarsBack:3,mom2BarsBack:6,
+    rsiPrd:9,atrPrd:14, volRecentN:3,volBaseN:20,
+    rsiHigh:76,rsiLow:24,
+    wTrend:8,wMom1:12,wMom2:8,wChg24:0.6,wRsi:5,wFund:40,wVol:10,atrWarnPct:1.8,
+    wConfluence:8,wMomH2:5, useVwap:true,vwapN:40,wVwap:7,
+    minBars1:40,minBars2:40,
+    tip:'스캘핑 — 1~5분 초단타, 수수료·슬리피지 비중 큼, 타이트한 SL·빠른 익절 필수'
+  },
   scalp: {
     label:'단타', iv1:'15m',lim1:100, iv2:'5m',lim2:100,
     emaFast:9,emaSlow:21, mom1BarsBack:4,mom2BarsBack:8,
     rsiPrd:14,atrPrd:14, volRecentN:3,volBaseN:15,
     rsiHigh:72,rsiLow:28,
     wTrend:10,wMom1:10,wMom2:8,wChg24:1.0,wRsi:6,wFund:80,wVol:6,atrWarnPct:3.5,
+    wConfluence:8,wMomH2:6,
     minBars1:40,minBars2:20,
     tip:'단타 — 1~15분 내 목표가·SL 설정 권장, 수수료 고려 필수'
   },
@@ -2659,6 +2691,7 @@ const SIGNAL_STYLE_CFG = {
     rsiPrd:14,atrPrd:14, volRecentN:12,volBaseN:48,
     rsiHigh:74,rsiLow:26,
     wTrend:15,wMom1:8,wMom2:6,wChg24:1.2,wRsi:8,wFund:140,wVol:8,atrWarnPct:4.8,
+    wConfluence:10,wMomH2:4,
     minBars1:60,minBars2:20,
     tip:'스윙 — 수시간~수일 보유, 1H ATR 기준 SL 설정'
   },
@@ -2668,6 +2701,7 @@ const SIGNAL_STYLE_CFG = {
     rsiPrd:14,atrPrd:14, volRecentN:6,volBaseN:30,
     rsiHigh:74,rsiLow:26,
     wTrend:22,wMom1:5,wMom2:4,wChg24:0.8,wRsi:6,wFund:100,wVol:5,atrWarnPct:7.0,
+    wConfluence:12,wMomH2:3,
     minBars1:60,minBars2:10,
     tip:'중기 — 수일~수주 보유, 4H ATR 기준 넓은 SL 권장'
   },
@@ -2703,17 +2737,39 @@ function calcAiMarketSignalStyled(sym,h1,h2,ticker,premium,cfg){
   else if(rsi>=62&&trendPct>0) raw+=Math.round(cfg.wRsi*0.6);
   else if(rsi<=38&&trendPct<0) raw-=Math.round(cfg.wRsi*0.6);
   raw-=_aiClamp(fundingPct*cfg.wFund,-10,10);
+  // 멀티 타임프레임 확인(보조 빠른 봉) — 상위/하위 추세 일치 시 강화, 충돌 시 약화
+  const tf2=_aiTfConfirm(h2,cfg);
+  const h1Dir=Math.sign(trendPct);
+  let agree=0;
+  if(h1Dir!==0&&tf2.dir!==0) agree=(h1Dir===tf2.dir)?1:-1;
+  if(agree>0) raw+=h1Dir*(cfg.wConfluence||0);
+  raw+=_aiClamp(tf2.mom*(cfg.wMomH2||0),-12,12);
+  // VWAP 편향(스캘핑) — 현재가가 거래량가중평균가 위/아래
+  let vwapPct=null;
+  if(cfg.useVwap){
+    const vwap=_aiVwap(h1,cfg.vwapN);
+    if(vwap>0){ vwapPct=(close/vwap-1)*100; raw+=_aiClamp(vwapPct*(cfg.wVwap||6),-12,12); }
+  }
   const signBase=raw||mom1||change24;
   if(volRel>1.25&&signBase) raw+=Math.sign(signBase)*Math.min(cfg.wVol,(volRel-1)*cfg.wVol);
   if(atrPct>cfg.atrWarnPct) raw*=0.85;
+  if(agree<0) raw*=0.7;   // 상·하위 추세 충돌 시 신호 신뢰 약화
   const type=raw>=10?'long':raw<=-10?'short':'wait';
   const label=type==='long'?'롱 우위':type==='short'?'숏 우위':'관망';
-  const confidence=type==='wait'
+  let confidence=type==='wait'
     ?Math.max(30,Math.round(55-Math.min(20,Math.abs(raw))))
     :Math.min(95,Math.round(52+Math.abs(raw)*1.15));
+  // 멀티 타임프레임 일치/충돌을 신뢰도에 반영
+  if(type!=='wait'){
+    if(agree<0) confidence=Math.max(35,confidence-12);
+    else if(agree>0) confidence=Math.min(96,confidence+5);
+  }
   const reasons=[];
   if(Math.abs(trendPct)>0.15) reasons.push(`EMA ${trendPct>0?'상승':'하락'} 추세`);
+  if(agree>0) reasons.push('상·하위봉 추세 일치');
+  else if(agree<0) reasons.push('상·하위봉 추세 충돌');
   if(Math.abs(mom1)>0.35) reasons.push(`모멘텀 ${mom1>0?'강세':'약세'}`);
+  if(vwapPct!=null&&Math.abs(vwapPct)>0.05) reasons.push(`VWAP ${vwapPct>0?'상단':'하단'}`);
   if(volRel>1.25) reasons.push(`거래량 ${fmt(volRel,1)}배 증가`);
   if(fundingPct>0.04) reasons.push('롱 과열 펀딩');
   else if(fundingPct<-0.02) reasons.push('숏 과열 펀딩');
@@ -3138,6 +3194,17 @@ window.showAiHelp=function(){
       <b>4H 모멘텀 / 2H 모멘텀</b>
       <p>최근 4시간·2시간 구간의 가격 변화율입니다. 단기 추세 가속도를 확인합니다.</p>
     </div>
+    <div class="ai-help-term">
+      <b>멀티 타임프레임 일치 / 충돌</b>
+      <p>상위 봉(예: 3m)과 하위 빠른 봉(예: 1m)의 추세 방향을 함께 봅니다.<br>
+      <em>일치</em> → 신호를 강화하고 신뢰도 가산 &nbsp;/&nbsp; <em>충돌</em> → 점수를 줄이고 신뢰도 하향.<br>
+      두 시간대가 같은 방향일 때가 실전에서 더 신뢰할 수 있는 진입 구간입니다.</p>
+    </div>
+    <div class="ai-help-term">
+      <b>VWAP (거래량가중평균가) — 스캘핑</b>
+      <p>최근 봉을 거래량으로 가중한 평균 가격입니다. 스캘퍼의 단기 기준선 역할을 합니다.<br>
+      <em>현재가 &gt; VWAP</em> → 매수세 우위(상단) &nbsp;/&nbsp; <em>현재가 &lt; VWAP</em> → 매도세 우위(하단)</p>
+    </div>
     <p style="font-size:10.5px;color:var(--muted);line-height:1.6;margin-top:4px;">※ 이 지표는 Binance 공개 시장 데이터 기반 <b>보조 참고용</b>이며, 실제 진입 전 손절가·포지션 크기를 반드시 먼저 정하세요.</p>
     <button class="ai-help-close" onclick="closeAiHelp()">닫기</button>
   </div>`;
@@ -3160,7 +3227,7 @@ function renderAiSignal(){
     ? `<div class="ai-signal-empty">OFF 상태입니다. 켜면 Binance 공개 시장 데이터를 불러와<br>${cfg.label} 매매 스타일 기반으로 코인별 신호를 계산합니다.</div>`
     : cacheOk ? renderAiSignalRows(_aiSignalCache.rows)
     : `<div class="ai-signal-empty">${cfg.label} 신호 분석 중입니다...</div>`;
-  const styleDesc={scalp:'5m/15m 캔들 · EMA9/21 · 타이트한 SL',swing:'1H/4H 캔들 · EMA20/50 · ATR 기준 SL',mid:'4H/1D 캔들 · EMA20/50 · 넓은 SL'};
+  const styleDesc={scalping:'1m/3m 캔들 · EMA7/25 · VWAP·거래량 중심 · 초타이트 SL',scalp:'5m/15m 캔들 · EMA9/21 · 타이트한 SL',swing:'1H/4H 캔들 · EMA20/50 · ATR 기준 SL',mid:'4H/1D 캔들 · EMA20/50 · 넓은 SL'};
   el.innerHTML=`
     <div class="ai-signal-tab-head">
       <span class="ai-signal-tab-title">AI 신호 스캐너</span>
@@ -3171,6 +3238,7 @@ function renderAiSignal(){
       </div>
     </div>
     <div class="ai-style-tabs">
+      <button class="ai-style-btn ${style==='scalping'?'active':''}" onclick="switchSignalStyle('scalping')">스캘핑</button>
       <button class="ai-style-btn ${style==='scalp'?'active':''}" onclick="switchSignalStyle('scalp')">단타</button>
       <button class="ai-style-btn ${style==='swing'?'active':''}" onclick="switchSignalStyle('swing')">스윙</button>
       <button class="ai-style-btn ${style==='mid'?'active':''}" onclick="switchSignalStyle('mid')">중기</button>
