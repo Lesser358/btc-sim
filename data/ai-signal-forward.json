@@ -1,74 +1,8 @@
 {
   "version": 1,
   "source": "github-actions",
-  "updatedAt": "2026-06-25T14:05:46.559Z",
+  "updatedAt": "2026-06-25T21:03:16.253Z",
   "pending": [
-    {
-      "id": "scalping:ethusdt:1782393179814",
-      "style": "scalping",
-      "sym": "ethusdt",
-      "type": "long",
-      "entry": 1637.67,
-      "score": 12,
-      "confidence": 71,
-      "ts": 1782393179814,
-      "evalAt": 1782394979814
-    },
-    {
-      "id": "scalping:xrpusdt:1782393179814",
-      "style": "scalping",
-      "sym": "xrpusdt",
-      "type": "long",
-      "entry": 1.0748,
-      "score": 13,
-      "confidence": 72,
-      "ts": 1782393179814,
-      "evalAt": 1782394979814
-    },
-    {
-      "id": "scalping:dogeusdt:1782393179814",
-      "style": "scalping",
-      "sym": "dogeusdt",
-      "type": "long",
-      "entry": 0.07605,
-      "score": 13,
-      "confidence": 72,
-      "ts": 1782393179814,
-      "evalAt": 1782394979814
-    },
-    {
-      "id": "scalping:bnbusdt:1782393179814",
-      "style": "scalping",
-      "sym": "bnbusdt",
-      "type": "long",
-      "entry": 564.91,
-      "score": 19,
-      "confidence": 79,
-      "ts": 1782393179814,
-      "evalAt": 1782394979814
-    },
-    {
-      "id": "scalping:adausdt:1782393179814",
-      "style": "scalping",
-      "sym": "adausdt",
-      "type": "long",
-      "entry": 0.1485,
-      "score": 25,
-      "confidence": 85,
-      "ts": 1782393179814,
-      "evalAt": 1782394979814
-    },
-    {
-      "id": "scalping:avaxusdt:1782393179814",
-      "style": "scalping",
-      "sym": "avaxusdt",
-      "type": "short",
-      "entry": 6.366,
-      "score": -11,
-      "confidence": 69,
-      "ts": 1782393179814,
-      "evalAt": 1782394979814
-    },
     {
       "id": "scalp:dogeusdt:1782393179814",
       "style": "scalp",
@@ -279,7 +213,27 @@
       "evalAt": 1782738779814
     }
   ],
-  "styles": {},
+  "styles": {
+    "scalping": {
+      "win": 0,
+      "loss": 0,
+      "flat": 0,
+      "total": 0,
+      "tradeWin": 0,
+      "tradeLoss": 0,
+      "tradeFlat": 0,
+      "netSum": 0,
+      "gainSum": 0,
+      "lossSum": 0,
+      "mfeSum": 0,
+      "maeSum": 0,
+      "tpHit": 0,
+      "slHit": 0,
+      "timeExit": 0,
+      "dropped": 6,
+      "lastEvalAt": null
+    }
+  },
   "latestSignals": {
     "scalping": [
       {
@@ -612,6 +566,11 @@
   },
   "recentEvaluations": [],
   "runs": [
+    {
+      "ts": "2026-06-25T21:03:16.253Z",
+      "added": 0,
+      "pending": 19
+    },
     {
       "ts": "2026-06-25T14:05:46.559Z",
       "added": 0,
