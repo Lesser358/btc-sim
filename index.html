@@ -6917,7 +6917,33 @@ function rankUserAssetDelta(u){
   const asset = rankUserAsset(u);
   return asset == null ? null : asset - START_BAL;
 }
+function rankPeriodStarts(now=Date.now()){
+  const d = new Date(now);
+  const daily = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const week = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  week.setDate(week.getDate() - ((week.getDay()+6)%7));
+  const weekly = week.getTime();
+  const monthly = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+  return {daily, weekly, monthly};
+}
+function rankUpdatedMs(u){
+  const t = u && u.updatedAt;
+  if(!t) return 0;
+  if(typeof t.toMillis === 'function') return t.toMillis();
+  if(typeof t.toDate === 'function') return t.toDate().getTime();
+  if(typeof t === 'number') return t;
+  return 0;
+}
+function rankPeriodFresh(u, period){
+  if(period === 'total') return true;
+  const start = rankPeriodStarts()[period] || 0;
+  const savedStart = Number(u && u[period+'Start']);
+  if(Number.isFinite(savedStart) && savedStart > 0) return savedStart === start;
+  const updated = rankUpdatedMs(u);
+  return updated >= start;
+}
 function rankPeriodPnl(u, period){
+  if(!rankPeriodFresh(u, period)) return 0;
   const raw = Number(u && u[period+'Pnl']);
   const pnl = Number.isFinite(raw) ? raw : 0;
   const delta = rankUserAssetDelta(u);
@@ -6932,6 +6958,11 @@ function rankPeriodPnl(u, period){
   }
   return pnl;
 }
+function rankPeriodMetric(u, period, key){
+  if(!rankPeriodFresh(u, period)) return 0;
+  const v = Number(u && u[period+key]);
+  return Number.isFinite(v) ? v : 0;
+}
 function rankAdd(bucket, h){
   const net = rankNetPnl(h);
   if(!Number.isFinite(net)) return;
@@ -6943,17 +6974,14 @@ function rankAdd(bucket, h){
 }
 function computeRankStats(){
   const now = Date.now();
-  const dayMs = 86400000;
-  const cutDaily   = now - dayMs;
-  const cutWeekly  = now - 7*dayMs;
-  const cutMonthly = now - 30*dayMs;
+  const starts = rankPeriodStarts(now);
   const acc = { daily:{pnl:0,tr:0,wins:0}, weekly:{pnl:0,tr:0,wins:0}, monthly:{pnl:0,tr:0,wins:0}, total:{pnl:0,tr:0,wins:0} };
   const symAcc = {}; // 종목별 통합 누적
   (S.history||[]).forEach(h=>{
     rankAdd(acc.total, h);
-    if(h.time>=cutMonthly) rankAdd(acc.monthly, h);
-    if(h.time>=cutWeekly)  rankAdd(acc.weekly, h);
-    if(h.time>=cutDaily)   rankAdd(acc.daily, h);
+    if(h.time>=starts.monthly) rankAdd(acc.monthly, h);
+    if(h.time>=starts.weekly)  rankAdd(acc.weekly, h);
+    if(h.time>=starts.daily)   rankAdd(acc.daily, h);
     // 종목별 누적
     const s = rankSymKey(h.sym);
     if(!symAcc[s]) symAcc[s]={pnl:0,tr:0,wins:0};
@@ -6964,6 +6992,7 @@ function computeRankStats(){
   return {
     username: fbUsername, nickname: fbNickname, role: fbIsAdmin?'admin':'user',
     walletBalance: asset,
+    dailyStart: starts.daily, weeklyStart: starts.weekly, monthlyStart: starts.monthly,
     dailyPnl: acc.daily.pnl,   dailyTrades: acc.daily.tr,   dailyWins: acc.daily.wins,
     weeklyPnl: acc.weekly.pnl, weeklyTrades: acc.weekly.tr, weeklyWins: acc.weekly.wins,
     monthlyPnl: acc.monthly.pnl,monthlyTrades:acc.monthly.tr,monthlyWins:acc.monthly.wins,
@@ -7141,8 +7170,8 @@ window.renderRankingBySymbol = function(){
 };
 function _rankSortValue(u, period, sort){
   const pnl  = rankPeriodPnl(u, period);
-  const tr   = u[period+'Trades']||0;
-  const wins = u[period+'Wins']||0;
+  const tr   = rankPeriodMetric(u, period, 'Trades');
+  const wins = rankPeriodMetric(u, period, 'Wins');
   if(sort==='roi')     return rankRoi(pnl);
   if(sort==='balance') return u.walletBalance||0;
   if(sort==='winrate') return tr>0 ? wins/tr*100 : 0;
@@ -7157,8 +7186,8 @@ function renderRanking(users, period){
 
   const rows = sorted.map((u,i)=>{
     const pnl  = rankPeriodPnl(u, period);
-    const tr   = u[period+'Trades']||0;
-    const wins = u[period+'Wins']||0;
+    const tr   = rankPeriodMetric(u, period, 'Trades');
+    const wins = rankPeriodMetric(u, period, 'Wins');
     const wr   = tr>0 ? (wins/tr*100).toFixed(1) : '0.0';
     const roi  = rankRoi(pnl).toFixed(2);
     const bal  = (u.walletBalance||0).toFixed(0);
