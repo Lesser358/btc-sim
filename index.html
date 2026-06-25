@@ -1265,7 +1265,8 @@
     <button onclick="closeAlarmPanel()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;">×</button>
   </div>
   <div class="al-section">
-    <div class="al-section-title">Hull MA 근접 알람</div>
+    <div class="al-section-title">Hull MA 근접 알람 · <span id="alIvLabel" style="color:var(--yellow);">1m</span> 시간봉</div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.45;margin:-2px 0 2px;">이 설정은 <b style="color:var(--text);">현재 시간봉에만</b> 적용됩니다. 다른 시간봉으로 바꾸면 그 시간봉의 알람만 동작합니다.</div>
     <div class="al-row">
       <span>알람 활성화</span>
       <label class="al-toggle">
@@ -1448,7 +1449,7 @@ const defaultState = () => ({
   symbol: "btcusdt",
   indicators: [],   // [{id, type, params}]
   indDefaults: {},  // 마지막으로 저장한 지표 타입별 파라미터
-  alarms: { hmaProximity: { on: false, dist: 200, dir: 'both', count: 1 }, volume: 70 },
+  alarms: { hmaByIv: {}, volume: 70 },   // Hull MA 근접 알람을 시간봉별로 저장 {iv:{on,dist,dir,count}}
   aiConsent: null,
   aiSignalOn: false,
   signalStyle: 'swing',
@@ -1482,16 +1483,20 @@ function loadState(){
           ? [{id:String(Date.now()), type:'hma', params:{period:saved.hullPeriod||55, color:'#f0b90b', width:2}}]
           : [];
       }
-      // 알람 마이그레이션: pct(%) → dist(USDT)
+      // 알람 마이그레이션: 단일 hmaProximity → 시간봉별 hmaByIv
       if(!state.alarms) state.alarms = defaultState().alarms;
-      if(!state.alarms.hmaProximity) state.alarms.hmaProximity = defaultState().alarms.hmaProximity;
-      if(state.alarms.hmaProximity.dist == null){
-        state.alarms.hmaProximity.dist = state.alarms.hmaProximity.pct
-          ? Math.round(state.alarms.hmaProximity.pct * 1000) : 200;
-        delete state.alarms.hmaProximity.pct;
+      if(!state.alarms.hmaByIv || typeof state.alarms.hmaByIv !== 'object'){
+        state.alarms.hmaByIv = {};
+        const old = state.alarms.hmaProximity;   // 구 버전 단일 알람을 마지막 사용 시간봉으로 이관
+        if(old && typeof old === 'object'){
+          let dist = old.dist;
+          if(dist == null) dist = old.pct ? Math.round(old.pct * 1000) : 200;
+          if(old.on) state.alarms.hmaByIv[state.interval || '1m'] =
+            { on:true, dist:dist||200, dir:old.dir||'both', count:old.count||1 };
+        }
       }
+      delete state.alarms.hmaProximity;
       if(state.alarms.volume == null) state.alarms.volume = 70;
-      if(state.alarms.hmaProximity.count == null) state.alarms.hmaProximity.count = 1;
       // AI 확률 오버레이 마이그레이션
       if(!state.aiProb || typeof state.aiProb !== 'object') state.aiProb = defaultState().aiProb;
       if(state.aiProb.mode !== 'multi') state.aiProb.mode = 'current';
@@ -2916,12 +2921,15 @@ window.toggleAiProbPanel=function(){
   if(p.style.display==='flex') closeAiProbPanel(); else openAiProbPanel();
 };
 window.openAiProbPanel=function(){
+  closeToolPanels('aiProbPanel');                // 다른 팝업 닫기 (하나만 열림)
   if(!S.aiProb) S.aiProb={on:false,mode:'current'};
   const a=S.aiProb;
   const cb=document.getElementById('apOn');
   if(cb){ cb.checked=a.on; document.getElementById('apOnLbl').textContent=a.on?'ON':'OFF'; }
   document.querySelectorAll('input[name="apMode"]').forEach(r=>{ r.checked=(r.value===(a.mode||'current')); });
-  document.getElementById('aiProbPanel').style.display='flex';
+  const p=document.getElementById('aiProbPanel');
+  p.style.display='flex';
+  _positionPanelUnder(p, document.getElementById('aiProbBtn'));   // 버튼 바로 아래
 };
 window.closeAiProbPanel=function(){ document.getElementById('aiProbPanel').style.display='none'; };
 window.applyAiProbSettings=function(){
@@ -3822,7 +3830,8 @@ window.applyIndSettings=function(){
    ============================================================ */
 function checkHmaAlarm(price, hmaVal){
   if(!hmaVal || !(price>0)) return;
-  const a = S.alarms && S.alarms.hmaProximity;
+  // 현재 보고 있는 시간봉의 알람 설정만 사용 → 다른 시간봉으로 이동하면 그 시간봉 설정(보통 없음)을 따름
+  const a = S.alarms && S.alarms.hmaByIv && S.alarms.hmaByIv[curInterval];
   if(!a || !a.on){ _hmaPrevSide = null; return; }
   const dist = Math.abs(price - hmaVal);
   const threshold = a.dist || 200;
@@ -3855,8 +3864,9 @@ function checkHmaAlarm(price, hmaVal){
     fireAlarm(`🔔 Hull MA 근접! ${side} HMA ${fmt(hmaVal,2)}  거리 $${fmt(dist,2)}  (${alarmFiredCount+1}/${maxCount})`);
     alarmFiredCount++;
     if(alarmFiredCount >= maxCount){
-      // 설정 횟수 소진 → 자동 비활성화
-      S.alarms.hmaProximity.on = false;
+      // 설정 횟수 소진 → 이 시간봉 알람 자동 비활성화 (a 는 hmaByIv[curInterval] 참조)
+      a.on = false;
+      delete S.alarms.hmaByIv[curInterval];
       hmaZoneState = null;
       alarmFiredCount = 0;
       save();
@@ -3987,6 +3997,40 @@ window.testAlarmSound = function(){
   });
 };
 
+// ── 툴바 팝업 패널 공통: 버튼 바로 아래 배치 + 한 번에 하나만 열기 ──────────────
+function _positionPanelUnder(panel, btn){
+  if(!panel || !btn) return;
+  const r = btn.getBoundingClientRect();
+  panel.style.right = 'auto';
+  panel.style.top   = (Math.round(r.bottom) + 6) + 'px';
+  const pw = panel.offsetWidth || 280;          // display 적용 후 호출되므로 폭 측정 가능
+  let left = Math.round(r.left);
+  const maxLeft = window.innerWidth - pw - 8;
+  if(left > maxLeft) left = Math.max(8, maxLeft);   // 우측 화면 밖 방지
+  if(left < 8) left = 8;
+  panel.style.left = left + 'px';
+}
+// 지정한 패널만 남기고 나머지 툴바 팝업을 닫는다 (상호 배타)
+function closeToolPanels(except){
+  const al=document.getElementById('alarmPanel');
+  if(al && except!=='alarmPanel') al.style.display='none';
+  const ap=document.getElementById('aiProbPanel');
+  if(ap && except!=='aiProbPanel') ap.style.display='none';
+  const dj=document.getElementById('dateJumpPanel');
+  if(dj && except!=='dateJumpPanel') dj.classList.remove('show');
+  // 닫힌 패널의 버튼 active 상태 동기화
+  if(except!=='alarmPanel') _syncAlarmBtn();
+  if(except!=='aiProbPanel'){ const b=document.getElementById('aiProbBtn'); if(b) b.classList.toggle('active', !!(S.aiProb&&S.aiProb.on)); }
+}
+// 알람 버튼 색 = 패널 열림 OR 현재 시간봉에 알람 설정됨
+function _syncAlarmBtn(){
+  const btn=document.getElementById('alarmBtn'); if(!btn) return;
+  const panel=document.getElementById('alarmPanel');
+  const open = panel && panel.style.display==='flex';
+  const a = S.alarms && S.alarms.hmaByIv && S.alarms.hmaByIv[curInterval];
+  btn.classList.toggle('active', open || !!(a&&a.on));
+}
+
 window.toggleAlarmPanel = function(){
   const p = document.getElementById('alarmPanel');
   if(!p) return;
@@ -3994,9 +4038,10 @@ window.toggleAlarmPanel = function(){
 };
 
 window.openAlarmPanel = function(){
+  closeToolPanels('alarmPanel');                 // 다른 팝업 닫기 (하나만 열림)
   if(!S.alarms) S.alarms={};
-  if(!S.alarms.hmaProximity) S.alarms.hmaProximity={on:false,pct:0.3,dir:'both'};
-  const a = S.alarms.hmaProximity;
+  if(!S.alarms.hmaByIv) S.alarms.hmaByIv={};
+  const a = S.alarms.hmaByIv[curInterval] || {on:false,dist:200,dir:'both',count:1};
   const cb=document.getElementById('alHmaOn'), distEl=document.getElementById('alHmaDist'), dirEl=document.getElementById('alHmaDir');
   if(cb){ cb.checked=a.on; document.getElementById('alHmaOnLbl').textContent=a.on?'ON':'OFF'; }
   if(distEl) distEl.value=a.dist??200;
@@ -4005,23 +4050,29 @@ window.openAlarmPanel = function(){
   const volEl=document.getElementById('alVolume'); if(volEl) volEl.value=vol;
   const volLbl=document.getElementById('alVolumeLbl'); if(volLbl) volLbl.textContent=vol+'%';
   if(dirEl) dirEl.value=a.dir;
+  const ivLbl=document.getElementById('alIvLabel'); if(ivLbl) ivLbl.textContent=curInterval;
   refreshAlarmStatus();
-  document.getElementById('alarmPanel').style.display='flex';
+  const p=document.getElementById('alarmPanel');
+  p.style.display='flex';
+  _positionPanelUnder(p, document.getElementById('alarmBtn'));   // 버튼 바로 아래
   document.getElementById('alarmBtn').classList.add('active');
 };
 
 window.closeAlarmPanel = function(){
   document.getElementById('alarmPanel').style.display='none';
-  document.getElementById('alarmBtn').classList.toggle('active', !!(S.alarms&&S.alarms.hmaProximity&&S.alarms.hmaProximity.on));
+  _syncAlarmBtn();
 };
 
 window.saveAlarmSettings = function(){
   if(!S.alarms) S.alarms={};
+  if(!S.alarms.hmaByIv) S.alarms.hmaByIv={};
   const cb=document.getElementById('alHmaOn'), distEl=document.getElementById('alHmaDist'), dirEl=document.getElementById('alHmaDir');
   const on = cb?cb.checked:false;
   const countEl=document.getElementById('alHmaCount');
   const count = Math.max(1, parseInt(countEl?countEl.value:1)||1);
-  S.alarms.hmaProximity={ on, dist:Math.max(1,parseFloat(distEl?distEl.value:200)||200), dir:dirEl?dirEl.value:'both', count };
+  const cfg = { on, dist:Math.max(1,parseFloat(distEl?distEl.value:200)||200), dir:dirEl?dirEl.value:'both', count };
+  if(on) S.alarms.hmaByIv[curInterval] = cfg;     // 현재 시간봉에만 설정
+  else   delete S.alarms.hmaByIv[curInterval];    // OFF면 이 시간봉 설정 제거
   S.alarms.volume = Math.round(parseFloat(document.getElementById('alVolume')?.value??70)||70);
   hmaZoneState = null;
   alarmFiredCount = 0;
@@ -4039,7 +4090,8 @@ function refreshAlarmStatus(){
   if(!hmaInd){ el.style.color='var(--red)'; el.textContent='⚠ Hull MA 지표를 먼저 추가하세요'; return; }
   if(!lastHmaValue){ el.style.color='var(--muted)'; el.textContent='Hull MA 계산 중...'; return; }
   const dist = lastPrice>0 ? Math.abs(lastPrice-lastHmaValue) : 0;
-  const threshold = S.alarms&&S.alarms.hmaProximity ? (S.alarms.hmaProximity.dist||200) : 200;
+  const cur = S.alarms&&S.alarms.hmaByIv&&S.alarms.hmaByIv[curInterval];
+  const threshold = cur ? (cur.dist||200) : 200;
   el.style.color = dist<=threshold ? 'var(--yellow)' : 'var(--muted)';
   el.textContent = `HMA ${fmt(lastHmaValue,2)}  |  현재 거리 $${fmt(dist,2)}`;
 }
@@ -4102,6 +4154,9 @@ window.selectIv = function(iv){
   curInterval = iv; S.interval = iv; save();
   hmaZoneState = null; alarmFiredCount = 0; _hmaPrevSide = null;
   renderIntervalSeg();
+  // 시간봉 전환 → 알람은 그 시간봉 설정을 따름 (버튼색·열린 패널 갱신)
+  if(document.getElementById('alarmPanel').style.display==='flex') openAlarmPanel();
+  else _syncAlarmBtn();
   // 시간봉 전환 시도 Y축 강제 초기화 (이전 봉의 가격대가 차트를 눌리게 만드는 원인)
   try{ chart.priceScale('right').applyOptions({ autoScale: true }); }catch(e){}
   loadHistory();
@@ -4561,6 +4616,7 @@ window.toggleDateJump = function(){
   const panel = document.getElementById('dateJumpPanel');
   if(!panel) return;
   if(panel.classList.contains('show')){ panel.classList.remove('show'); return; }
+  closeToolPanels('dateJumpPanel');              // 다른 팝업 닫기 (하나만 열림)
   const now = new Date();
   const curY = now.getFullYear();
   const years = [];
@@ -4893,10 +4949,8 @@ function bindUI(){
   if(hlBtn) hlBtn.classList.toggle('on', showHighLow);
 
 
-  // 알람 버튼 초기 상태
-  if(S.alarms&&S.alarms.hmaProximity&&S.alarms.hmaProximity.on){
-    document.getElementById('alarmBtn').classList.add('active');
-  }
+  // 알람 버튼 초기 상태 (현재 시간봉에 알람 설정됐는지)
+  _syncAlarmBtn();
 
   // AI 확률 버튼 초기 상태
   const apBtn=document.getElementById('aiProbBtn');
