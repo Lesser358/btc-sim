@@ -18,12 +18,12 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: Delete old workflow runs (keep latest 3 per workflow)
+      - name: Delete old workflow runs (keep only the latest per workflow)
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          KEEP=3   # 워크플로별로 남길 최근 실행 개수
+          KEEP=1   # 워크플로별로 남길 최근 실행 개수 (최신 1개만 유지, 나머지 전부 삭제)
 
           # 정리 대상 워크플로 이름들 (페이지 배포 기록 + 이 정리 워크플로 자신)
           for WF in "pages build and deployment" "Cleanup old runs"; do
