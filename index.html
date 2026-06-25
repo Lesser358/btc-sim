@@ -2847,11 +2847,21 @@ function _sigBtText(style){
   if(!d) return '백테스트 미실행 — 과거 캔들 기준으로 별도 검증 가능';
   if(d.error) return `백테스트 실패 — ${d.error}`;
   const decided=(d.win||0)+(d.loss||0);
-  const acc=decided>0?Math.round((d.win||0)/decided*100):null;
-  const col=acc==null?'var(--muted)':acc>=55?'var(--green)':acc<=45?'var(--red)':'var(--yellow)';
+  const dirAcc=decided>0?Math.round((d.win||0)/decided*100):null;
   const dt=d.ts?new Date(d.ts):null;
   const when=dt?`${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`:'-';
-  return `백테스트 <b style="color:${col}">${acc==null?'-':acc+'%'}</b> · ${d.win||0}승 ${d.loss||0}패 · 무효 ${d.flat||0} · 표본 ${d.total||0} · ${when}`;
+  if(d.note!=='trade-sim-v2'){
+    const oldCol=dirAcc==null?'var(--muted)':dirAcc>=55?'var(--green)':dirAcc<=45?'var(--red)':'var(--yellow)';
+    return `백테스트(구버전) <b style="color:${oldCol}">${dirAcc==null?'-':dirAcc+'%'}</b> · ${d.win||0}승 ${d.loss||0}패 · 무효 ${d.flat||0} · 다시 실행 권장 · ${when}`;
+  }
+  const moneyDecided=(d.tradeWin||0)+(d.tradeLoss||0);
+  const moneyAcc=moneyDecided>0?Math.round((d.tradeWin||0)/moneyDecided*100):null;
+  const avgNet=(d.total||0)>0?(d.netSum||0)/(d.total||1):0;
+  const pf=(d.lossSum||0)>0?(d.gainSum||0)/(d.lossSum||1):((d.gainSum||0)>0?99:0);
+  const col=avgNet>0?'var(--green)':avgNet<0?'var(--red)':'var(--yellow)';
+  const avgMfe=(d.total||0)>0?(d.mfeSum||0)/(d.total||1):0;
+  const avgMae=(d.total||0)>0?(d.maeSum||0)/(d.total||1):0;
+  return `백테스트 순승률 <b style="color:${col}">${moneyAcc==null?'-':moneyAcc+'%'}</b> · 평균 <b style="color:${col}">${avgNet>=0?'+':''}${fmt(avgNet,2)}%</b> · PF ${pf>=99?'∞':fmt(pf,2)} · 방향 ${dirAcc==null?'-':dirAcc+'%'} · MFE ${fmt(avgMfe,2)}%/MAE ${fmt(avgMae,2)}% · TP ${d.tpHit||0}/SL ${d.slHit||0} · 표본 ${d.total||0} · ${when}`;
 }
 function updateSigBtDom(){
   const el=document.getElementById('sigBtLine');
@@ -2865,13 +2875,45 @@ function _sigBtEvalBars(style,cfg){
 function _sigBtQuoteVol(arr,n){
   return (arr||[]).slice(-n).reduce((s,c)=>s+(c.close*c.volume),0);
 }
+function _sigBtTradeCfg(style){
+  const ev=SIG_EVAL[style]||SIG_EVAL.swing;
+  const slipOneWay={scalping:0.02,scalp:0.03,swing:0.04,mid:0.05}[style] ?? 0.04;
+  return {
+    tpPct: ev.winPct*2.0,
+    slPct: ev.winPct*1.2,
+    costPct: (TAKER*2*100) + slipOneWay*2
+  };
+}
+function _sigBtSimTrade(type, entry, futureBars, style){
+  if(!(entry>0)||!futureBars||!futureBars.length) return null;
+  const tc=_sigBtTradeCfg(style);
+  let mfe=0, mae=0, exitKind='time', grossPct=0;
+  for(const b of futureBars){
+    const fav = type==='long' ? (b.high/entry-1)*100 : ((entry-b.low)/entry)*100;
+    const adv = type==='long' ? (b.low/entry-1)*100 : ((entry-b.high)/entry)*100;
+    if(fav>mfe) mfe=fav;
+    if(adv<mae) mae=adv;
+    const hitTp=fav>=tc.tpPct, hitSl=adv<=-tc.slPct;
+    if(hitTp||hitSl){
+      // 같은 봉에서 TP/SL이 모두 닿으면 보수적으로 SL 먼저 체결된 것으로 본다.
+      if(hitSl){ exitKind='sl'; grossPct=-tc.slPct; }
+      else { exitKind='tp'; grossPct=tc.tpPct; }
+      break;
+    }
+  }
+  if(exitKind==='time'){
+    const last=futureBars[futureBars.length-1];
+    grossPct=(type==='long' ? (last.close/entry-1) : ((entry-last.close)/entry))*100;
+  }
+  return { exitKind, grossPct, netPct:grossPct-tc.costPct, mfePct:mfe, maePct:mae, costPct:tc.costPct };
+}
 function _sigBtStatsForSymbol(sym,h1,h2,cfg,style){
   const ev=SIG_EVAL[style]||SIG_EVAL.swing;
   const evalBars=_sigBtEvalBars(style,cfg);
   const ivSec=(typeof IV_SEC!=='undefined' && IV_SEC[cfg.iv1]) ? IV_SEC[cfg.iv1] : 3600;
   const back24=Math.max(1, Math.round(86400/ivSec));
   const minBars=Math.max(cfg.minBars1||40, cfg.emaSlow+5, cfg.volBaseN+cfg.volRecentN+1, cfg.divLook||0);
-  const out={win:0,loss:0,flat:0,total:0};
+  const out={win:0,loss:0,flat:0,total:0,tradeWin:0,tradeLoss:0,tradeFlat:0,netSum:0,gainSum:0,lossSum:0,mfeSum:0,maeSum:0,tpHit:0,slHit:0,timeExit:0};
   let h2End=0;
   const step=Math.max(1, evalBars);
   for(let i=minBars; i<h1.length-evalBars; i+=step){
@@ -2888,11 +2930,24 @@ function _sigBtStatsForSymbol(sym,h1,h2,cfg,style){
     if(!r || r.type==='wait') continue;
     const entry=h1[i].close, exit=h1[i+evalBars].close;
     if(!(entry>0) || !(exit>0)) continue;
+    const trade=_sigBtSimTrade(r.type, entry, h1.slice(i+1,i+evalBars+1), style);
+    if(!trade) continue;
     const movePct=(exit/entry-1)*100;
     const fav=r.type==='long'?movePct:-movePct;
     if(fav>=ev.winPct) out.win++;
     else if(fav<=-ev.winPct) out.loss++;
     else out.flat++;
+    if(trade.netPct>0) out.tradeWin++;
+    else if(trade.netPct<0) out.tradeLoss++;
+    else out.tradeFlat++;
+    out.netSum+=trade.netPct;
+    if(trade.netPct>0) out.gainSum+=trade.netPct;
+    else if(trade.netPct<0) out.lossSum+=Math.abs(trade.netPct);
+    out.mfeSum+=trade.mfePct;
+    out.maeSum+=trade.maePct;
+    if(trade.exitKind==='tp') out.tpHit++;
+    else if(trade.exitKind==='sl') out.slHit++;
+    else out.timeExit++;
     out.total++;
   }
   return out;
@@ -2916,10 +2971,12 @@ window.runAiSignalBacktest=async function(){
       ]);
       const st=_sigBtStatsForSymbol(sym,_aiKlines(h1Raw),_aiKlines(h2Raw),cfg,style);
       totals.bySym[sym]=st;
-      totals.win+=st.win; totals.loss+=st.loss; totals.flat+=st.flat; totals.total+=st.total;
+      for(const k of ['win','loss','flat','total','tradeWin','tradeLoss','tradeFlat','netSum','gainSum','lossSum','mfeSum','maeSum','tpHit','slHit','timeExit']){
+        totals[k]=(totals[k]||0)+(st[k]||0);
+      }
     }));
     if(req!==_sigBtReq) return;
-    _sigBtSave(style, {...totals, ts:Date.now(), note:'candle-only'});
+    _sigBtSave(style, {...totals, ts:Date.now(), note:'trade-sim-v2', tradeCfg:_sigBtTradeCfg(style)});
   }catch(e){
     if(req===_sigBtReq) _sigBtSave(style, {error:'시장 데이터 조회 실패', ts:Date.now()});
   }finally{
@@ -3478,7 +3535,8 @@ window.showAiHelp=function(){
     <div class="ai-help-term">
       <b>백테스트 (과거 캔들 기준)</b>
       <p>사용자가 접속하지 않았던 과거 구간도 캔들 데이터로 다시 계산해 신호 성능을 확인합니다.<br>
-      단, 과거 오더북·실제 펀딩비·수수료·SL/TP 터치 순서는 완전 재현하지 않으므로 <em>방향성 1차 검증</em>으로 봐야 합니다.</p>
+      예상 수수료·슬리피지와 가상 TP/SL, 최대순행(MFE)·최대역행(MAE)을 반영해 순수 방향보다 실제로 돈이 남는지에 가깝게 봅니다.<br>
+      단, 과거 오더북·실제 펀딩비·실제 체결 품질은 완전 재현하지 않으므로 <em>실거래 확정값이 아닌 보수적 참고값</em>으로 봐야 합니다.</p>
     </div>
     <div class="ai-help-term">
       <b>VWAP (거래량가중평균가) — 스캘핑</b>
