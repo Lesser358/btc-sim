@@ -2707,6 +2707,71 @@ const SIGNAL_STYLE_CFG = {
   },
 };
 
+/* ===== 신호 적중률 로깅(기기 로컬) — 스타일별 실제 신뢰도 측정 =====
+   계정/거래 데이터가 아닌 공개 시장 예측 기록이라 클라우드 동기화 없이 localStorage에만 저장.
+   스타일별 보유기간(horizon) 뒤 가격이 예측 방향으로 움직였으면 '승', 반대면 '패', 미미하면 '무효'. */
+const SIG_EVAL = {
+  scalping:{ horizonMs:30*60*1000,        winPct:0.15 },
+  scalp:   { horizonMs:4*60*60*1000,      winPct:0.4  },
+  swing:   { horizonMs:24*60*60*1000,     winPct:1.0  },
+  mid:     { horizonMs:4*24*60*60*1000,   winPct:2.0  },
+};
+const SIG_STATS_KEY='btcSimSigStats';
+const SIG_PENDING_MAX=400;
+function _sigStatsLoad(){
+  try{ const o=JSON.parse(localStorage.getItem(SIG_STATS_KEY)); if(o&&o.stats&&Array.isArray(o.pending)) return o; }catch(e){}
+  return { pending:[], stats:{} };
+}
+function _sigStatsSave(o){ try{ localStorage.setItem(SIG_STATS_KEY, JSON.stringify(o)); }catch(e){} }
+function _sigBucket(o,style){ if(!o.stats[style]) o.stats[style]={win:0,loss:0,flat:0}; return o.stats[style]; }
+// 성숙한 예측 평가 + 새 신호 기록. priceOf(sym)->현재가(없으면 0)
+function sigLogAndEval(style, rows, priceOf){
+  const cfg=SIG_EVAL[style]; if(!cfg) return;
+  const o=_sigStatsLoad();
+  const now=Date.now();
+  // 1) 평가: evalAt 지난 pending 처리
+  const keep=[];
+  for(const p of o.pending){
+    const c=SIG_EVAL[p.style]; if(!c) continue;
+    if(now < p.evalAt){ keep.push(p); continue; }
+    const px=priceOf(p.sym);
+    if(!(px>0)){ if(now < p.evalAt + c.horizonMs*3) keep.push(p); continue; } // 가격 못 구하면 잠시 보관
+    const movePct=(px/p.entry-1)*100;
+    const fav=p.type==='long'?movePct:-movePct;
+    const b=_sigBucket(o,p.style);
+    if(fav>=c.winPct) b.win++;
+    else if(fav<=-c.winPct) b.loss++;
+    else b.flat++;
+  }
+  o.pending=keep;
+  // 2) 기록: 현재 스타일 신호 중 type!=='wait'이고 동일 (style,sym) 진행건 없을 때만(중복 방지)
+  const open=new Set(o.pending.filter(p=>p.style===style).map(p=>p.sym));
+  for(const r of (rows||[])){
+    if(!r||r.type==='wait'||open.has(r.sym)) continue;
+    const px=priceOf(r.sym); if(!(px>0)) continue;
+    o.pending.push({ style, sym:r.sym, type:r.type, entry:px, ts:now, evalAt:now+cfg.horizonMs });
+    open.add(r.sym);
+  }
+  if(o.pending.length>SIG_PENDING_MAX) o.pending=o.pending.slice(-SIG_PENDING_MAX);
+  _sigStatsSave(o);
+}
+function sigAccuracy(style){
+  const o=_sigStatsLoad(); const b=o.stats[style];
+  const pending=o.pending.filter(p=>p.style===style).length;
+  if(!b) return { win:0,loss:0,flat:0,decided:0,acc:null,pending };
+  const decided=b.win+b.loss;
+  return { win:b.win,loss:b.loss,flat:b.flat||0,decided, acc: decided>=10?Math.round(b.win/decided*100):null, pending };
+}
+function _sigAccText(style){
+  const a=sigAccuracy(style);
+  if(a.acc==null){
+    const need=Math.max(0,10-a.decided);
+    return `적중률 측정 중 — 평가 완료 ${a.decided}건${need>0?` (정확도 표시까지 ${need}건 더 필요)`:''} · 진행 중 ${a.pending}건`;
+  }
+  const col=a.acc>=55?'var(--green)':a.acc<=45?'var(--red)':'var(--yellow)';
+  return `적중률 <b style="color:${col}">${a.acc}%</b> · ${a.win}승 ${a.loss}패${a.flat?` · 무효 ${a.flat}`:''} · 진행 중 ${a.pending}건`;
+}
+
 function calcAiMarketSignalStyled(sym,h1,h2,ticker,premium,cfg){
   const fail={sym,type:'wait',label:'관망',score:0,confidence:0,reason:'시장 데이터가 부족합니다.',metrics:'-',risk:'잠시 후 새로고침',volume24h:0};
   if(!h1||h1.length<cfg.minBars1||!h2||h2.length<cfg.minBars2) return fail;
@@ -3024,6 +3089,8 @@ async function loadAiCoinSignals(){
       return{sym,type:'wait',label:'관망',score:0,confidence:0,reason:'시장 데이터 조회 실패',metrics:'-',risk:'잠시 후 새로고침',volume24h:0};
     }
   }));
+  // 신호 적중률 로깅 — 현재가(ticker.lastPrice)로 성숙 예측 평가 + 새 신호 기록
+  try{ sigLogAndEval(style, rows, sym=>{ const d=tickerMap[sym]; return d&&d.lastPrice?+d.lastPrice:0; }); }catch(e){}
   return rows.sort((a,b)=>b.volume24h-a.volume24h);
 }
 
@@ -3049,6 +3116,8 @@ function renderAiSignalRows(rows){
 }
 
 function updateAiSignalDom(){
+  const al=document.getElementById('sigAccLine');
+  if(al) al.innerHTML=_sigAccText(S.signalStyle||'swing');
   const host=document.getElementById('aiSignalBody');
   if(!host||S.aiSignalOn!==true) return;
   if(_aiSignalCache&&_aiSignalCache.error){
@@ -3201,6 +3270,12 @@ window.showAiHelp=function(){
       두 시간대가 같은 방향일 때가 실전에서 더 신뢰할 수 있는 진입 구간입니다.</p>
     </div>
     <div class="ai-help-term">
+      <b>적중률 (이 기기 기준)</b>
+      <p>스캐너가 낸 과거 신호가 실제로 맞았는지 이 기기에 기록해 계산한 값입니다.<br>
+      스타일별 보유 기간(<em>스캘핑 30분 · 단타 4시간 · 스윙 1일 · 중기 4일</em>) 뒤 가격이 예측 방향으로 충분히 움직였으면 '승'입니다.<br>
+      평가 완료 <em>10건 이상</em> 쌓여야 표시되며, 쓸수록 더 정확해집니다. 추세 없이 거의 안 움직이면 '무효'로 빠집니다.</p>
+    </div>
+    <div class="ai-help-term">
       <b>VWAP (거래량가중평균가) — 스캘핑</b>
       <p>최근 봉을 거래량으로 가중한 평균 가격입니다. 스캘퍼의 단기 기준선 역할을 합니다.<br>
       <em>현재가 &gt; VWAP</em> → 매수세 우위(상단) &nbsp;/&nbsp; <em>현재가 &lt; VWAP</em> → 매도세 우위(하단)</p>
@@ -3243,7 +3318,8 @@ function renderAiSignal(){
       <button class="ai-style-btn ${style==='swing'?'active':''}" onclick="switchSignalStyle('swing')">스윙</button>
       <button class="ai-style-btn ${style==='mid'?'active':''}" onclick="switchSignalStyle('mid')">중기</button>
     </div>
-    <div class="ai-signal-note" style="padding:5px 14px 6px;font-size:10px;">${styleDesc[style]} · 거래량 많은 순 정렬 · 외부 AI 없음</div>
+    <div class="ai-signal-note" style="padding:5px 14px 2px;font-size:10px;">${styleDesc[style]} · 거래량 많은 순 정렬 · 외부 AI 없음</div>
+    <div class="ai-signal-note" id="sigAccLine" style="padding:0 14px 6px;font-size:10px;color:var(--muted);">${_sigAccText(style)}</div>
     <div class="ai-score-info" style="margin-top:0;">
       <div class="ai-score-bar-wrap">
         <div class="ai-score-bar"></div>
