@@ -4295,9 +4295,8 @@ function checkHmaAlarm(price, hmaVal){
   const crossed = prevSide!==null && prevSide!==curSide && crossDirOk;
 
   if(hmaZoneState === null){
-    // 알람 활성화 직후 첫 체크: 현재 상태만 기록, 발화 없음
-    hmaZoneState = isInside;
-    return;
+    // 첫 체크도 발화 허용 — 이미 존 안이면 즉시 발화되도록 outside(false)로 초기화
+    hmaZoneState = false;
   }
 
   if((isInside || crossed) && !hmaZoneState){
