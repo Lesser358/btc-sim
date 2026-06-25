@@ -1458,50 +1458,59 @@ const defaultState = () => ({
 });
 let S = loadState();
 
+function normalizeState(raw){
+  const src = (raw && typeof raw === 'object') ? raw : {};
+  const state = Object.assign(defaultState(), src);
+  // 다중 포지션 마이그레이션: 구 버전 단일 position → 코인별 positions 맵
+  if(!state.positions || typeof state.positions !== 'object' || Array.isArray(state.positions)) state.positions = {};
+  if(src.position){
+    const sym = src.symbol || 'btcusdt';
+    const op = src.position;
+    state.positions[sym] = {
+      side:op.side, qty:op.qty, entry:op.entry, margin:op.margin,
+      openTime:op.openTime || Date.now(),
+      lev: op.lev || src.leverage || 20,
+      mode: op.mode || src.marginMode || 'isolated',
+    };
+  }
+  delete state.position;
+  if(!state.lastFundingTs || typeof state.lastFundingTs !== 'object') state.lastFundingTs = {};
+  // 구 버전 HMA 마이그레이션
+  if(!Array.isArray(state.indicators)){
+    state.indicators = (src.hullOn !== false)
+      ? [{id:String(Date.now()), type:'hma', params:{period:src.hullPeriod||55, color:'#f0b90b', width:2}}]
+      : [];
+  }
+  // 알람 마이그레이션: 단일 hmaProximity → 시간봉별 hmaByIv
+  const rawAlarms = (src.alarms && typeof src.alarms === 'object') ? src.alarms : {};
+  const hasHmaByIv = rawAlarms.hmaByIv && typeof rawAlarms.hmaByIv === 'object' && !Array.isArray(rawAlarms.hmaByIv);
+  state.alarms = Object.assign({}, defaultState().alarms, rawAlarms);
+  if(!hasHmaByIv){
+    state.alarms.hmaByIv = {};
+    const old = rawAlarms.hmaProximity;
+    if(old && typeof old === 'object'){
+      let dist = old.dist;
+      if(dist == null) dist = old.pct ? Math.round(old.pct * 1000) : 200;
+      if(old.on) state.alarms.hmaByIv[state.interval || '1m'] =
+        { on:true, dist:dist||200, dir:old.dir||'both', count:old.count||1 };
+    }
+  }
+  delete state.alarms.hmaProximity;
+  if(state.alarms.volume == null) state.alarms.volume = 70;
+  // AI 확률 오버레이 마이그레이션
+  state.aiProb = Object.assign({}, defaultState().aiProb,
+    (state.aiProb && typeof state.aiProb === 'object') ? state.aiProb : {});
+  if(typeof state.aiProb.on !== 'boolean') state.aiProb.on = false;
+  if(state.aiProb.mode !== 'multi') state.aiProb.mode = 'current';
+  return state;
+}
+
 function loadState(){
   try{
     const raw = localStorage.getItem("btcSimState");
     if(raw){
       const saved = JSON.parse(raw);
-      const state = Object.assign(defaultState(), saved);
-      // 다중 포지션 마이그레이션: 구 버전 단일 position → 코인별 positions 맵
-      if(!state.positions || typeof state.positions !== 'object' || Array.isArray(state.positions)) state.positions = {};
-      if(saved.position){
-        const sym = saved.symbol || 'btcusdt';
-        const op = saved.position;
-        state.positions[sym] = {
-          side:op.side, qty:op.qty, entry:op.entry, margin:op.margin,
-          openTime:op.openTime || Date.now(),
-          lev: op.lev || saved.leverage || 20,
-          mode: op.mode || saved.marginMode || 'isolated',
-        };
-      }
-      delete state.position;
-      if(!state.lastFundingTs || typeof state.lastFundingTs !== 'object') state.lastFundingTs = {};
-      // 구 버전 HMA 마이그레이션
-      if(!Array.isArray(state.indicators)){
-        state.indicators = (saved.hullOn !== false)
-          ? [{id:String(Date.now()), type:'hma', params:{period:saved.hullPeriod||55, color:'#f0b90b', width:2}}]
-          : [];
-      }
-      // 알람 마이그레이션: 단일 hmaProximity → 시간봉별 hmaByIv
-      if(!state.alarms) state.alarms = defaultState().alarms;
-      if(!state.alarms.hmaByIv || typeof state.alarms.hmaByIv !== 'object'){
-        state.alarms.hmaByIv = {};
-        const old = state.alarms.hmaProximity;   // 구 버전 단일 알람을 마지막 사용 시간봉으로 이관
-        if(old && typeof old === 'object'){
-          let dist = old.dist;
-          if(dist == null) dist = old.pct ? Math.round(old.pct * 1000) : 200;
-          if(old.on) state.alarms.hmaByIv[state.interval || '1m'] =
-            { on:true, dist:dist||200, dir:old.dir||'both', count:old.count||1 };
-        }
-      }
-      delete state.alarms.hmaProximity;
-      if(state.alarms.volume == null) state.alarms.volume = 70;
-      // AI 확률 오버레이 마이그레이션
-      if(!state.aiProb || typeof state.aiProb !== 'object') state.aiProb = defaultState().aiProb;
-      if(state.aiProb.mode !== 'multi') state.aiProb.mode = 'current';
-      return state;
+      return normalizeState(saved);
     }
   }catch(e){}
   return defaultState();
@@ -2823,6 +2832,101 @@ function _sigAccText(style){
   return `적중률 <b style="color:${col}">${a.acc}%</b> · ${a.win}승 ${a.loss}패${a.flat?` · 무효 ${a.flat}`:''} · 진행 중 ${a.pending}건`;
 }
 
+/* ===== 신호 스캐너 캔들 백테스트(서버 없이 과거 캔들로 1차 검증) ===== */
+const SIG_BT_KEY='btcSimSigBacktest';
+let _sigBtRunning=false, _sigBtReq=0;
+function _sigBtLoad(){
+  try{ const o=JSON.parse(localStorage.getItem(SIG_BT_KEY)); return (o&&typeof o==='object')?o:{}; }catch(e){ return {}; }
+}
+function _sigBtSave(style, data){
+  try{ const o=_sigBtLoad(); o[style]=data; localStorage.setItem(SIG_BT_KEY, JSON.stringify(o)); }catch(e){}
+}
+function _sigBtText(style){
+  if(_sigBtRunning) return '백테스트 계산 중 — 과거 캔들을 불러오고 있습니다';
+  const d=_sigBtLoad()[style];
+  if(!d) return '백테스트 미실행 — 과거 캔들 기준으로 별도 검증 가능';
+  if(d.error) return `백테스트 실패 — ${d.error}`;
+  const decided=(d.win||0)+(d.loss||0);
+  const acc=decided>0?Math.round((d.win||0)/decided*100):null;
+  const col=acc==null?'var(--muted)':acc>=55?'var(--green)':acc<=45?'var(--red)':'var(--yellow)';
+  const dt=d.ts?new Date(d.ts):null;
+  const when=dt?`${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`:'-';
+  return `백테스트 <b style="color:${col}">${acc==null?'-':acc+'%'}</b> · ${d.win||0}승 ${d.loss||0}패 · 무효 ${d.flat||0} · 표본 ${d.total||0} · ${when}`;
+}
+function updateSigBtDom(){
+  const el=document.getElementById('sigBtLine');
+  if(el) el.innerHTML=_sigBtText(S.signalStyle||'swing');
+}
+function _sigBtEvalBars(style,cfg){
+  const sec=(typeof IV_SEC!=='undefined' && IV_SEC[cfg.iv1]) ? IV_SEC[cfg.iv1] : 3600;
+  const ev=SIG_EVAL[style]||SIG_EVAL.swing;
+  return Math.max(1, Math.round(ev.horizonMs/1000/sec));
+}
+function _sigBtQuoteVol(arr,n){
+  return (arr||[]).slice(-n).reduce((s,c)=>s+(c.close*c.volume),0);
+}
+function _sigBtStatsForSymbol(sym,h1,h2,cfg,style){
+  const ev=SIG_EVAL[style]||SIG_EVAL.swing;
+  const evalBars=_sigBtEvalBars(style,cfg);
+  const ivSec=(typeof IV_SEC!=='undefined' && IV_SEC[cfg.iv1]) ? IV_SEC[cfg.iv1] : 3600;
+  const back24=Math.max(1, Math.round(86400/ivSec));
+  const minBars=Math.max(cfg.minBars1||40, cfg.emaSlow+5, cfg.volBaseN+cfg.volRecentN+1, cfg.divLook||0);
+  const out={win:0,loss:0,flat:0,total:0};
+  let h2End=0;
+  const step=Math.max(1, evalBars);
+  for(let i=minBars; i<h1.length-evalBars; i+=step){
+    const t=h1[i].time;
+    while(h2End<h2.length && h2[h2End].time<=t) h2End++;
+    const h1Win=h1.slice(Math.max(0,i-(cfg.lim1||150)+1), i+1);
+    const h2Win=h2.slice(Math.max(0,h2End-(cfg.lim2||100)), h2End);
+    if(h1Win.length<(cfg.minBars1||40) || h2Win.length<(cfg.minBars2||10)) continue;
+    const base=h1[Math.max(0,i-back24)];
+    const change24=base&&base.close>0 ? (h1[i].close/base.close-1)*100 : 0;
+    const r=calcAiMarketSignalStyled(sym,h1Win,h2Win,
+      {priceChangePercent:change24, quoteVolume:_sigBtQuoteVol(h1Win, Math.min(24,h1Win.length))},
+      {lastFundingRate:0}, cfg, null);
+    if(!r || r.type==='wait') continue;
+    const entry=h1[i].close, exit=h1[i+evalBars].close;
+    if(!(entry>0) || !(exit>0)) continue;
+    const movePct=(exit/entry-1)*100;
+    const fav=r.type==='long'?movePct:-movePct;
+    if(fav>=ev.winPct) out.win++;
+    else if(fav<=-ev.winPct) out.loss++;
+    else out.flat++;
+    out.total++;
+  }
+  return out;
+}
+window.runAiSignalBacktest=async function(){
+  if(_sigBtRunning) return;
+  const style=S.signalStyle||'swing';
+  const cfg=SIGNAL_STYLE_CFG[style]||SIGNAL_STYLE_CFG.swing;
+  const req=++_sigBtReq;
+  _sigBtRunning=true; updateSigBtDom();
+  try{
+    const evalBars=_sigBtEvalBars(style,cfg);
+    const lim1=Math.min(1000, Math.max(360, (cfg.lim1||150)+evalBars+260));
+    const lim2=Math.min(1000, Math.max(360, (cfg.lim2||100)+260));
+    const totals={win:0,loss:0,flat:0,total:0, bySym:{}};
+    await Promise.all(_SYM_LIST.map(async sym=>{
+      const up=sym.toUpperCase();
+      const [h1Raw,h2Raw]=await Promise.all([
+        _aiFetchJson(`https://fapi.binance.com/fapi/v1/klines?symbol=${up}&interval=${cfg.iv1}&limit=${lim1}`),
+        _aiFetchJson(`https://fapi.binance.com/fapi/v1/klines?symbol=${up}&interval=${cfg.iv2}&limit=${lim2}`),
+      ]);
+      const st=_sigBtStatsForSymbol(sym,_aiKlines(h1Raw),_aiKlines(h2Raw),cfg,style);
+      totals.bySym[sym]=st;
+      totals.win+=st.win; totals.loss+=st.loss; totals.flat+=st.flat; totals.total+=st.total;
+    }));
+    if(req!==_sigBtReq) return;
+    _sigBtSave(style, {...totals, ts:Date.now(), note:'candle-only'});
+  }catch(e){
+    if(req===_sigBtReq) _sigBtSave(style, {error:'시장 데이터 조회 실패', ts:Date.now()});
+  }finally{
+    if(req===_sigBtReq){ _sigBtRunning=false; updateSigBtDom(); }
+  }
+};
+
 function calcAiMarketSignalStyled(sym,h1,h2,ticker,premium,cfg,depth){
   const fail={sym,type:'wait',label:'관망',score:0,confidence:0,reason:'시장 데이터가 부족합니다.',metrics:'-',risk:'잠시 후 새로고침',volume24h:0};
   if(!h1||h1.length<cfg.minBars1||!h2||h2.length<cfg.minBars2) return fail;
@@ -3163,9 +3267,7 @@ async function loadAiCoinSignals(){
       return{sym,type:'wait',label:'관망',score:0,confidence:0,reason:'시장 데이터 조회 실패',metrics:'-',risk:'잠시 후 새로고침',volume24h:0};
     }
   }));
-  // 신호 적중률 로깅 — 현재가(ticker.lastPrice)로 성숙 예측 평가 + 새 신호 기록
-  try{ sigLogAndEval(style, rows, sym=>{ const d=tickerMap[sym]; return d&&d.lastPrice?+d.lastPrice:0; }); }catch(e){}
-  return rows.sort((a,b)=>b.volume24h-a.volume24h);
+  return { rows: rows.sort((a,b)=>b.volume24h-a.volume24h), tickerMap, style };
 }
 
 function renderAiSignalRows(rows){
@@ -3192,6 +3294,7 @@ function renderAiSignalRows(rows){
 function updateAiSignalDom(){
   const al=document.getElementById('sigAccLine');
   if(al) al.innerHTML=_sigAccText(S.signalStyle||'swing');
+  updateSigBtDom();
   const host=document.getElementById('aiSignalBody');
   if(!host||S.aiSignalOn!==true) return;
   if(_aiSignalCache&&_aiSignalCache.error){
@@ -3212,10 +3315,16 @@ function ensureAiSignalData(force=false){
   const host=document.getElementById('aiSignalBody');
   const cfg=SIGNAL_STYLE_CFG[curStyle]||SIGNAL_STYLE_CFG.swing;
   if(host) host.innerHTML=`<div class="ai-signal-empty">${cfg.label} 신호 분석 중입니다...</div>`;
-  loadAiCoinSignals().then(rows=>{
+  loadAiCoinSignals().then(result=>{
     if(req!==_aiSignalReq) return;
     _aiSignalLoading=false;
-    if(S.aiSignalOn!==true) return;
+    if(S.aiSignalOn!==true || (S.signalStyle||'swing')!==curStyle) return;
+    const rows = result && result.rows ? result.rows : [];
+    // 신호 적중률 로깅 — stale 요청이 UI뿐 아니라 localStorage 기록도 오염시키지 않도록 최신 요청 확인 후 실행
+    try{
+      const tickerMap = result && result.tickerMap ? result.tickerMap : {};
+      sigLogAndEval(curStyle, rows, sym=>{ const d=tickerMap[sym]; return d&&d.lastPrice?+d.lastPrice:0; });
+    }catch(e){}
     _aiSignalCache={ts:Date.now(),rows,style:curStyle};
     updateAiSignalDom();
   }).catch(()=>{
@@ -3367,6 +3476,11 @@ window.showAiHelp=function(){
       평가 완료 <em>10건 이상</em> 쌓여야 표시되며, 쓸수록 더 정확해집니다. 추세 없이 거의 안 움직이면 '무효'로 빠집니다.</p>
     </div>
     <div class="ai-help-term">
+      <b>백테스트 (과거 캔들 기준)</b>
+      <p>사용자가 접속하지 않았던 과거 구간도 캔들 데이터로 다시 계산해 신호 성능을 확인합니다.<br>
+      단, 과거 오더북·실제 펀딩비·수수료·SL/TP 터치 순서는 완전 재현하지 않으므로 <em>방향성 1차 검증</em>으로 봐야 합니다.</p>
+    </div>
+    <div class="ai-help-term">
       <b>VWAP (거래량가중평균가) — 스캘핑</b>
       <p>최근 봉을 거래량으로 가중한 평균 가격입니다. 스캘퍼의 단기 기준선 역할을 합니다.<br>
       <em>현재가 &gt; VWAP</em> → 매수세 우위(상단) &nbsp;/&nbsp; <em>현재가 &lt; VWAP</em> → 매도세 우위(하단)</p>
@@ -3399,6 +3513,7 @@ function renderAiSignal(){
       <span class="ai-signal-tab-title">AI 신호 스캐너</span>
       <div class="ai-signal-tab-actions">
         ${on?'<button class="ai-signal-smallbtn" onclick="refreshAiSignals()">새로고침</button>':''}
+        <button class="ai-signal-smallbtn" onclick="runAiSignalBacktest()">백테스트</button>
         <button class="ai-signal-toggle ${on?'on':''}" onclick="toggleAiSignals(${on?'false':'true'})">스캔 ${on?'ON':'OFF'}</button>
         <button class="ai-help-btn" onclick="showAiHelp()" title="지표 설명">?</button>
       </div>
@@ -3411,6 +3526,7 @@ function renderAiSignal(){
     </div>
     <div class="ai-signal-note" style="padding:5px 14px 2px;font-size:10px;">${styleDesc[style]} · 거래량 많은 순 정렬 · 외부 AI 없음</div>
     <div class="ai-signal-note" id="sigAccLine" style="padding:0 14px 6px;font-size:10px;color:var(--muted);">${_sigAccText(style)}</div>
+    <div class="ai-signal-note" id="sigBtLine" style="padding:0 14px 6px;font-size:10px;color:var(--muted);">${_sigBtText(style)}</div>
     <div class="ai-score-info" style="margin-top:0;">
       <div class="ai-score-bar-wrap">
         <div class="ai-score-bar"></div>
@@ -6457,23 +6573,10 @@ async function doSyncSave(){
 /* ---- 클라우드 데이터 적용 (공통) ---- */
 function applyCloudData(d){
   if(d.state){
-    localStorage.setItem('btcSimState', d.state);
-    const loaded = JSON.parse(d.state);
-    Object.assign(S, defaultState(), loaded);
-    // 다중 포지션 마이그레이션: 구 버전 단일 position → 코인별 positions 맵
-    if(!S.positions || typeof S.positions !== 'object' || Array.isArray(S.positions)) S.positions = {};
-    if(loaded.position && !loaded.positions){
-      const sym = loaded.symbol || 'btcusdt';
-      const op = loaded.position;
-      S.positions[sym] = {
-        side:op.side, qty:op.qty, entry:op.entry, margin:op.margin,
-        openTime:op.openTime || Date.now(),
-        lev: op.lev || loaded.leverage || 20,
-        mode: op.mode || loaded.marginMode || 'isolated',
-      };
-    }
-    delete S.position;
-    if(!S.lastFundingTs || typeof S.lastFundingTs !== 'object') S.lastFundingTs = {};
+    const normalized = normalizeState(JSON.parse(d.state));
+    Object.keys(S).forEach(k=>{ if(!(k in normalized)) delete S[k]; });
+    Object.assign(S, normalized);
+    localStorage.setItem('btcSimState', JSON.stringify(S));
   }
   if(d.drawings){
     Object.entries(JSON.parse(d.drawings)).forEach(([k,v])=>localStorage.setItem(k,v));
@@ -6644,6 +6747,16 @@ window.changePassword = async function(){
 };
 
 /* ========== 랭킹 ========== */
+function rankSymKey(sym){ return String(sym||'BTCUSDT').toUpperCase(); }
+function rankSymStats(symbols, sym){
+  if(!symbols) return null;
+  const up = rankSymKey(sym), low = up.toLowerCase();
+  const a = symbols[up], b = symbols[low];
+  if(a && b && a !== b){
+    return { pnl:(+a.pnl||0)+(+b.pnl||0), tr:(+a.tr||0)+(+b.tr||0), wins:(+a.wins||0)+(+b.wins||0) };
+  }
+  return a || b || null;
+}
 function computeRankStats(){
   const now = Date.now();
   const dayMs = 86400000;
@@ -6659,7 +6772,7 @@ function computeRankStats(){
     if(h.time>=cutWeekly) { acc.weekly.pnl +=h.pnl; acc.weekly.tr++;  if(h.pnl>0) acc.weekly.wins++;  }
     if(h.time>=cutDaily)  { acc.daily.pnl  +=h.pnl; acc.daily.tr++;   if(h.pnl>0) acc.daily.wins++;   }
     // 종목별 누적
-    const s = h.sym || 'BTCUSDT';
+    const s = rankSymKey(h.sym);
     if(!symAcc[s]) symAcc[s]={pnl:0,tr:0,wins:0};
     symAcc[s].pnl+=h.pnl; symAcc[s].tr++; if(h.pnl>0) symAcc[s].wins++;
   });
@@ -6800,19 +6913,20 @@ window.loadRanking = async function(period){
 };
 window.renderRankingBySymbol = function(){
   const body = document.getElementById('rankBody');
-  const sym = (document.getElementById('rankSymbolSel')||{}).value || 'BTCUSDT';
+  const sym = rankSymKey((document.getElementById('rankSymbolSel')||{}).value || 'BTCUSDT');
   const symLabel = {'BTCUSDT':'BTC/USDT','ETHUSDT':'ETH/USDT','SOLUSDT':'SOL/USDT','BNBUSDT':'BNB/USDT',
     'XRPUSDT':'XRP/USDT','DOGEUSDT':'DOGE/USDT','ADAUSDT':'ADA/USDT','AVAXUSDT':'AVAX/USDT'}[sym]||sym;
   const medals = ['1','2','3'];
   // symbols 데이터가 있는 유저만 필터링
-  const users = _rankUsersCache.filter(u=> u.symbols && u.symbols[sym] && u.symbols[sym].tr>0);
+  const users = _rankUsersCache
+    .map(u=>({ u, sd:rankSymStats(u.symbols, sym) }))
+    .filter(x=> x.sd && x.sd.tr>0);
   if(!users.length){
     body.innerHTML=`<div class="rank-empty">${symLabel} 거래 기록이 있는 유저가 없습니다.<br>해당 종목을 거래하면 자동으로 등록됩니다.</div>`;
     return;
   }
-  const sorted = [...users].sort((a,b)=>(b.symbols[sym].pnl||0)-(a.symbols[sym].pnl||0));
-  const rows = sorted.map((u,i)=>{
-    const sd   = u.symbols[sym];
+  const sorted = [...users].sort((a,b)=>(b.sd.pnl||0)-(a.sd.pnl||0));
+  const rows = sorted.map(({u,sd},i)=>{
     const pnl  = sd.pnl||0;
     const tr   = sd.tr||0;
     const wins = sd.wins||0;

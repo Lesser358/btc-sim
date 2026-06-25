@@ -41,6 +41,12 @@
 - 수정 전 `진행상황.md`의 관련 과거 수정을 확인하고 가드/로직을 깨지 않는지 점검
 - 반대 시나리오까지 실측 검증
 
+### 최근 회귀 주의 항목 (2026-06-25 검증)
+- 종목별 랭킹은 심볼 키 대소문자를 반드시 통일한다. `logHist()`/`computeRankStats()`/`renderRankingBySymbol()` 수정 시 기존 소문자·대문자 저장 데이터 양쪽을 검증한다.
+- Firestore `users/{uid}` update 규칙은 허용 필드 제한(`keys().hasOnly`)까지 확인한다. 클라이언트 UI에서 안 보내는 필드라도 규칙으로 차단해야 한다.
+- 상태 마이그레이션은 `loadState()`와 `applyCloudData()` 양쪽에서 동일하게 적용한다. 새 상태 필드를 추가하면 로컬 로드·클라우드 적용·구버전 데이터 주입 케이스를 함께 검증한다.
+- 신호 스캐너 비동기 작업은 stale 결과가 UI뿐 아니라 `localStorage` 로그(`btcSimSigStats`)에도 기록되지 않게 `_aiSignalReq`/스타일/ON 상태를 같이 검증한다.
+
 ## 🔒 보안 최우선 (출시 예정 서비스)
 - 사용자 입력 → `innerHTML` 절대 금지. `escHtml()` 또는 `textContent` 사용
 - `onclick` 인라인 문자열에 사용자 값 금지 → `addEventListener` 클로저

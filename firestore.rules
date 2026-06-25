@@ -42,6 +42,7 @@ service cloud.firestore {
       // 수정: 본인만. role·username·createdAt 변경 금지(★권한 상승 차단). nickname/bio/avatar만 변경 가능.
       //   avatar(퍼스나콘)는 선택 필드 — 있으면 문자열·60KB 이하(문서 용량 남용 방지). 클라는 base64 이미지 data URI만 저장.
       allow update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['username','nickname','bio','avatar','role','createdAt'])
         && request.resource.data.role == resource.data.role
         && request.resource.data.username == resource.data.username
         && request.resource.data.createdAt == resource.data.createdAt
