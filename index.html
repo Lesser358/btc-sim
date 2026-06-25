@@ -234,6 +234,27 @@
   #alarmBtn:hover{color:var(--text);border-color:#3a4049;}
   #alarmBtn.active{color:var(--yellow);border-color:var(--yellow);}
 
+  /* AI 확률 버튼 + 패널 */
+  #aiProbBtn{background:transparent;border:1px solid var(--line);color:var(--muted);
+    border-radius:5px;padding:4px 10px;font-size:12px;cursor:pointer;transition:color .15s,border-color .15s;}
+  #aiProbBtn:hover{color:var(--text);border-color:#3a4049;}
+  #aiProbBtn.active{color:var(--yellow);border-color:var(--yellow);}
+  #aiProbPanel{position:fixed;top:72px;right:16px;background:var(--panel);
+    border:1px solid var(--line);border-radius:10px;padding:16px;z-index:150;
+    display:none;flex-direction:column;gap:12px;min-width:270px;max-width:310px;
+    box-shadow:0 4px 24px rgba(0,0,0,.5);}
+  .ap-radio{display:flex;flex-direction:column;gap:7px;}
+  .ap-radio label{display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:12px;color:var(--text);}
+  .ap-radio input[type=radio]{accent-color:var(--yellow);margin-top:2px;cursor:pointer;}
+  .ap-radio .ap-desc{display:block;color:var(--muted);font-size:11px;margin-top:1px;}
+  /* 차트 위 AI 확률 오버레이 박스 */
+  #aiProbBox{position:absolute;top:8px;left:8px;z-index:4;pointer-events:none;
+    background:rgba(16,19,24,0.82);border:1px solid #3a414c;border-radius:6px;
+    padding:7px 9px;font-size:11px;color:#aeb6c0;min-width:120px;display:none;
+    font-variant-numeric:tabular-nums;}
+  #aiProbBox .apb-title{color:var(--yellow);font-weight:700;margin-bottom:5px;letter-spacing:.3px;}
+  #aiProbBox .apb-row{display:flex;justify-content:space-between;gap:12px;padding:2px 0;}
+
   /* account summary */
   .acct .panelpad{gap:7px;}
   .acct .ar{display:flex;justify-content:space-between;font-size:12px;}
@@ -942,6 +963,7 @@
         <button id="dateJumpBtn" onclick="toggleDateJump()" title="날짜로 이동">📅 날짜</button>
         <button id="addIndBtn" onclick="openIndModal()">지표+</button>
         <button id="alarmBtn" onclick="toggleAlarmPanel()">알람</button>
+        <button id="aiProbBtn" onclick="toggleAiProbPanel()" title="AI 상승/하락 확률 차트 표시 ON/OFF">AI확률</button>
       </div>
       <div id="indBar"></div>
       <!-- 지표 설정 패널 — indBar 바로 아래 인라인 -->
@@ -1286,6 +1308,39 @@
 <!-- 알람 토스트 -->
 <div id="alarmToast"></div>
 
+<!-- AI 확률 설정 패널 -->
+<div id="aiProbPanel">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <b style="font-size:13px;">AI 상승/하락 확률</b>
+    <button onclick="closeAiProbPanel()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;">×</button>
+  </div>
+  <div class="al-section">
+    <div class="al-row">
+      <span>차트에 표시</span>
+      <label class="al-toggle">
+        <input type="checkbox" id="apOn" onchange="applyAiProbSettings()">
+        <span id="apOnLbl" style="font-size:12px;color:var(--text);">OFF</span>
+      </label>
+    </div>
+  </div>
+  <div class="al-section">
+    <div class="al-section-title">표시 방식</div>
+    <div class="ap-radio">
+      <label>
+        <input type="radio" name="apMode" value="current" onchange="applyAiProbSettings()" checked>
+        <span>현재 분봉만<span class="ap-desc">지금 보는 차트 분봉의 상승/하락 확률을 크게 표시</span></span>
+      </label>
+      <label>
+        <input type="radio" name="apMode" value="multi" onchange="applyAiProbSettings()">
+        <span>여러 분봉 한눈에<span class="ap-desc">5m·15m·1h·4h 확률을 한 박스에 같이 표시</span></span>
+      </label>
+    </div>
+  </div>
+  <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+    Binance 공개 시세(추세·모멘텀·RSI·거래량·펀딩비)를 기기에서 계산한 참고용 확률입니다. 투자 판단의 보조 지표로만 활용하세요.
+  </div>
+</div>
+
 <!-- 미체결 주문 TP/SL 수정 패널 -->
 <div id="pendingEditPanel" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
   z-index:1100;background:var(--card);border:1px solid var(--border);border-radius:6px;
@@ -1397,6 +1452,7 @@ const defaultState = () => ({
   aiConsent: null,
   aiSignalOn: false,
   signalStyle: 'swing',
+  aiProb: { on: false, mode: 'current' },   // 차트 상승/하락 확률 오버레이 (mode: current=현재분봉 / multi=여러분봉)
 });
 let S = loadState();
 
@@ -1436,6 +1492,9 @@ function loadState(){
       }
       if(state.alarms.volume == null) state.alarms.volume = 70;
       if(state.alarms.hmaProximity.count == null) state.alarms.hmaProximity.count = 1;
+      // AI 확률 오버레이 마이그레이션
+      if(!state.aiProb || typeof state.aiProb !== 'object') state.aiProb = defaultState().aiProb;
+      if(state.aiProb.mode !== 'multi') state.aiProb.mode = 'current';
       return state;
     }
   }catch(e){}
@@ -2725,6 +2784,159 @@ function calcAiMarketSignal(sym,h1,m15,ticker,premium){
     risk:type==='wait'?'방향성 확인 전까지 관망':'진입 전 손절가(SL) 필수 · 1H ATR 기준 변동성 확인'
   };
 }
+
+/* ===== 차트 위 AI 상승/하락 확률 오버레이 ===== */
+// 분봉 무관 공통 가중치(스윙 기준). 단일 캔들 배열에서 점수(raw)를 산출.
+function _aiProbCfg(){
+  return { emaFast:20, emaSlow:50, rsiPrd:14, atrPrd:14,
+    mom1BarsBack:5, mom2BarsBack:10, volRecentN:10, volBaseN:40,
+    rsiHigh:74, rsiLow:26,
+    wTrend:15, wMom1:8, wMom2:6, wChg24:1.0, wRsi:8, wFund:120, wVol:8, atrWarnPct:5 };
+}
+// calcAiMarketSignalStyled 과 동일 로직을 단일 캔들 배열에 적용해 raw 점수만 반환
+function _scoreCandles(cArr, change24, fundingPct, cfg){
+  if(!cArr || cArr.length < Math.max(cfg.emaSlow+5, 30)) return null;
+  const close=cArr[cArr.length-1].close;
+  const prevMom1=cArr[Math.max(0,cArr.length-1-cfg.mom1BarsBack)].close;
+  const prevMom2=cArr[Math.max(0,cArr.length-1-cfg.mom2BarsBack)].close;
+  const emaFast=_aiLastVal(calcEMA(cArr,cfg.emaFast));
+  const emaSlow=_aiLastVal(calcEMA(cArr,cfg.emaSlow));
+  const rsi=_aiLastVal(calcRSI(cArr,cfg.rsiPrd))??50;
+  const atr=_aiLastVal(calcATR(cArr,cfg.atrPrd))||close*0.02;
+  if(!(close>0)||!(emaFast>0)||!(emaSlow>0)) return null;
+  const trendPct=(emaFast/emaSlow-1)*100;
+  const mom1=prevMom1>0?(close/prevMom1-1)*100:0;
+  const mom2=prevMom2>0?(close/prevMom2-1)*100:0;
+  const recentVol=_aiAvg(cArr.slice(-cfg.volRecentN).map(c=>c.volume));
+  const baseVol=_aiAvg(cArr.slice(-cfg.volBaseN,-cfg.volRecentN).map(c=>c.volume))||recentVol||1;
+  const volRel=recentVol/baseVol;
+  const atrPct=atr/close*100;
+  let raw=0;
+  raw+=_aiClamp(trendPct*cfg.wTrend,-28,28);
+  raw+=_aiClamp(mom1*cfg.wMom1,-24,24);
+  raw+=_aiClamp(mom2*cfg.wMom2,-18,18);
+  raw+=_aiClamp(change24*cfg.wChg24,-14,14);
+  if(rsi>=cfg.rsiHigh) raw-=cfg.wRsi;
+  else if(rsi<=cfg.rsiLow) raw+=cfg.wRsi;
+  else if(rsi>=62&&trendPct>0) raw+=Math.round(cfg.wRsi*0.6);
+  else if(rsi<=38&&trendPct<0) raw-=Math.round(cfg.wRsi*0.6);
+  raw-=_aiClamp(fundingPct*cfg.wFund,-10,10);
+  const signBase=raw||mom1||change24;
+  if(volRel>1.25&&signBase) raw+=Math.sign(signBase)*Math.min(cfg.wVol,(volRel-1)*cfg.wVol);
+  if(atrPct>cfg.atrWarnPct) raw*=0.85;
+  return { raw };
+}
+// raw 점수 → 상승확률(%) 로지스틱 매핑. raw 0=50%, ±22≈73/27%, ±44≈88/12%.
+function _rawToUpProb(raw){
+  const p = 100/(1+Math.exp(-raw/22));
+  return _aiClamp(Math.round(p), 2, 98);
+}
+function _aiProbChange24(){ return prevClose24 ? ((lastPrice-prevClose24)/prevClose24*100) : 0; }
+
+let _aiProbBox=null;
+let _aiProbMultiCache={ ts:0, data:null, sym:null };
+let _aiProbMultiLoading=false;
+let _aiProbReq=0;
+const AI_PROB_MULTI_IVS=['5m','15m','1h','4h'];
+const AI_PROB_MULTI_MS=90*1000;
+
+function _ensureAiProbBox(){
+  const host=document.getElementById('chart'); if(!host) return null;
+  if(_aiProbBox && host.contains(_aiProbBox)) return _aiProbBox;
+  const el=document.createElement('div');
+  el.id='aiProbBox';
+  host.appendChild(el);
+  _aiProbBox=el;
+  return el;
+}
+
+function _aiProbBar(up){
+  const upCol=up>=50?'#26a69a':'#7c848f', downCol=up<50?'#ef5350':'#7c848f';
+  return `<div style="height:6px;border-radius:3px;background:${downCol};overflow:hidden;margin-top:6px;"><div style="width:${up}%;height:100%;background:${upCol};"></div></div>`;
+}
+
+function _aiProbCurrentHtml(){
+  const sc=_scoreCandles((candles||[]).slice(-260), _aiProbChange24(), fundingRate*100, _aiProbCfg());
+  if(!sc) return `<div class="apb-title">AI 확률 · ${curInterval}</div><div style="color:#7c848f;">데이터 계산 중…</div>`;
+  const up=_rawToUpProb(sc.raw), down=100-up;
+  const upCol=up>=50?'#26a69a':'#7c848f', downCol=up<50?'#ef5350':'#7c848f';
+  return `<div class="apb-title">AI 확률 · ${curInterval}</div>`
+    +`<div class="apb-row"><span style="color:#aeb6c0;">▲ 상승</span><span style="font-size:16px;font-weight:700;color:${upCol};">${up}%</span></div>`
+    +`<div class="apb-row"><span style="color:#aeb6c0;">▼ 하락</span><span style="font-size:16px;font-weight:700;color:${downCol};">${down}%</span></div>`
+    +_aiProbBar(up);
+}
+
+async function _loadAiProbMulti(){
+  const sym=(curSymbol||'').toUpperCase();
+  const myReq=++_aiProbReq;
+  _aiProbMultiLoading=true;
+  try{
+    const change24=_aiProbChange24(), fundingPct=fundingRate*100, cfg=_aiProbCfg();
+    const results=await Promise.all(AI_PROB_MULTI_IVS.map(async iv=>{
+      try{
+        const raw=await _aiFetchJson(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${iv}&limit=120`);
+        const sc=_scoreCandles(_aiKlines(raw), change24, fundingPct, cfg);
+        return { iv, up: sc?_rawToUpProb(sc.raw):null };
+      }catch(e){ return { iv, up:null }; }
+    }));
+    if(myReq!==_aiProbReq || sym!==(curSymbol||'').toUpperCase()) return;  // 코인/모드 전환 → 폐기
+    _aiProbMultiCache={ ts:Date.now(), data:results, sym };
+    if(S.aiProb && S.aiProb.on && S.aiProb.mode==='multi') renderAiProb();
+  } finally { _aiProbMultiLoading=false; }
+}
+
+function _aiProbMultiHtml(){
+  const sym=(curSymbol||'').toUpperCase();
+  const c=_aiProbMultiCache;
+  const fresh=c.data && c.sym===sym && (Date.now()-c.ts<AI_PROB_MULTI_MS);
+  if(!fresh && !_aiProbMultiLoading) _loadAiProbMulti();
+  let rows;
+  if(c.data && c.sym===sym){
+    rows=c.data.map(r=>{
+      if(r.up==null) return `<div class="apb-row"><span>${r.iv}</span><span style="color:#7c848f;">-</span></div>`;
+      const down=100-r.up, upCol=r.up>=50?'#26a69a':'#7c848f', downCol=r.up<50?'#ef5350':'#7c848f';
+      return `<div class="apb-row"><span>${r.iv}</span><span><span style="color:${upCol};">▲${r.up}</span> <span style="color:${downCol};">▼${down}</span></span></div>`;
+    }).join('');
+  } else {
+    rows=`<div style="color:#7c848f;">불러오는 중…</div>`;
+  }
+  return `<div class="apb-title">AI 상승확률</div>${rows}`;
+}
+
+function renderAiProb(){
+  const box=_ensureAiProbBox(); if(!box) return;
+  const a=S.aiProb;
+  if(!a || !a.on){ box.style.display='none'; return; }
+  box.style.display='block';
+  box.innerHTML = (a.mode==='multi') ? _aiProbMultiHtml() : _aiProbCurrentHtml();
+}
+
+window.toggleAiProbPanel=function(){
+  const p=document.getElementById('aiProbPanel'); if(!p) return;
+  if(p.style.display==='flex') closeAiProbPanel(); else openAiProbPanel();
+};
+window.openAiProbPanel=function(){
+  if(!S.aiProb) S.aiProb={on:false,mode:'current'};
+  const a=S.aiProb;
+  const cb=document.getElementById('apOn');
+  if(cb){ cb.checked=a.on; document.getElementById('apOnLbl').textContent=a.on?'ON':'OFF'; }
+  document.querySelectorAll('input[name="apMode"]').forEach(r=>{ r.checked=(r.value===(a.mode||'current')); });
+  document.getElementById('aiProbPanel').style.display='flex';
+};
+window.closeAiProbPanel=function(){ document.getElementById('aiProbPanel').style.display='none'; };
+window.applyAiProbSettings=function(){
+  if(!S.aiProb) S.aiProb={on:false,mode:'current'};
+  const cb=document.getElementById('apOn');
+  S.aiProb.on = cb?cb.checked:false;
+  const m=document.querySelector('input[name="apMode"]:checked');
+  S.aiProb.mode = m?m.value:'current';
+  document.getElementById('apOnLbl').textContent=S.aiProb.on?'ON':'OFF';
+  const btn=document.getElementById('aiProbBtn'); if(btn) btn.classList.toggle('active', S.aiProb.on);
+  _aiProbReq++;                 // 모드 전환 시 진행 중 멀티 로드 폐기
+  _aiProbMultiCache={ts:0,data:null,sym:null};
+  save();
+  renderAiProb();
+};
 
 async function loadAiCoinSignals(){
   const style = S.signalStyle||'swing';
@@ -4686,6 +4898,11 @@ function bindUI(){
     document.getElementById('alarmBtn').classList.add('active');
   }
 
+  // AI 확률 버튼 초기 상태
+  const apBtn=document.getElementById('aiProbBtn');
+  if(apBtn) apBtn.classList.toggle('active', !!(S.aiProb && S.aiProb.on));
+  renderAiProb();
+
   // 마진모드
   document.querySelectorAll("#marginModeSeg button").forEach(b=>{
     if(b.dataset.mm===S.marginMode) b.classList.add("active"); else b.classList.remove("active");
@@ -5647,6 +5864,7 @@ function updateCandleTimers(){
 async function pollLoop(){
   renderAll();                                   // 시계/잔여시간 등 항상 갱신
   updateCandleTimers();                          // 봉마감 카운트다운 갱신
+  renderAiProb();                                // 차트 AI 확률 오버레이 (WS 정상이어도 매초 갱신)
   if(Date.now() - lastWsTime < 2500) return;     // WS 정상 → REST 생략
   await fetchMarket();                            // 가격·마크·펀딩·24h + onTick
   smoothPriceTo(lastPrice);                      // 진행 중 캔들 + HMA 부드럽게 갱신
