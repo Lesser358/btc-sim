@@ -988,6 +988,7 @@
         <span class="db-sep"></span>
         <button id="drawDelBtn" title="선택한 도형 삭제">삭제</button>
         <button id="drawClearBtn" title="모든 도형 삭제">전체삭제</button>
+        <button id="autoChBtn" title="자동 채널 — 최근 100봉 선형회귀 채널 자동 표시 (ON/OFF)" onclick="toggleAutoChannel()">자동채널</button>
         <span class="db-sep"></span>
         <span class="db-label" id="chartSizeLabel">차트</span>
         <input type="range" id="chartSizeRange" class="chart-size-range" min="320" max="900" step="20" title="차트 크기 조절 (← 축소 / 확대 →)">
@@ -1455,6 +1456,7 @@ const defaultState = () => ({
   aiSignalOn: false,
   signalStyle: 'swing',
   aiProb: { on: false, mode: 'current' },   // 차트 상승/하락 확률 오버레이 (mode: current=현재분봉 / multi=여러분봉)
+  autoChannelOn: false,                    // 자동 선형회귀 채널 ON/OFF
 });
 let S = loadState();
 
@@ -3778,7 +3780,6 @@ let highLowLines=[];                   // 현재 화면 고점/저점 표시선
 let showHighLow = localStorage.getItem('btcSim_showHL') !== 'false';
 let lastKlineSync=0;                   // 마지막 klines 재동기화 시각
 let loadingMore=false, noMoreHistory=false;   // 과거 봉 지연로딩 상태
-let _pendingRestoreRange = null;             // 시간봉 전환 시 이전 가시 범위 복원용
 
 function initChart(){
   const el = document.getElementById('chart');
@@ -3826,27 +3827,8 @@ async function loadHistory(retry=0){
     if(S.indicators) for(const ind of S.indicators) renderIndicator(ind);
     checkOscPane();
     setTimeout(updateHighLow, 100);
-    // 시간봉 전환 시 이전 가시 시간 범위 복원 (그리기 채널 등이 화면 밖으로 사라지는 버그 방지)
-    // setVisibleRange 대신 logical 인덱스 기반으로 변환: 새 봉 간격(sec)으로 타임스탬프 → 인덱스
-    if(_pendingRestoreRange && candles.length){
-      const r = _pendingRestoreRange; _pendingRestoreRange = null;
-      const sec = IV_SEC[curInterval] || 60;
-      const lastIdx = candles.length - 1;
-      const lastT = candles[lastIdx].time;
-      const fromLogical = lastIdx + (r.from - lastT) / sec;
-      const toLogical   = lastIdx + (r.to   - lastT) / sec;
-      requestAnimationFrame(()=>{
-        try{ chart.timeScale().setVisibleLogicalRange({ from: fromLogical, to: toLogical }); }catch(e){}
-        try{ chart.priceScale('right').applyOptions({ autoScale: true }); }catch(e){}
-        try{ candleSeries && candleSeries.priceScale().applyOptions({ autoScale: true }); }catch(e){}
-      });
-    } else {
-      // RAF에서 한 번 더 autoScale 보장 (LWC가 setData 후 scale을 덮어쓸 수 있음)
-      requestAnimationFrame(()=>{
-        try{ chart.priceScale('right').applyOptions({ autoScale: true }); }catch(e){}
-        try{ candleSeries && candleSeries.priceScale().applyOptions({ autoScale: true }); }catch(e){}
-      });
-    }
+    updateAutoChannel();
+    showLatestView();
     _setChartMsg('');                           // 성공 시 메시지 제거
   }catch(e){
     if(ver !== _loadHistVer) return; // 구버전 요청 실패는 무시
@@ -4611,8 +4593,6 @@ function renderIntervalSeg(){
 
 window.selectIv = function(iv){
   if(iv === curInterval) return;
-  // 전환 전 현재 가시 시간 범위 저장 → loadHistory 완료 후 동일 시간대 복원 (그리기 도구 유지)
-  try{ _pendingRestoreRange = chart.timeScale().getVisibleRange(); }catch(e){ _pendingRestoreRange = null; }
   curInterval = iv; S.interval = iv; save();
   hmaZoneState = null; alarmFiredCount = 0; _hmaPrevSide = null;
   renderIntervalSeg();
@@ -5711,6 +5691,11 @@ function redrawDrawings(){
   drawCtx.save(); drawCtx.beginPath(); drawCtx.rect(0,0,pd.w,pd.h); drawCtx.clip();
   const list = curDraft ? drawings.concat([curDraft]) : drawings;
   list.forEach(d=>{ try{ renderShape(d, pd.w, pd.h, d.id===selectedId); if(d.locked) drawLockBadge(d, pd.w, pd.h); }catch(e){} });
+  // 자동 선형회귀 채널 오버레이 (5초 캐시)
+  if(autoChannelOn){
+    if(Date.now() - _autoChLastCalc > 5000) updateAutoChannel();
+    if(_autoChannelShape) try{ renderShape(_autoChannelShape, pd.w, pd.h, false); }catch(e){}
+  }
   // 자석 스냅 표시기
   if(drawMagnet && snapCursorPos && drawTool!=='pan'){
     const {x,y}=snapCursorPos;
@@ -5933,6 +5918,53 @@ function onDrawUp(){
 }
 function deleteSelected(){ if(selectedId==null) return; drawings=drawings.filter(d=>d.id!==selectedId); selectedId=null; saveDrawings(); redrawDrawings(); }
 function clearDrawings(){ if(!drawings.length){ return; } if(!confirm('모든 그림을 삭제할까요?')) return; drawings=[]; selectedId=null; saveDrawings(); redrawDrawings(); }
+
+/* ===== 자동 선형회귀 채널 ===== */
+let autoChannelOn = !!(S && S.autoChannelOn);
+let _autoChannelShape = null;
+let _autoChLastCalc = 0;
+
+function calcAutoChannel(lookback=100){
+  if(!candles || candles.length < 10) return null;
+  const data = candles.slice(-lookback), n = data.length;
+  // 종가 선형회귀 (인덱스 기반)
+  let sx=0,sy=0,sxy=0,sx2=0;
+  for(let i=0;i<n;i++){ sx+=i; sy+=data[i].close; sxy+=i*data[i].close; sx2+=i*i; }
+  const den = n*sx2 - sx*sx;
+  if(!den) return null;
+  const slope=(n*sxy - sx*sy)/den, ic=(sy - slope*sx)/n;
+  // 고가/저가의 회귀선 대비 최대 편차
+  let maxA=0, maxB=0;
+  for(let i=0;i<n;i++){
+    const reg=ic+slope*i;
+    if(data[i].high - reg > maxA) maxA = data[i].high - reg;
+    if(reg - data[i].low  > maxB) maxB = reg - data[i].low;
+  }
+  if(maxA+maxB < 0.0001) return null;
+  const t0=data[0].time, t1=data[n-1].time;
+  const lS = ic - maxB;                    // 하단선 시작
+  const lE = ic + slope*(n-1) - maxB;      // 하단선 끝
+  const cH = maxA + maxB;                  // 채널 높이
+  // P[0]=하단시작, P[1]=하단끝, P[2]=하단끝 아래(채널 높이만큼) → 상단선이 위로 렌더됨
+  return { id:'__auto_ch__', type:'channel', isAuto:true,
+           color:'#f0b90b', lineWidth:1.5,
+           pts:[{t:t0, p:lS},{t:t1, p:lE},{t:t1, p:lE-cH}] };
+}
+
+function updateAutoChannel(){
+  if(!autoChannelOn){ _autoChannelShape=null; return; }
+  _autoChannelShape = calcAutoChannel();
+  _autoChLastCalc = Date.now();
+}
+
+window.toggleAutoChannel = function(){
+  autoChannelOn = !autoChannelOn;
+  S.autoChannelOn = autoChannelOn; save();
+  const btn = document.getElementById('autoChBtn');
+  if(btn) btn.classList.toggle('active', autoChannelOn);
+  updateAutoChannel();
+  redrawDrawings();
+};
 
 /* ========== 그리기 우클릭 컨텍스트 메뉴 (트레이딩뷰 스타일) ========== */
 const DRAW_COLORS = ['#f0b90b','#ffffff','#f6465d','#ff9f43','#0ecb81','#2962ff','#9c27b0','#848e9c'];
@@ -6274,6 +6306,8 @@ function setupDrawing(){
   document.querySelectorAll('#drawbar button[data-tool]').forEach(b=>{ b.onclick=()=>setTool(b.dataset.tool); });
   document.getElementById('drawDelBtn').onclick=deleteSelected;
   document.getElementById('drawClearBtn').onclick=clearDrawings;
+  const autoChBtn = document.getElementById('autoChBtn');
+  if(autoChBtn) autoChBtn.classList.toggle('active', autoChannelOn);
   renderDrawToolFavs();   // 즐겨찾기 그리기 도구를 툴바에 렌더
   // ── 차트 크기(높이) 조절 슬라이더 — 좌:축소 / 우:확대 (chart는 autoSize라 높이 변경 시 자동 리사이즈) ──
   (function(){
