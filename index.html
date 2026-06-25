@@ -1143,10 +1143,10 @@
     <div id="rankSortBar">
       <span class="sort-label">정렬:</span>
       <div style="position:relative;display:inline-block;">
-        <button id="rankSortBtn" class="sort-btn" onclick="event.stopPropagation();toggleRankSortDD(this)">손익순 ▾</button>
+        <button id="rankSortBtn" class="sort-btn" onclick="event.stopPropagation();toggleRankSortDD(this)">순손익순 ▾</button>
         <div id="rankSortDD" style="display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--panel2);border:1px solid var(--line);border-radius:6px;z-index:9000;box-shadow:0 4px 12px rgba(0,0,0,.4);padding:4px 0;min-width:110px;">
-          <div class="rank-sort-opt active" onclick="setRankSort('pnl')">손익순</div>
-          <div class="rank-sort-opt" onclick="setRankSort('roi')">수익률순</div>
+          <div class="rank-sort-opt active" onclick="setRankSort('pnl')">순손익순</div>
+          <div class="rank-sort-opt" onclick="setRankSort('roi')">순수익률순</div>
           <div class="rank-sort-opt" onclick="setRankSort('balance')">총자산순</div>
           <div class="rank-sort-opt" onclick="setRankSort('winrate')">승률순</div>
         </div>
@@ -2119,6 +2119,7 @@ function applyFunding(){
       S.walletBalance += delta;
       S.totalFunding += delta;
       S.lastFundingTs[sym] = nt;
+      logHist("펀딩비", p.side, p.qty, mk, delta, 0, 0, sym, p.lev||S.leverage, S.interval);
       toast(`펀딩비 정산(${_symShort(sym)}): ${fmtUsd(delta)} USDT`);
       save();
     }
@@ -6901,6 +6902,45 @@ function rankSymStats(symbols, sym){
   }
   return a || b || null;
 }
+function rankNetPnl(h){ return (+h.pnl||0) - (+h.fee||0); }
+function rankIsTrade(h){ return h && h.type !== '진입' && h.type !== '펀딩비'; }
+function rankRoi(pnl){ return START_BAL ? pnl / START_BAL * 100 : 0; }
+function rankAsset(){
+  const v = equity();
+  return Number.isFinite(v) ? v : (+S.walletBalance||0);
+}
+function rankUserAsset(u){
+  const v = Number(u && u.walletBalance);
+  return Number.isFinite(v) ? v : null;
+}
+function rankUserAssetDelta(u){
+  const asset = rankUserAsset(u);
+  return asset == null ? null : asset - START_BAL;
+}
+function rankPeriodPnl(u, period){
+  const raw = Number(u && u[period+'Pnl']);
+  const pnl = Number.isFinite(raw) ? raw : 0;
+  const delta = rankUserAssetDelta(u);
+  if(delta == null) return pnl;
+  if(period === 'total') return delta;
+  if(period === 'monthly'){
+    const monthlyTrades = Number(u && u.monthlyTrades) || 0;
+    const totalTrades = Number(u && u.totalTrades) || 0;
+    const monthlyWins = Number(u && u.monthlyWins) || 0;
+    const totalWins = Number(u && u.totalWins) || 0;
+    if(totalTrades > 0 && monthlyTrades === totalTrades && monthlyWins === totalWins) return delta;
+  }
+  return pnl;
+}
+function rankAdd(bucket, h){
+  const net = rankNetPnl(h);
+  if(!Number.isFinite(net)) return;
+  bucket.pnl += net;
+  if(rankIsTrade(h)){
+    bucket.tr++;
+    if(net>0) bucket.wins++;
+  }
+}
 function computeRankStats(){
   const now = Date.now();
   const dayMs = 86400000;
@@ -6910,19 +6950,20 @@ function computeRankStats(){
   const acc = { daily:{pnl:0,tr:0,wins:0}, weekly:{pnl:0,tr:0,wins:0}, monthly:{pnl:0,tr:0,wins:0}, total:{pnl:0,tr:0,wins:0} };
   const symAcc = {}; // 종목별 통합 누적
   (S.history||[]).forEach(h=>{
-    if(h.type==='진입') return;
-    acc.total.pnl+=h.pnl; acc.total.tr++; if(h.pnl>0) acc.total.wins++;
-    if(h.time>=cutMonthly){ acc.monthly.pnl+=h.pnl; acc.monthly.tr++; if(h.pnl>0) acc.monthly.wins++; }
-    if(h.time>=cutWeekly) { acc.weekly.pnl +=h.pnl; acc.weekly.tr++;  if(h.pnl>0) acc.weekly.wins++;  }
-    if(h.time>=cutDaily)  { acc.daily.pnl  +=h.pnl; acc.daily.tr++;   if(h.pnl>0) acc.daily.wins++;   }
+    rankAdd(acc.total, h);
+    if(h.time>=cutMonthly) rankAdd(acc.monthly, h);
+    if(h.time>=cutWeekly)  rankAdd(acc.weekly, h);
+    if(h.time>=cutDaily)   rankAdd(acc.daily, h);
     // 종목별 누적
     const s = rankSymKey(h.sym);
     if(!symAcc[s]) symAcc[s]={pnl:0,tr:0,wins:0};
-    symAcc[s].pnl+=h.pnl; symAcc[s].tr++; if(h.pnl>0) symAcc[s].wins++;
+    rankAdd(symAcc[s], h);
   });
+  const asset = rankAsset();
+  acc.total.pnl = asset - START_BAL;
   return {
     username: fbUsername, nickname: fbNickname, role: fbIsAdmin?'admin':'user',
-    walletBalance: S.walletBalance||0,
+    walletBalance: asset,
     dailyPnl: acc.daily.pnl,   dailyTrades: acc.daily.tr,   dailyWins: acc.daily.wins,
     weeklyPnl: acc.weekly.pnl, weeklyTrades: acc.weekly.tr, weeklyWins: acc.weekly.wins,
     monthlyPnl: acc.monthly.pnl,monthlyTrades:acc.monthly.tr,monthlyWins:acc.monthly.wins,
@@ -6954,13 +6995,14 @@ function hideToolPages(updateHistory=true){
   }
 }
 
-window.showRankPage = function(){
+window.showRankPage = async function(){
   hideToolPages(false);
   document.querySelector('main').style.display = 'none';
   document.getElementById('rankPage').classList.add('show');
   document.getElementById('navRankBtn').classList.add('nb-active');
   // 뒤로가기 버튼·백스페이스로 랭킹 페이지 탈출 가능하도록 히스토리 스택에 추가
   if(location.hash !== '#ranking') history.pushState({page:'ranking'}, '', '#ranking');
+  if(fbUser) await updateRankingData();
   loadRanking(_rankPeriod);
 };
 window.hideRankPage = function(){
@@ -7010,7 +7052,7 @@ window.switchRankTab = function(period, idx){
     loadRanking(period);
   }
 };
-const _rankSortLabels = {pnl:'손익순', roi:'수익률순', balance:'총자산순', winrate:'승률순'};
+const _rankSortLabels = {pnl:'순손익순', roi:'순수익률순', balance:'총자산순', winrate:'승률순'};
 let _rankSortDDLock = false;
 window.toggleRankSortDD = function(btn){
   const dd = document.getElementById('rankSortDD');
@@ -7075,7 +7117,7 @@ window.renderRankingBySymbol = function(){
     const tr   = sd.tr||0;
     const wins = sd.wins||0;
     const wr   = tr>0 ? (wins/tr*100).toFixed(1) : '0.0';
-    const roi  = (pnl/5000*100).toFixed(2);
+    const roi  = rankRoi(pnl).toFixed(2);
     const pnlCls = pnl>=0?'green':'red';
     const medal = i<3?`<span class="rank-medal">${medals[i]}</span>`:`<span class="rank-num">${i+1}</span>`;
     const name  = escHtml(u.nickname||u.username||'익명');
@@ -7093,15 +7135,15 @@ window.renderRankingBySymbol = function(){
   }).join('');
   body.innerHTML=`<table class="rank-tbl"><thead><tr>
     <th>순위</th><th>닉네임</th>
-    <th>${symLabel} 손익(USDT)</th><th>수익률(%)</th>
+    <th>${symLabel} 순손익(USDT)</th><th>순수익률(%)</th>
     <th>총자산(USDT)</th><th>거래수</th><th>승률</th>
   </tr></thead><tbody>${rows}</tbody></table>`;
 };
 function _rankSortValue(u, period, sort){
-  const pnl  = u[period+'Pnl']||0;
+  const pnl  = rankPeriodPnl(u, period);
   const tr   = u[period+'Trades']||0;
   const wins = u[period+'Wins']||0;
-  if(sort==='roi')     return pnl / 5000 * 100;
+  if(sort==='roi')     return rankRoi(pnl);
   if(sort==='balance') return u.walletBalance||0;
   if(sort==='winrate') return tr>0 ? wins/tr*100 : 0;
   return pnl; // 'pnl' default
@@ -7109,17 +7151,16 @@ function _rankSortValue(u, period, sort){
 function renderRanking(users, period){
   const body = document.getElementById('rankBody');
   const medals = ['1','2','3'];
-  const START_BAL = 5000;
   const sorted = [...users].sort((a,b)=>_rankSortValue(b,period,_rankSort)-_rankSortValue(a,period,_rankSort));
   const periodLabel = {daily:'오늘',weekly:'이번 주',monthly:'이번 달',total:'전체 누적'}[period];
   const th = s => `<th${_rankSort===s?' class="sort-active"':''}>`;
 
   const rows = sorted.map((u,i)=>{
-    const pnl  = u[period+'Pnl']||0;
+    const pnl  = rankPeriodPnl(u, period);
     const tr   = u[period+'Trades']||0;
     const wins = u[period+'Wins']||0;
     const wr   = tr>0 ? (wins/tr*100).toFixed(1) : '0.0';
-    const roi  = (pnl/START_BAL*100).toFixed(2);
+    const roi  = rankRoi(pnl).toFixed(2);
     const bal  = (u.walletBalance||0).toFixed(0);
     const pnlCls = pnl>=0?'green':'red';
     const isSortPnl = _rankSort==='pnl', isSortRoi=_rankSort==='roi';
@@ -7143,8 +7184,8 @@ function renderRanking(users, period){
   body.innerHTML = `<table class="rank-tbl">
     <thead><tr>
       <th>순위</th><th>닉네임</th>
-      ${th('pnl')}${periodLabel} 손익(USDT)</th>
-      ${th('roi')}수익률(%)</th>
+      ${th('pnl')}${periodLabel} 순손익(USDT)</th>
+      ${th('roi')}순수익률(%)</th>
       ${th('balance')}총자산(USDT)</th>
       <th>거래수</th>
       ${th('winrate')}승률</th>
