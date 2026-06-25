@@ -2681,6 +2681,24 @@ function _aiAbsorption(h1, volRel){
   if(upWick>loWick*1.5) return -1;         // 긴 위꼬리 → 매수 흡수
   return 0;
 }
+// 오더북 임밸런스 — mid가 기준 ±pct 범위의 매수/매도 호가 금액을 비교(단기 압력)
+// 반환: {imb:-1..1(+매수우위), wall:-1 매도벽/+1 매수벽/0} · 호가는 조작(스푸핑) 가능 → 보조 가중
+function _aiObImbalance(depth, pct){
+  if(!depth||!Array.isArray(depth.bids)||!Array.isArray(depth.asks)||!depth.bids.length||!depth.asks.length) return null;
+  const bestBid=+depth.bids[0][0], bestAsk=+depth.asks[0][0];
+  if(!(bestBid>0)||!(bestAsk>0)) return null;
+  const mid=(bestBid+bestAsk)/2, loB=mid*(1-pct), hiA=mid*(1+pct);
+  let bidVal=0,askVal=0,maxBid=0,maxAsk=0;
+  for(const lv of depth.bids){ const pr=+lv[0]; if(pr<loB) break; const v=pr*(+lv[1]); bidVal+=v; if(v>maxBid) maxBid=v; }
+  for(const lv of depth.asks){ const pr=+lv[0]; if(pr>hiA) break; const v=pr*(+lv[1]); askVal+=v; if(v>maxAsk) maxAsk=v; }
+  const tot=bidVal+askVal;
+  if(!(tot>0)) return null;
+  const imb=(bidVal-askVal)/tot;
+  let wall=0;
+  if(maxAsk>askVal*0.5 && maxAsk>maxBid*1.5) wall=-1;       // 매도벽(상단 저항)
+  else if(maxBid>bidVal*0.5 && maxBid>maxAsk*1.5) wall=1;   // 매수벽(하단 지지)
+  return { imb, wall };
+}
 function _aiKlines(raw){
   return (Array.isArray(raw)?raw:[]).map(k=>({
     time:Math.floor(+k[0]/1000), open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5]
@@ -2702,6 +2720,7 @@ const SIGNAL_STYLE_CFG = {
     wTrend:8,wMom1:12,wMom2:8,wChg24:0.6,wRsi:5,wFund:40,wVol:10,atrWarnPct:1.8,
     wConfluence:8,wMomH2:5, useVwap:true,vwapN:40,wVwap:7,
     wDiv:6,wAbsorb:6,divLook:24,
+    wOb:8,wObWall:4,obPct:0.004,
     minBars1:40,minBars2:40,
     tip:'스캘핑 — 1~5분 초단타, 수수료·슬리피지 비중 큼, 타이트한 SL·빠른 익절 필수'
   },
@@ -2712,6 +2731,7 @@ const SIGNAL_STYLE_CFG = {
     rsiHigh:72,rsiLow:28,
     wTrend:10,wMom1:10,wMom2:8,wChg24:1.0,wRsi:6,wFund:80,wVol:6,atrWarnPct:3.5,
     wConfluence:8,wMomH2:6, wDiv:7,wAbsorb:5,divLook:24,
+    wOb:6,wObWall:3,obPct:0.006,
     minBars1:40,minBars2:20,
     tip:'단타 — 1~15분 내 목표가·SL 설정 권장, 수수료 고려 필수'
   },
@@ -2722,6 +2742,7 @@ const SIGNAL_STYLE_CFG = {
     rsiHigh:74,rsiLow:26,
     wTrend:15,wMom1:8,wMom2:6,wChg24:1.2,wRsi:8,wFund:140,wVol:8,atrWarnPct:4.8,
     wConfluence:10,wMomH2:4, wDiv:8,wAbsorb:4,divLook:30,
+    wOb:3,wObWall:0,obPct:0.01,
     minBars1:60,minBars2:20,
     tip:'스윙 — 수시간~수일 보유, 1H ATR 기준 SL 설정'
   },
@@ -2802,7 +2823,7 @@ function _sigAccText(style){
   return `적중률 <b style="color:${col}">${a.acc}%</b> · ${a.win}승 ${a.loss}패${a.flat?` · 무효 ${a.flat}`:''} · 진행 중 ${a.pending}건`;
 }
 
-function calcAiMarketSignalStyled(sym,h1,h2,ticker,premium,cfg){
+function calcAiMarketSignalStyled(sym,h1,h2,ticker,premium,cfg,depth){
   const fail={sym,type:'wait',label:'관망',score:0,confidence:0,reason:'시장 데이터가 부족합니다.',metrics:'-',risk:'잠시 후 새로고침',volume24h:0};
   if(!h1||h1.length<cfg.minBars1||!h2||h2.length<cfg.minBars2) return fail;
   const close=h1[h1.length-1].close;
@@ -2851,6 +2872,15 @@ function calcAiMarketSignalStyled(sym,h1,h2,ticker,premium,cfg){
   const absorb=_aiAbsorption(h1,volRel);
   raw+=div*(cfg.wDiv||0);
   raw+=absorb*(cfg.wAbsorb||0);
+  // 오더북 임밸런스(단기 호가 압력) — 스캘핑/단타 위주, 중기 미적용
+  let obImb=null, obWall=0;
+  if(cfg.wOb>0 && depth){
+    const ob=_aiObImbalance(depth, cfg.obPct||0.005);
+    if(ob){ obImb=ob.imb; obWall=ob.wall;
+      raw+=_aiClamp(ob.imb*cfg.wOb, -cfg.wOb, cfg.wOb);
+      raw+=obWall*(cfg.wObWall||0);
+    }
+  }
   const signBase=raw||mom1||change24;
   if(volRel>1.25&&signBase) raw+=Math.sign(signBase)*Math.min(cfg.wVol,(volRel-1)*cfg.wVol);
   if(atrPct>cfg.atrWarnPct) raw*=0.85;
@@ -2880,6 +2910,9 @@ function calcAiMarketSignalStyled(sym,h1,h2,ticker,premium,cfg){
   else if(div<0) reasons.push('약세 다이버전스');
   if(absorb>0) reasons.push('매도 흡수(반전)');
   else if(absorb<0) reasons.push('매수 흡수(반전)');
+  if(obWall>0) reasons.push('매수벽(지지)');
+  else if(obWall<0) reasons.push('매도벽(저항)');
+  if(obImb!=null&&Math.abs(obImb)>0.25) reasons.push(`호가 ${obImb>0?'매수':'매도'}세 우위`);
   if(!reasons.length) reasons.push(type==='wait'?'추세와 모멘텀이 엇갈림':`${_symShort(sym)} 단기 ${type==='long'?'롱':'숏'} 우위`);
   const volume24h=ticker?.quoteVolume?+ticker.quoteVolume:0;
   return{
@@ -3120,11 +3153,12 @@ async function loadAiCoinSignals(){
   const rows=await Promise.all(_SYM_LIST.map(async sym=>{
     try{
       const up=sym.toUpperCase();
-      const [h1Raw,h2Raw]=await Promise.all([
+      const [h1Raw,h2Raw,depth]=await Promise.all([
         _aiFetchJson(`https://fapi.binance.com/fapi/v1/klines?symbol=${up}&interval=${cfg.iv1}&limit=${cfg.lim1}`),
         _aiFetchJson(`https://fapi.binance.com/fapi/v1/klines?symbol=${up}&interval=${cfg.iv2}&limit=${cfg.lim2}`),
+        cfg.wOb>0 ? _aiFetchJson(`https://fapi.binance.com/fapi/v1/depth?symbol=${up}&limit=100`).catch(()=>null) : Promise.resolve(null),
       ]);
-      return calcAiMarketSignalStyled(sym,_aiKlines(h1Raw),_aiKlines(h2Raw),tickerMap[sym],premiumMap[sym],cfg);
+      return calcAiMarketSignalStyled(sym,_aiKlines(h1Raw),_aiKlines(h2Raw),tickerMap[sym],premiumMap[sym],cfg,depth);
     }catch(e){
       return{sym,type:'wait',label:'관망',score:0,confidence:0,reason:'시장 데이터 조회 실패',metrics:'-',risk:'잠시 후 새로고침',volume24h:0};
     }
@@ -3319,6 +3353,12 @@ window.showAiHelp=function(){
       <b>거래량 흡수 (반전)</b>
       <p>거래량이 급증했는데 캔들 몸통이 작고 한쪽 꼬리가 길 때 나타납니다.<br>
       <em>긴 아래꼬리</em> → 매도 물량이 흡수됨 (상승 반전) &nbsp;/&nbsp; <em>긴 위꼬리</em> → 매수 물량이 흡수됨 (하락 반전)</p>
+    </div>
+    <div class="ai-help-term">
+      <b>오더북 임밸런스 (호가 압력) — 스캘핑·단타</b>
+      <p>현재가 주변 호가창의 매수/매도 대기 물량을 비교한 <em>단기 압력</em> 지표입니다.<br>
+      <em>매수세 우위</em> → 살 물량이 많음(상승 압력) &nbsp;/&nbsp; <em>매도세 우위</em> → 팔 물량이 많음(하락 압력)<br>
+      <em>매수벽(지지)</em>·<em>매도벽(저항)</em>은 한쪽에 쏠린 큰 주문입니다. 단, 호가는 취소·조작될 수 있어 보조 참고용으로만 씁니다.</p>
     </div>
     <div class="ai-help-term">
       <b>적중률 (이 기기 기준)</b>
