@@ -1,0 +1,44 @@
+name: AI signal forward test
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ai-signal-forward-test
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Self test
+        run: node scripts/ai-signal-forward-test.js --self-test
+
+      - name: Run forward test
+        run: node scripts/ai-signal-forward-test.js
+
+      - name: Commit result
+        run: |
+          if git diff --quiet -- data/ai-signal-forward.json; then
+            echo "No forward-test changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ai-signal-forward.json
+          git commit -m "Update AI signal forward test"
+          git push
+

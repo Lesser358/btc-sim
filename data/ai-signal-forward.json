@@ -1,0 +1,781 @@
+{
+  "version": 1,
+  "source": "github-actions",
+  "updatedAt": "2026-06-25T13:12:59.814Z",
+  "pending": [
+    {
+      "id": "scalping:ethusdt:1782393179814",
+      "style": "scalping",
+      "sym": "ethusdt",
+      "type": "long",
+      "entry": 1637.67,
+      "score": 12,
+      "confidence": 71,
+      "ts": 1782393179814,
+      "evalAt": 1782394979814
+    },
+    {
+      "id": "scalping:xrpusdt:1782393179814",
+      "style": "scalping",
+      "sym": "xrpusdt",
+      "type": "long",
+      "entry": 1.0748,
+      "score": 13,
+      "confidence": 72,
+      "ts": 1782393179814,
+      "evalAt": 1782394979814
+    },
+    {
+      "id": "scalping:dogeusdt:1782393179814",
+      "style": "scalping",
+      "sym": "dogeusdt",
+      "type": "long",
+      "entry": 0.07605,
+      "score": 13,
+      "confidence": 72,
+      "ts": 1782393179814,
+      "evalAt": 1782394979814
+    },
+    {
+      "id": "scalping:bnbusdt:1782393179814",
+      "style": "scalping",
+      "sym": "bnbusdt",
+      "type": "long",
+      "entry": 564.91,
+      "score": 19,
+      "confidence": 79,
+      "ts": 1782393179814,
+      "evalAt": 1782394979814
+    },
+    {
+      "id": "scalping:adausdt:1782393179814",
+      "style": "scalping",
+      "sym": "adausdt",
+      "type": "long",
+      "entry": 0.1485,
+      "score": 25,
+      "confidence": 85,
+      "ts": 1782393179814,
+      "evalAt": 1782394979814
+    },
+    {
+      "id": "scalping:avaxusdt:1782393179814",
+      "style": "scalping",
+      "sym": "avaxusdt",
+      "type": "short",
+      "entry": 6.366,
+      "score": -11,
+      "confidence": 69,
+      "ts": 1782393179814,
+      "evalAt": 1782394979814
+    },
+    {
+      "id": "scalp:dogeusdt:1782393179814",
+      "style": "scalp",
+      "sym": "dogeusdt",
+      "type": "short",
+      "entry": 0.07605,
+      "score": -15,
+      "confidence": 74,
+      "ts": 1782393179814,
+      "evalAt": 1782407579814
+    },
+    {
+      "id": "scalp:adausdt:1782393179814",
+      "style": "scalp",
+      "sym": "adausdt",
+      "type": "long",
+      "entry": 0.1485,
+      "score": 12,
+      "confidence": 54,
+      "ts": 1782393179814,
+      "evalAt": 1782407579814
+    },
+    {
+      "id": "scalp:avaxusdt:1782393179814",
+      "style": "scalp",
+      "sym": "avaxusdt",
+      "type": "short",
+      "entry": 6.366,
+      "score": -31,
+      "confidence": 92,
+      "ts": 1782393179814,
+      "evalAt": 1782407579814
+    },
+    {
+      "id": "swing:btcusdt:1782393179814",
+      "style": "swing",
+      "sym": "btcusdt",
+      "type": "short",
+      "entry": 61281.5,
+      "score": -12,
+      "confidence": 54,
+      "ts": 1782393179814,
+      "evalAt": 1782479579814
+    },
+    {
+      "id": "swing:ethusdt:1782393179814",
+      "style": "swing",
+      "sym": "ethusdt",
+      "type": "short",
+      "entry": 1637.67,
+      "score": -13,
+      "confidence": 55,
+      "ts": 1782393179814,
+      "evalAt": 1782479579814
+    },
+    {
+      "id": "swing:solusdt:1782393179814",
+      "style": "swing",
+      "sym": "solusdt",
+      "type": "short",
+      "entry": 68.28,
+      "score": -15,
+      "confidence": 57,
+      "ts": 1782393179814,
+      "evalAt": 1782479579814
+    },
+    {
+      "id": "swing:xrpusdt:1782393179814",
+      "style": "swing",
+      "sym": "xrpusdt",
+      "type": "short",
+      "entry": 1.0748,
+      "score": -32,
+      "confidence": 94,
+      "ts": 1782393179814,
+      "evalAt": 1782479579814
+    },
+    {
+      "id": "swing:dogeusdt:1782393179814",
+      "style": "swing",
+      "sym": "dogeusdt",
+      "type": "short",
+      "entry": 0.07605,
+      "score": -49,
+      "confidence": 96,
+      "ts": 1782393179814,
+      "evalAt": 1782479579814
+    },
+    {
+      "id": "swing:bnbusdt:1782393179814",
+      "style": "swing",
+      "sym": "bnbusdt",
+      "type": "short",
+      "entry": 564.91,
+      "score": -32,
+      "confidence": 94,
+      "ts": 1782393179814,
+      "evalAt": 1782479579814
+    },
+    {
+      "id": "swing:adausdt:1782393179814",
+      "style": "swing",
+      "sym": "adausdt",
+      "type": "short",
+      "entry": 0.1485,
+      "score": -12,
+      "confidence": 54,
+      "ts": 1782393179814,
+      "evalAt": 1782479579814
+    },
+    {
+      "id": "swing:avaxusdt:1782393179814",
+      "style": "swing",
+      "sym": "avaxusdt",
+      "type": "short",
+      "entry": 6.366,
+      "score": -13,
+      "confidence": 55,
+      "ts": 1782393179814,
+      "evalAt": 1782479579814
+    },
+    {
+      "id": "mid:btcusdt:1782393179814",
+      "style": "mid",
+      "sym": "btcusdt",
+      "type": "short",
+      "entry": 61281.5,
+      "score": -56,
+      "confidence": 96,
+      "ts": 1782393179814,
+      "evalAt": 1782738779814
+    },
+    {
+      "id": "mid:ethusdt:1782393179814",
+      "style": "mid",
+      "sym": "ethusdt",
+      "type": "short",
+      "entry": 1637.67,
+      "score": -60,
+      "confidence": 96,
+      "ts": 1782393179814,
+      "evalAt": 1782738779814
+    },
+    {
+      "id": "mid:solusdt:1782393179814",
+      "style": "mid",
+      "sym": "solusdt",
+      "type": "short",
+      "entry": 68.28,
+      "score": -44,
+      "confidence": 96,
+      "ts": 1782393179814,
+      "evalAt": 1782738779814
+    },
+    {
+      "id": "mid:xrpusdt:1782393179814",
+      "style": "mid",
+      "sym": "xrpusdt",
+      "type": "short",
+      "entry": 1.0748,
+      "score": -62,
+      "confidence": 96,
+      "ts": 1782393179814,
+      "evalAt": 1782738779814
+    },
+    {
+      "id": "mid:dogeusdt:1782393179814",
+      "style": "mid",
+      "sym": "dogeusdt",
+      "type": "short",
+      "entry": 0.07605,
+      "score": -68,
+      "confidence": 96,
+      "ts": 1782393179814,
+      "evalAt": 1782738779814
+    },
+    {
+      "id": "mid:bnbusdt:1782393179814",
+      "style": "mid",
+      "sym": "bnbusdt",
+      "type": "short",
+      "entry": 564.91,
+      "score": -60,
+      "confidence": 96,
+      "ts": 1782393179814,
+      "evalAt": 1782738779814
+    },
+    {
+      "id": "mid:adausdt:1782393179814",
+      "style": "mid",
+      "sym": "adausdt",
+      "type": "short",
+      "entry": 0.1485,
+      "score": -50,
+      "confidence": 96,
+      "ts": 1782393179814,
+      "evalAt": 1782738779814
+    },
+    {
+      "id": "mid:avaxusdt:1782393179814",
+      "style": "mid",
+      "sym": "avaxusdt",
+      "type": "long",
+      "entry": 6.366,
+      "score": 25,
+      "confidence": 85,
+      "ts": 1782393179814,
+      "evalAt": 1782738779814
+    }
+  ],
+  "styles": {},
+  "latestSignals": {
+    "scalping": [
+      {
+        "sym": "btcusdt",
+        "coin": "BTC",
+        "type": "wait",
+        "score": -2,
+        "confidence": 53,
+        "entry": 61281.5,
+        "reason": "tf agree / book bid bias",
+        "metrics": {
+          "change24": -1.294,
+          "rsi": 53.1,
+          "fundingPct": 0.0059,
+          "atrPct": 0.186
+        }
+      },
+      {
+        "sym": "ethusdt",
+        "coin": "ETH",
+        "type": "long",
+        "score": 12,
+        "confidence": 71,
+        "entry": 1637.67,
+        "reason": "tf agree / VWAP above",
+        "metrics": {
+          "change24": -1.099,
+          "rsi": 57.5,
+          "fundingPct": 0.0019,
+          "atrPct": 0.214
+        }
+      },
+      {
+        "sym": "solusdt",
+        "coin": "SOL",
+        "type": "wait",
+        "score": 3,
+        "confidence": 52,
+        "entry": 68.28,
+        "reason": "tf conflict / VWAP above",
+        "metrics": {
+          "change24": -0.813,
+          "rsi": 52.1,
+          "fundingPct": 0.0008,
+          "atrPct": 0.256
+        }
+      },
+      {
+        "sym": "xrpusdt",
+        "coin": "XRP",
+        "type": "long",
+        "score": 13,
+        "confidence": 72,
+        "entry": 1.0748,
+        "reason": "tf agree / VWAP above",
+        "metrics": {
+          "change24": -0.748,
+          "rsi": 57.7,
+          "fundingPct": -0.0004,
+          "atrPct": 0.175
+        }
+      },
+      {
+        "sym": "dogeusdt",
+        "coin": "DOGE",
+        "type": "long",
+        "score": 13,
+        "confidence": 72,
+        "entry": 0.07605,
+        "reason": "tf agree / VWAP above",
+        "metrics": {
+          "change24": -2.199,
+          "rsi": 56.8,
+          "fundingPct": 0.0073,
+          "atrPct": 0.2
+        }
+      },
+      {
+        "sym": "bnbusdt",
+        "coin": "BNB",
+        "type": "long",
+        "score": 19,
+        "confidence": 79,
+        "entry": 564.91,
+        "reason": "tf agree / VWAP above / volume x1.4",
+        "metrics": {
+          "change24": -1.558,
+          "rsi": 61.4,
+          "fundingPct": 0,
+          "atrPct": 0.175
+        }
+      },
+      {
+        "sym": "adausdt",
+        "coin": "ADA",
+        "type": "long",
+        "score": 25,
+        "confidence": 85,
+        "entry": 0.1485,
+        "reason": "EMA up / tf agree / VWAP above",
+        "metrics": {
+          "change24": 1.643,
+          "rsi": 69.9,
+          "fundingPct": 0.0061,
+          "atrPct": 0.3
+        }
+      },
+      {
+        "sym": "avaxusdt",
+        "coin": "AVAX",
+        "type": "short",
+        "score": -11,
+        "confidence": 69,
+        "entry": 6.366,
+        "reason": "EMA down / tf agree / VWAP below",
+        "metrics": {
+          "change24": 0.505,
+          "rsi": 42.8,
+          "fundingPct": 0.0026,
+          "atrPct": 0.259
+        }
+      }
+    ],
+    "scalp": [
+      {
+        "sym": "btcusdt",
+        "coin": "BTC",
+        "type": "wait",
+        "score": -9,
+        "confidence": 46,
+        "entry": 61281.5,
+        "reason": "tf agree / volume x2.0 / sell absorption",
+        "metrics": {
+          "change24": -1.294,
+          "rsi": 46.3,
+          "fundingPct": 0.0059,
+          "atrPct": 0.342
+        }
+      },
+      {
+        "sym": "ethusdt",
+        "coin": "ETH",
+        "type": "wait",
+        "score": 6,
+        "confidence": 49,
+        "entry": 1637.67,
+        "reason": "EMA down / tf conflict / momentum strong",
+        "metrics": {
+          "change24": -1.099,
+          "rsi": 49.5,
+          "fundingPct": 0.0019,
+          "atrPct": 0.437
+        }
+      },
+      {
+        "sym": "solusdt",
+        "coin": "SOL",
+        "type": "wait",
+        "score": -5,
+        "confidence": 50,
+        "entry": 68.28,
+        "reason": "EMA down / tf conflict / volume x2.0",
+        "metrics": {
+          "change24": -0.813,
+          "rsi": 45.3,
+          "fundingPct": 0.0008,
+          "atrPct": 0.513
+        }
+      },
+      {
+        "sym": "xrpusdt",
+        "coin": "XRP",
+        "type": "wait",
+        "score": 7,
+        "confidence": 48,
+        "entry": 1.0748,
+        "reason": "EMA down / tf conflict / momentum strong",
+        "metrics": {
+          "change24": -0.748,
+          "rsi": 47.7,
+          "fundingPct": -0.0004,
+          "atrPct": 0.346
+        }
+      },
+      {
+        "sym": "dogeusdt",
+        "coin": "DOGE",
+        "type": "short",
+        "score": -15,
+        "confidence": 74,
+        "entry": 0.07605,
+        "reason": "EMA down / tf agree / volume x1.7",
+        "metrics": {
+          "change24": -2.199,
+          "rsi": 42.8,
+          "fundingPct": 0.0073,
+          "atrPct": 0.411
+        }
+      },
+      {
+        "sym": "bnbusdt",
+        "coin": "BNB",
+        "type": "wait",
+        "score": 6,
+        "confidence": 49,
+        "entry": 564.91,
+        "reason": "EMA down / tf conflict / momentum strong",
+        "metrics": {
+          "change24": -1.558,
+          "rsi": 45.9,
+          "fundingPct": 0,
+          "atrPct": 0.327
+        }
+      },
+      {
+        "sym": "adausdt",
+        "coin": "ADA",
+        "type": "long",
+        "score": 12,
+        "confidence": 54,
+        "entry": 0.1485,
+        "reason": "EMA down / tf conflict / momentum strong",
+        "metrics": {
+          "change24": 1.643,
+          "rsi": 52.3,
+          "fundingPct": 0.0061,
+          "atrPct": 0.534
+        }
+      },
+      {
+        "sym": "avaxusdt",
+        "coin": "AVAX",
+        "type": "short",
+        "score": -31,
+        "confidence": 92,
+        "entry": 6.366,
+        "reason": "EMA down / tf agree / volume x1.5",
+        "metrics": {
+          "change24": 0.505,
+          "rsi": 35.6,
+          "fundingPct": 0.0026,
+          "atrPct": 0.586
+        }
+      }
+    ],
+    "swing": [
+      {
+        "sym": "btcusdt",
+        "coin": "BTC",
+        "type": "short",
+        "score": -12,
+        "confidence": 54,
+        "entry": 61281.5,
+        "reason": "EMA down / tf conflict / momentum weak",
+        "metrics": {
+          "change24": -1.294,
+          "rsi": 48,
+          "fundingPct": 0.0059,
+          "atrPct": 0.729
+        }
+      },
+      {
+        "sym": "ethusdt",
+        "coin": "ETH",
+        "type": "short",
+        "score": -13,
+        "confidence": 55,
+        "entry": 1637.67,
+        "reason": "EMA down / tf conflict / momentum weak",
+        "metrics": {
+          "change24": -1.099,
+          "rsi": 50.1,
+          "fundingPct": 0.0019,
+          "atrPct": 0.962
+        }
+      },
+      {
+        "sym": "solusdt",
+        "coin": "SOL",
+        "type": "short",
+        "score": -15,
+        "confidence": 57,
+        "entry": 68.28,
+        "reason": "EMA down / tf conflict / momentum weak",
+        "metrics": {
+          "change24": -0.813,
+          "rsi": 48.3,
+          "fundingPct": 0.0008,
+          "atrPct": 1.116
+        }
+      },
+      {
+        "sym": "xrpusdt",
+        "coin": "XRP",
+        "type": "short",
+        "score": -32,
+        "confidence": 94,
+        "entry": 1.0748,
+        "reason": "EMA down / tf agree / momentum weak",
+        "metrics": {
+          "change24": -0.748,
+          "rsi": 45.4,
+          "fundingPct": -0.0004,
+          "atrPct": 0.798
+        }
+      },
+      {
+        "sym": "dogeusdt",
+        "coin": "DOGE",
+        "type": "short",
+        "score": -49,
+        "confidence": 96,
+        "entry": 0.07605,
+        "reason": "EMA down / tf agree / momentum weak",
+        "metrics": {
+          "change24": -2.199,
+          "rsi": 43,
+          "fundingPct": 0.0073,
+          "atrPct": 0.928
+        }
+      },
+      {
+        "sym": "bnbusdt",
+        "coin": "BNB",
+        "type": "short",
+        "score": -32,
+        "confidence": 94,
+        "entry": 564.91,
+        "reason": "EMA down / tf agree / momentum weak",
+        "metrics": {
+          "change24": -1.558,
+          "rsi": 45,
+          "fundingPct": 0,
+          "atrPct": 0.692
+        }
+      },
+      {
+        "sym": "adausdt",
+        "coin": "ADA",
+        "type": "short",
+        "score": -12,
+        "confidence": 54,
+        "entry": 0.1485,
+        "reason": "EMA down / tf conflict / momentum weak",
+        "metrics": {
+          "change24": 1.643,
+          "rsi": 51.2,
+          "fundingPct": 0.0061,
+          "atrPct": 1.12
+        }
+      },
+      {
+        "sym": "avaxusdt",
+        "coin": "AVAX",
+        "type": "short",
+        "score": -13,
+        "confidence": 55,
+        "entry": 6.366,
+        "reason": "EMA up / tf conflict / momentum weak",
+        "metrics": {
+          "change24": 0.505,
+          "rsi": 46.5,
+          "fundingPct": 0.0026,
+          "atrPct": 1.297
+        }
+      }
+    ],
+    "mid": [
+      {
+        "sym": "btcusdt",
+        "coin": "BTC",
+        "type": "short",
+        "score": -56,
+        "confidence": 96,
+        "entry": 61281.5,
+        "reason": "EMA down / tf agree / momentum strong",
+        "metrics": {
+          "change24": -1.294,
+          "rsi": 40.8,
+          "fundingPct": 0.0059,
+          "atrPct": 1.541
+        }
+      },
+      {
+        "sym": "ethusdt",
+        "coin": "ETH",
+        "type": "short",
+        "score": -60,
+        "confidence": 96,
+        "entry": 1637.67,
+        "reason": "EMA down / tf agree / momentum strong",
+        "metrics": {
+          "change24": -1.099,
+          "rsi": 42.5,
+          "fundingPct": 0.0019,
+          "atrPct": 2.061
+        }
+      },
+      {
+        "sym": "solusdt",
+        "coin": "SOL",
+        "type": "short",
+        "score": -44,
+        "confidence": 96,
+        "entry": 68.28,
+        "reason": "EMA down / tf agree / momentum strong",
+        "metrics": {
+          "change24": -0.813,
+          "rsi": 43.5,
+          "fundingPct": 0.0008,
+          "atrPct": 2.434
+        }
+      },
+      {
+        "sym": "xrpusdt",
+        "coin": "XRP",
+        "type": "short",
+        "score": -62,
+        "confidence": 96,
+        "entry": 1.0748,
+        "reason": "EMA down / tf agree / momentum strong",
+        "metrics": {
+          "change24": -0.748,
+          "rsi": 37.5,
+          "fundingPct": -0.0004,
+          "atrPct": 1.696
+        }
+      },
+      {
+        "sym": "dogeusdt",
+        "coin": "DOGE",
+        "type": "short",
+        "score": -68,
+        "confidence": 96,
+        "entry": 0.07605,
+        "reason": "EMA down / tf agree / momentum strong",
+        "metrics": {
+          "change24": -2.199,
+          "rsi": 35.6,
+          "fundingPct": 0.0073,
+          "atrPct": 2.053
+        }
+      },
+      {
+        "sym": "bnbusdt",
+        "coin": "BNB",
+        "type": "short",
+        "score": -60,
+        "confidence": 96,
+        "entry": 564.91,
+        "reason": "EMA down / tf agree / momentum strong",
+        "metrics": {
+          "change24": -1.558,
+          "rsi": 39.8,
+          "fundingPct": 0,
+          "atrPct": 1.466
+        }
+      },
+      {
+        "sym": "adausdt",
+        "coin": "ADA",
+        "type": "short",
+        "score": -50,
+        "confidence": 96,
+        "entry": 0.1485,
+        "reason": "EMA down / tf agree / momentum strong",
+        "metrics": {
+          "change24": 1.643,
+          "rsi": 41.6,
+          "fundingPct": 0.0061,
+          "atrPct": 2.592
+        }
+      },
+      {
+        "sym": "avaxusdt",
+        "coin": "AVAX",
+        "type": "long",
+        "score": 25,
+        "confidence": 85,
+        "entry": 6.366,
+        "reason": "EMA down / tf agree / momentum strong",
+        "metrics": {
+          "change24": 0.505,
+          "rsi": 51,
+          "fundingPct": 0.0026,
+          "atrPct": 2.871
+        }
+      }
+    ]
+  },
+  "recentEvaluations": [],
+  "runs": [
+    {
+      "ts": "2026-06-25T13:12:59.814Z",
+      "added": 25,
+      "pending": 25
+    }
+  ]
+}

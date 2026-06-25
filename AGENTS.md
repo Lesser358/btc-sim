@@ -46,6 +46,7 @@
 - Firestore `users/{uid}` update 규칙은 허용 필드 제한(`keys().hasOnly`)까지 확인한다. 클라이언트 UI에서 안 보내는 필드라도 규칙으로 차단해야 한다.
 - 상태 마이그레이션은 `loadState()`와 `applyCloudData()` 양쪽에서 동일하게 적용한다. 새 상태 필드를 추가하면 로컬 로드·클라우드 적용·구버전 데이터 주입 케이스를 함께 검증한다.
 - 신호 스캐너 비동기 작업은 stale 결과가 UI뿐 아니라 `localStorage` 로그(`btcSimSigStats`)에도 기록되지 않게 `_aiSignalReq`/스타일/ON 상태를 같이 검증한다.
+- AI 신호 계산 로직(`SIGNAL_STYLE_CFG`, `calcAiMarketSignalStyled`, TP/SL·수수료 기준)을 바꾸면 `scripts/ai-signal-forward-test.js`도 같이 맞춘다. 앱 화면과 GitHub Actions 자동 forward 결과가 다른 기준으로 계산되면 지표 신뢰도가 깨진다.
 
 ## 🔒 보안 최우선 (출시 예정 서비스)
 - 사용자 입력 → `innerHTML` 절대 금지. `escHtml()` 또는 `textContent` 사용
