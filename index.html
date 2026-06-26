@@ -989,6 +989,7 @@
         <button id="drawDelBtn" title="선택한 도형 삭제">삭제</button>
         <button id="drawClearBtn" title="모든 도형 삭제">전체삭제</button>
         <button id="autoChBtn" title="자동 채널 — 최근 100봉 선형회귀 채널 자동 표시 (ON/OFF)" onclick="toggleAutoChannel()">자동채널</button>
+        <button id="autoChHistBtn" title="이전 채널 표시 — 자동채널 ON 상태에서 이전 위치 채널을 반투명하게 오버레이 (ON/OFF)" onclick="toggleAutoChannelHistory()">이전채널</button>
         <span class="db-sep"></span>
         <span class="db-label" id="chartSizeLabel">차트</span>
         <input type="range" id="chartSizeRange" class="chart-size-range" min="320" max="900" step="20" title="차트 크기 조절 (← 축소 / 확대 →)">
@@ -1457,6 +1458,7 @@ const defaultState = () => ({
   signalStyle: 'swing',
   aiProb: { on: false, mode: 'current' },   // 차트 상승/하락 확률 오버레이 (mode: current=현재분봉 / multi=여러분봉)
   autoChannelOn: false,                    // 자동 선형회귀 채널 ON/OFF
+  autoChannelShowHistory: false,           // 이전 채널 표시 ON/OFF
 });
 let S = loadState();
 
@@ -2375,7 +2377,13 @@ function renderPositions(){
     posCtlRendered = true; posCtlModeShown = posTpSlMode; posCtlForSym = curSymbol; posCtlHadPos = hasPos;
   }else{
     const tb = document.getElementById("posTableBox");
-    if(tb) tb.innerHTML = tableHtml;
+    if(tb){
+      const oldWrap = tb.querySelector('.tblwrap');
+      const svL = oldWrap ? oldWrap.scrollLeft : 0;
+      const svT = oldWrap ? oldWrap.scrollTop  : 0;
+      tb.innerHTML = tableHtml;
+      if(svL || svT){ const nw = tb.querySelector('.tblwrap'); if(nw){ nw.scrollLeft=svL; nw.scrollTop=svT; } }
+    }
     else el.innerHTML = `<div id="posTableBox">${tableHtml}</div><div id="posCtlBox">${ctlHtml}</div>`;
   }
 }
@@ -5726,6 +5734,14 @@ function redrawDrawings(){
   // 자동 선형회귀 채널 오버레이 (5초 캐시)
   if(autoChannelOn){
     if(Date.now() - _autoChLastCalc > 5000) updateAutoChannel();
+    // 이전 채널 표시 (오래된 것일수록 더 투명하게)
+    if(S.autoChannelShowHistory && _autoChannelHistory.length){
+      _autoChannelHistory.forEach((hist, i) => {
+        drawCtx.globalAlpha = 0.12 + i * 0.08;
+        try{ renderShape(hist, pd.w, pd.h, false); }catch(e){}
+      });
+      drawCtx.globalAlpha = 1;
+    }
     if(_autoChannelShape) try{ renderShape(_autoChannelShape, pd.w, pd.h, false); }catch(e){}
   }
   // 자석 스냅 표시기
@@ -5955,6 +5971,8 @@ function clearDrawings(){ if(!drawings.length){ return; } if(!confirm('모든 �
 let autoChannelOn = !!(S && S.autoChannelOn);
 let _autoChannelShape = null;
 let _autoChLastCalc = 0;
+let _autoChannelHistory = [];      // 이전 채널 기록 (최대 3개)
+const _AUTO_CH_MAX_HIST = 3;
 
 function calcAutoChannel(lookback=100){
   if(!candles || candles.length < 10) return null;
@@ -5985,7 +6003,17 @@ function calcAutoChannel(lookback=100){
 
 function updateAutoChannel(){
   if(!autoChannelOn){ _autoChannelShape=null; return; }
-  _autoChannelShape = calcAutoChannel();
+  const newShape = calcAutoChannel();
+  // 기존 채널과 중심값이 0.3% 이상 이동했으면 이전 채널을 히스토리에 저장
+  if(newShape && _autoChannelShape){
+    const oldMid = (_autoChannelShape.pts[0].p + _autoChannelShape.pts[1].p) / 2;
+    const newMid = (newShape.pts[0].p + newShape.pts[1].p) / 2;
+    if(oldMid > 0 && Math.abs(newMid - oldMid) / oldMid > 0.003){
+      _autoChannelHistory.push(JSON.parse(JSON.stringify(_autoChannelShape)));
+      if(_autoChannelHistory.length > _AUTO_CH_MAX_HIST) _autoChannelHistory.shift();
+    }
+  }
+  _autoChannelShape = newShape;
   _autoChLastCalc = Date.now();
 }
 
@@ -5994,7 +6022,15 @@ window.toggleAutoChannel = function(){
   S.autoChannelOn = autoChannelOn; save();
   const btn = document.getElementById('autoChBtn');
   if(btn) btn.classList.toggle('active', autoChannelOn);
+  if(!autoChannelOn){ _autoChannelHistory = []; }
   updateAutoChannel();
+  redrawDrawings();
+};
+
+window.toggleAutoChannelHistory = function(){
+  S.autoChannelShowHistory = !S.autoChannelShowHistory; save();
+  const btn = document.getElementById('autoChHistBtn');
+  if(btn) btn.classList.toggle('active', S.autoChannelShowHistory);
   redrawDrawings();
 };
 
@@ -6340,6 +6376,8 @@ function setupDrawing(){
   document.getElementById('drawClearBtn').onclick=clearDrawings;
   const autoChBtn = document.getElementById('autoChBtn');
   if(autoChBtn) autoChBtn.classList.toggle('active', autoChannelOn);
+  const autoChHistBtn = document.getElementById('autoChHistBtn');
+  if(autoChHistBtn) autoChHistBtn.classList.toggle('active', !!S.autoChannelShowHistory);
   renderDrawToolFavs();   // 즐겨찾기 그리기 도구를 툴바에 렌더
   // ── 차트 크기(높이) 조절 슬라이더 — 좌:축소 / 우:확대 (chart는 autoSize라 높이 변경 시 자동 리사이즈) ──
   (function(){
