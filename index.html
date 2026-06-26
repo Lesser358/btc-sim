@@ -2309,6 +2309,8 @@ function renderPreview(){
 let posCtlRendered=false, posCtlModeShown=null, posCtlForSym=null, posCtlHadPos=null;
 let _posTableTouching=false, _posTableTouchTimer=null;
 let _posTableScrollL=0, _posTableScrollT=0;
+// 거래내역·미체결 주문 스크롤 복귀 방지: 데이터 변화 없으면 DOM 교체 스킵
+let _histRenderLen=-1, _ordRenderKey='';
 function _bindPosWrapScroll(wrap){
   if(!wrap||wrap._psb) return;
   wrap._psb=true;
@@ -2413,6 +2415,9 @@ function renderPositions(){
 function renderOrders(){
   const el = document.getElementById("tab-ord");
   const curOrders = S.pending.filter(o=>!o.sym||o.sym===curSymbol);
+  const _ok = curSymbol+'|'+curOrders.map(o=>`${o.id}_${o.price}_${o.tpRaw||0}_${o.slRaw||0}`).join(',');
+  if(_ok===_ordRenderKey && el.firstChild) return;
+  _ordRenderKey = _ok;
   if(!curOrders.length){ el.innerHTML=`<div class="empty">미체결 주문이 없습니다.</div>`; return; }
   const kindName = {limit:"지정가", tp:"TP", sl:"SL"};
   el.innerHTML = `<div class="tblwrap"><table><thead><tr>
@@ -2456,6 +2461,8 @@ function renderOrders(){
 
 function renderHistory(){
   const el = document.getElementById("tab-hist");
+  if(S.history.length===_histRenderLen && el.firstChild) return;
+  _histRenderLen = S.history.length;
 
   // 통계 계산
   const pnlTrades = S.history.filter(h=>h.pnl!==0 && h.type!=="강제청산");
