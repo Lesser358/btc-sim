@@ -5971,7 +5971,8 @@ function clearDrawings(){ if(!drawings.length){ return; } if(!confirm('모든 �
 let autoChannelOn = !!(S && S.autoChannelOn);
 let _autoChannelShape = null;
 let _autoChLastCalc = 0;
-let _autoChannelHistory = [];      // 이전 채널 기록 (최대 3개)
+const _AUTO_CH_HIST_KEY = 'btcSimAutoChHist';
+let _autoChannelHistory = (()=>{ try{ const d=JSON.parse(localStorage.getItem(_AUTO_CH_HIST_KEY)||'[]'); return Array.isArray(d)?d:[]; }catch(e){ return []; } })();
 const _AUTO_CH_MAX_HIST = 3;
 
 function calcAutoChannel(lookback=100){
@@ -6011,6 +6012,7 @@ function updateAutoChannel(){
     if(oldMid > 0 && Math.abs(newMid - oldMid) / oldMid > 0.003){
       _autoChannelHistory.push(JSON.parse(JSON.stringify(_autoChannelShape)));
       if(_autoChannelHistory.length > _AUTO_CH_MAX_HIST) _autoChannelHistory.shift();
+      try{ localStorage.setItem(_AUTO_CH_HIST_KEY, JSON.stringify(_autoChannelHistory)); }catch(e){}
     }
   }
   _autoChannelShape = newShape;
@@ -6022,7 +6024,7 @@ window.toggleAutoChannel = function(){
   S.autoChannelOn = autoChannelOn; save();
   const btn = document.getElementById('autoChBtn');
   if(btn) btn.classList.toggle('active', autoChannelOn);
-  if(!autoChannelOn){ _autoChannelHistory = []; }
+  if(!autoChannelOn){ _autoChannelHistory = []; try{ localStorage.removeItem(_AUTO_CH_HIST_KEY); }catch(e){} }
   updateAutoChannel();
   redrawDrawings();
 };
