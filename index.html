@@ -4586,8 +4586,7 @@ window.saveAlarmSettings = function(){
   const countEl=document.getElementById('alHmaCount');
   const count = Math.max(1, parseInt(countEl?countEl.value:1)||1);
   const cfg = { on, dist:Math.max(1,parseFloat(distEl?distEl.value:200)||200), dir:dirEl?dirEl.value:'both', count };
-  if(on) S.alarms.hmaByIv[curInterval] = cfg;     // 현재 시간봉에만 설정
-  else   delete S.alarms.hmaByIv[curInterval];    // OFF면 이 시간봉 설정 제거
+  S.alarms.hmaByIv[curInterval] = cfg;  // ON·OFF 무관하게 항상 저장 (dist/dir/count 유지)
   S.alarms.volume = Math.round(parseFloat(document.getElementById('alVolume')?.value??70)||70);
   hmaZoneState = null;
   alarmFiredCount = 0;
