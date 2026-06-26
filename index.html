@@ -2307,6 +2307,7 @@ function renderPreview(){
 }
 
 let posCtlRendered=false, posCtlModeShown=null, posCtlForSym=null, posCtlHadPos=null;
+let _posTableTouching=false, _posTableTouchTimer=null;
 function renderPositions(){
   const el = document.getElementById("tab-pos");
   const syms = heldSymbols();
@@ -2378,11 +2379,9 @@ function renderPositions(){
   }else{
     const tb = document.getElementById("posTableBox");
     if(tb){
-      const oldWrap = tb.querySelector('.tblwrap');
-      const svL = oldWrap ? oldWrap.scrollLeft : 0;
-      const svT = oldWrap ? oldWrap.scrollTop  : 0;
-      tb.innerHTML = tableHtml;
-      if(svL || svT){ const nw = tb.querySelector('.tblwrap'); if(nw){ nw.scrollLeft=svL; nw.scrollTop=svT; } }
+      if(!_posTableTouching){
+        tb.innerHTML = tableHtml;
+      }
     }
     else el.innerHTML = `<div id="posTableBox">${tableHtml}</div><div id="posCtlBox">${ctlHtml}</div>`;
   }
@@ -6381,6 +6380,16 @@ function setupDrawing(){
   const autoChHistBtn = document.getElementById('autoChHistBtn');
   if(autoChHistBtn) autoChHistBtn.classList.toggle('active', !!S.autoChannelShowHistory);
   renderDrawToolFavs();   // 즐겨찾기 그리기 도구를 툴바에 렌더
+  // 포지션 탭 가로 스크롤 중 DOM 교체 방지 — 터치 시작~종료+600ms 동안 업데이트 건너뜀
+  (function(){
+    const tabPos = document.getElementById('tab-pos');
+    if(!tabPos) return;
+    const onStart = ()=>{ _posTableTouching=true; clearTimeout(_posTableTouchTimer); };
+    const onEnd   = ()=>{ clearTimeout(_posTableTouchTimer); _posTableTouchTimer=setTimeout(()=>{ _posTableTouching=false; }, 600); };
+    tabPos.addEventListener('touchstart',  onStart, {passive:true});
+    tabPos.addEventListener('touchend',    onEnd,   {passive:true});
+    tabPos.addEventListener('touchcancel', onEnd,   {passive:true});
+  })();
   // ── 차트 크기(높이) 조절 슬라이더 — 좌:축소 / 우:확대 (chart는 autoSize라 높이 변경 시 자동 리사이즈) ──
   (function(){
     const csr=document.getElementById('chartSizeRange'), chartEl=document.getElementById('chart');
