@@ -2308,42 +2308,45 @@ function renderPreview(){
 
 let posCtlRendered=false, posCtlModeShown=null, posCtlForSym=null, posCtlHadPos=null;
 let _posTableTouching=false, _posTableTouchTimer=null;
+let _posTableScrollL=0, _posTableScrollT=0;
+function _bindPosWrapScroll(wrap){
+  if(!wrap||wrap._psb) return;
+  wrap._psb=true;
+  wrap.addEventListener('scroll',()=>{ _posTableScrollL=wrap.scrollLeft; _posTableScrollT=wrap.scrollTop; },{passive:true});
+}
+let _posTableSymsKey = '';
+function _buildPosRow(sym, curSym){
+  const p = S.positions[sym];
+  const mk = markOf(sym);
+  const u = posPnl(sym);
+  const roe = p.margin ? (u/p.margin*100) : 0;
+  const liq = liqPriceOf(p.side, p.qty, p.entry, p.margin, p.mode, sym);
+  const tpO = S.pending.find(o=>o.kind==='tp'&&(o.sym||curSym)===sym);
+  const slO = S.pending.find(o=>o.kind==='sl'&&(o.sym||curSym)===sym);
+  const notional = p.qty*(mk||p.entry);
+  const _ot = p.openTime ? new Date(p.openTime) : null;
+  const otStr = _ot ? `${String(_ot.getMonth()+1).padStart(2,'0')}/${String(_ot.getDate()).padStart(2,'0')} ${String(_ot.getHours()).padStart(2,'0')}:${String(_ot.getMinutes()).padStart(2,'0')}` : '-';
+  const isCur = sym===curSym;
+  return `<tr class="pos-row${isCur?' cur':''}" data-sym="${sym}" onclick="${isCur?'':`changeSymbol('${sym}')`}" style="cursor:${isCur?'default':'pointer'};">
+    <td><b class="${isCur?'yellow':''}">${_symShort(sym)}</b></td>
+    <td class="${p.side==='long'?'green':'red'}">${p.side==='long'?'Long':'Short'} ${p.lev||S.leverage}x</td>
+    <td class="muted">${otStr}</td>
+    <td>${fmtQty(p.qty)}</td>
+    <td data-live="notional">${fmt(notional,2)}</td>
+    <td>${fmtPrice(p.entry)}</td>
+    <td data-live="mark">${mk?fmtPrice(mk):'-'}</td>
+    <td class="yellow">${liq?fmtPrice(liq):'-'}</td>
+    <td>${fmt(p.margin,2)}</td>
+    <td class="${u>=0?'green':'red'}" data-live="pnl">${fmtUsd(u)}</td>
+    <td class="${roe>=0?'green':'red'}" data-live="roe">${(roe>=0?'+':'')+fmt(roe,2)}%</td>
+    <td class="green" data-live="tp">${tpO?fmtPrice(tpO.price):'-'}</td>
+    <td class="red" data-live="sl">${slO?fmtPrice(slO.price):'-'}</td>
+  </tr>`;
+}
 function renderPositions(){
   const el = document.getElementById("tab-pos");
   const syms = heldSymbols();
-  if(!syms.length){ el.innerHTML=`<div class="empty">보유 포지션이 없습니다.</div>`; posCtlRendered=false; posCtlForSym=null; return; }
-  // ── 보유 중인 모든 코인 포지션 행 ──
-  const rows = syms.map(sym=>{
-    const p = S.positions[sym];
-    const mk = markOf(sym);
-    const u = posPnl(sym);
-    const roe = p.margin ? (u/p.margin*100) : 0;
-    const liq = liqPriceOf(p.side, p.qty, p.entry, p.margin, p.mode, sym);
-    const tpO = S.pending.find(o=>o.kind==='tp'&&(o.sym||curSymbol)===sym);
-    const slO = S.pending.find(o=>o.kind==='sl'&&(o.sym||curSymbol)===sym);
-    const notional = p.qty*(mk||p.entry);
-    const _ot = p.openTime ? new Date(p.openTime) : null;
-    const otStr = _ot ? `${String(_ot.getMonth()+1).padStart(2,'0')}/${String(_ot.getDate()).padStart(2,'0')} ${String(_ot.getHours()).padStart(2,'0')}:${String(_ot.getMinutes()).padStart(2,'0')}` : '-';
-    const isCur = sym===curSymbol;
-    return `<tr class="pos-row${isCur?' cur':''}" data-sym="${sym}" onclick="${isCur?'':`changeSymbol('${sym}')`}" style="cursor:${isCur?'default':'pointer'};">
-      <td><b class="${isCur?'yellow':''}">${_symShort(sym)}</b></td>
-      <td class="${p.side==='long'?'green':'red'}">${p.side==='long'?'Long':'Short'} ${p.lev||S.leverage}x</td>
-      <td class="muted">${otStr}</td>
-      <td>${fmtQty(p.qty)}</td><td>${fmt(notional,2)}</td>
-      <td>${fmtPrice(p.entry)}</td><td>${mk?fmtPrice(mk):'-'}</td>
-      <td class="yellow">${liq?fmtPrice(liq):'-'}</td>
-      <td>${fmt(p.margin,2)}</td>
-      <td class="${u>=0?'green':'red'}">${fmtUsd(u)}</td>
-      <td class="${roe>=0?'green':'red'}">${(roe>=0?'+':'')+fmt(roe,2)}%</td>
-      <td class="green">${tpO?fmtPrice(tpO.price):'-'}</td>
-      <td class="red">${slO?fmtPrice(slO.price):'-'}</td>
-    </tr>`;
-  }).join('');
-  const tableHtml = `<div class="tblwrap"><table><thead><tr>
-    <th>코인</th><th>방향</th><th>진입시간</th><th>수량</th><th>가치(USDT)</th><th>진입가</th><th>마크가</th><th>청산가</th>
-    <th>증거금</th><th>손익(USDT)</th><th>ROE</th><th>TP</th><th>SL</th></tr></thead><tbody>
-    ${rows}</tbody></table></div>`;
-  // ── 제어판: 현재 보는 코인의 포지션 대상 ──
+  if(!syms.length){ el.innerHTML=`<div class="empty">보유 포지션이 없습니다.</div>`; posCtlRendered=false; posCtlForSym=null; _posTableSymsKey=''; return; }
   const cp = curPos();
   const tpO = cp ? S.pending.find(o=>o.kind==='tp'&&(o.sym||curSymbol)===curSymbol) : null;
   const slO = cp ? S.pending.find(o=>o.kind==='sl'&&(o.sym||curSymbol)===curSymbol) : null;
@@ -2371,19 +2374,39 @@ function renderPositions(){
       </div>
     </div>`;
   }
-  // 표(라이브)는 매번 갱신, 제어판(입력칸)은 코인/포지션유무/모드 변경 때만 → 입력 중 값 보존
   const hasPos = !!cp;
-  if(!posCtlRendered || posCtlModeShown!==posTpSlMode || posCtlForSym!==curSymbol || posCtlHadPos!==hasPos){
+  const symsKey = syms.join(',');
+  const needFullRebuild = !posCtlRendered || posCtlModeShown!==posTpSlMode || posCtlForSym!==curSymbol || posCtlHadPos!==hasPos || _posTableSymsKey!==symsKey;
+  if(needFullRebuild){
+    const rows = syms.map(s=>_buildPosRow(s, curSymbol)).join('');
+    const tableHtml = `<div class="tblwrap"><table><thead><tr>
+      <th>코인</th><th>방향</th><th>진입시간</th><th>수량</th><th>가치(USDT)</th><th>진입가</th><th>마크가</th><th>청산가</th>
+      <th>증거금</th><th>손익(USDT)</th><th>ROE</th><th>TP</th><th>SL</th></tr></thead><tbody>
+      ${rows}</tbody></table></div>`;
     el.innerHTML = `<div id="posTableBox">${tableHtml}</div><div id="posCtlBox">${ctlHtml}</div>`;
-    posCtlRendered = true; posCtlModeShown = posTpSlMode; posCtlForSym = curSymbol; posCtlHadPos = hasPos;
-  }else{
-    const tb = document.getElementById("posTableBox");
-    if(tb){
-      if(!_posTableTouching){
-        tb.innerHTML = tableHtml;
-      }
-    }
-    else el.innerHTML = `<div id="posTableBox">${tableHtml}</div><div id="posCtlBox">${ctlHtml}</div>`;
+    posCtlRendered=true; posCtlModeShown=posTpSlMode; posCtlForSym=curSymbol; posCtlHadPos=hasPos; _posTableSymsKey=symsKey;
+    _posTableScrollL=0; _posTableScrollT=0;
+    _bindPosWrapScroll(el.querySelector('.tblwrap'));
+  } else {
+    // 제어판만 갱신이 필요한 경우 처리 (이미 위에서 needFullRebuild가 true가 됨)
+    // 매 틱: 변하는 셀만 직접 업데이트 — tblwrap DOM은 절대 교체하지 않음
+    syms.forEach(sym=>{
+      const row = el.querySelector(`[data-sym="${sym}"]`);
+      if(!row) return;
+      const p = S.positions[sym];
+      const mk = markOf(sym);
+      const u = posPnl(sym);
+      const roe = p.margin ? (u/p.margin*100) : 0;
+      const notional = p.qty*(mk||p.entry);
+      const tpO2 = S.pending.find(o=>o.kind==='tp'&&(o.sym||curSymbol)===sym);
+      const slO2 = S.pending.find(o=>o.kind==='sl'&&(o.sym||curSymbol)===sym);
+      const nd = row.querySelector('[data-live="notional"]'); if(nd) nd.textContent=fmt(notional,2);
+      const md = row.querySelector('[data-live="mark"]'); if(md) md.textContent=mk?fmtPrice(mk):'-';
+      const pd = row.querySelector('[data-live="pnl"]'); if(pd){ pd.textContent=fmtUsd(u); pd.className=u>=0?'green':'red'; }
+      const rd = row.querySelector('[data-live="roe"]'); if(rd){ rd.textContent=(roe>=0?'+':'')+fmt(roe,2)+'%'; rd.className=roe>=0?'green':'red'; }
+      const td2 = row.querySelector('[data-live="tp"]'); if(td2) td2.textContent=tpO2?fmtPrice(tpO2.price):'-';
+      const sd2 = row.querySelector('[data-live="sl"]'); if(sd2) sd2.textContent=slO2?fmtPrice(slO2.price):'-';
+    });
   }
 }
 
