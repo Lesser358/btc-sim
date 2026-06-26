@@ -2465,12 +2465,14 @@ function renderHistory(){
   _histRenderLen = S.history.length;
 
   // 통계 계산
-  const pnlTrades = S.history.filter(h=>h.pnl!==0 && h.type!=="강제청산");
+  // 펀딩비(type=펀딩비)는 거래가 아니므로 승률·거래수 집계에서 제외
+  const pnlTrades = S.history.filter(h=>h.pnl!==0 && h.type!=="강제청산" && h.type!=="펀딩비");
   const wins = pnlTrades.filter(h=>h.pnl>0).length;
   const losses = pnlTrades.filter(h=>h.pnl<0).length;
   const total = wins+losses;
   const winRate = total>0 ? (wins/total*100) : 0;
-  const totalPnl = S.history.reduce((s,h)=>s+h.pnl,0);
+  // 누적 순손익 = sum(pnl - fee): 진입수수료(-fee) + (gross - 청산수수료) + 펀딩 = 실제 wallet 변동
+  const totalPnl = S.history.reduce((s,h)=>s+(h.pnl||0)-(h.fee||0),0);
   const bestPnl  = pnlTrades.length ? Math.max(...pnlTrades.map(h=>h.pnl)) : null;
   const worstPnl = pnlTrades.length ? Math.min(...pnlTrades.map(h=>h.pnl)) : null;
   const liqCount = S.history.filter(h=>h.type==="강제청산").length;
