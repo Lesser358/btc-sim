@@ -1,41 +1,8 @@
 {
   "version": 1,
   "source": "github-actions",
-  "updatedAt": "2026-06-25T21:03:16.253Z",
+  "updatedAt": "2026-06-26T08:40:52.282Z",
   "pending": [
-    {
-      "id": "scalp:dogeusdt:1782393179814",
-      "style": "scalp",
-      "sym": "dogeusdt",
-      "type": "short",
-      "entry": 0.07605,
-      "score": -15,
-      "confidence": 74,
-      "ts": 1782393179814,
-      "evalAt": 1782407579814
-    },
-    {
-      "id": "scalp:adausdt:1782393179814",
-      "style": "scalp",
-      "sym": "adausdt",
-      "type": "long",
-      "entry": 0.1485,
-      "score": 12,
-      "confidence": 54,
-      "ts": 1782393179814,
-      "evalAt": 1782407579814
-    },
-    {
-      "id": "scalp:avaxusdt:1782393179814",
-      "style": "scalp",
-      "sym": "avaxusdt",
-      "type": "short",
-      "entry": 6.366,
-      "score": -31,
-      "confidence": 92,
-      "ts": 1782393179814,
-      "evalAt": 1782407579814
-    },
     {
       "id": "swing:btcusdt:1782393179814",
       "style": "swing",
@@ -231,6 +198,25 @@
       "slHit": 0,
       "timeExit": 0,
       "dropped": 6,
+      "lastEvalAt": null
+    },
+    "scalp": {
+      "win": 0,
+      "loss": 0,
+      "flat": 0,
+      "total": 0,
+      "tradeWin": 0,
+      "tradeLoss": 0,
+      "tradeFlat": 0,
+      "netSum": 0,
+      "gainSum": 0,
+      "lossSum": 0,
+      "mfeSum": 0,
+      "maeSum": 0,
+      "tpHit": 0,
+      "slHit": 0,
+      "timeExit": 0,
+      "dropped": 3,
       "lastEvalAt": null
     }
   },
@@ -566,6 +552,11 @@
   },
   "recentEvaluations": [],
   "runs": [
+    {
+      "ts": "2026-06-26T08:40:52.282Z",
+      "added": 0,
+      "pending": 16
+    },
     {
       "ts": "2026-06-25T21:03:16.253Z",
       "added": 0,
