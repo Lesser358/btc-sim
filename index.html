@@ -262,6 +262,10 @@
   #resetBtn{margin-top:4px;background:var(--panel2);border:1px solid var(--yellow);color:var(--yellow);
     border-radius:6px;padding:9px;font-weight:700;}
   #resetBtn:hover{background:#2a2519;}
+  .acct-bk{display:flex;gap:6px;margin-top:4px;}
+  .acct-bk button{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--text);
+    border-radius:6px;padding:8px;font-weight:600;font-size:11.5px;}
+  .acct-bk button:hover{background:#2a2f36;}
 
   /* tables */
   .tabs{display:flex;gap:4px;padding:6px 10px;border-bottom:1px solid var(--line);}
@@ -1088,6 +1092,11 @@
         <div class="ar"><span class="l">총 자산(Equity)</span><span id="equity" class="yellow">-</span></div>
         <div class="ar"><span class="l">누적 수수료</span><span id="totFee">-</span></div>
         <div class="ar"><span class="l">누적 펀딩비</span><span id="totFund">-</span></div>
+        <div class="acct-bk">
+          <button id="backupBtn" type="button">계좌 백업(내보내기)</button>
+          <button id="restoreBtn" type="button">복원(불러오기)</button>
+        </div>
+        <input id="restoreFile" type="file" accept="application/json,.json" style="display:none;">
         <button id="resetBtn">계좌 초기화 · 5,000 USDT 재지급</button>
       </div>
       <div class="hint">
@@ -2238,6 +2247,120 @@ function resetAccount(){
   toast("계좌가 초기화되었습니다. 5,000 USDT 지급 완료");
 }
 
+/* ---------- 계좌 백업·복원 (JSON 파일) ----------
+   복원은 새 공격면(악성 백업 파일 피싱)이므로 가져온 데이터를 엄격히 정화한다:
+   심볼/숫자/색상/지표 id를 검증해 HTML·속성 인젝션(저장형 XSS)을 원천 차단. */
+function _bkCollectDrawings(){
+  const d={};
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k && k.startsWith('btcSimDrawings_')) d[k]=localStorage.getItem(k);
+  }
+  return d;
+}
+window.exportAccount = function(){
+  try{
+    const backup = {
+      app:'btc-futures-sim', kind:'account-backup', version:1,
+      exportedAt:new Date().toISOString(),
+      state:S, drawings:_bkCollectDrawings()
+    };
+    const blob = new Blob([JSON.stringify(backup,null,2)], {type:'application/json'});
+    const url  = URL.createObjectURL(blob);
+    const dt=new Date(), pad=n=>String(n).padStart(2,'0');
+    const fn = `btc-sim-backup-${dt.getFullYear()}${pad(dt.getMonth()+1)}${pad(dt.getDate())}-${pad(dt.getHours())}${pad(dt.getMinutes())}.json`;
+    const a=document.createElement('a'); a.href=url; a.download=fn;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    toast('계좌 백업 파일을 저장했습니다.');
+  }catch(e){ toast('백업 실패: '+((e&&e.message)||e)); }
+};
+const _BK_SYM_RE=/^[a-z0-9]{3,20}$/i;
+const _BK_HEX_RE=/^#[0-9a-fA-F]{3,8}$/;
+function _bkNum(v,d=0){ const n=Number(v); return Number.isFinite(n)?n:d; }
+function _bkColor(c){ return _BK_HEX_RE.test(String(c))?c:'#888888'; }
+function _bkSanitizeIndicators(arr){
+  if(!Array.isArray(arr)) return [];
+  return arr.filter(i=>i&&typeof i==='object'&&typeof i.type==='string'
+      &&(typeof INDICATOR_DEFS!=='undefined'?INDICATOR_DEFS.some(d=>d.type===i.type):/^[a-z]+$/.test(i.type)))
+    .slice(0,20)
+    .map(i=>{
+      const params={};
+      const src=(i.params&&typeof i.params==='object')?i.params:{};
+      for(const k of Object.keys(src)){
+        params[k]= /color/i.test(k) ? _bkColor(src[k]) : _bkNum(src[k], 0);
+      }
+      // id는 onclick 속성에 들어가므로 항상 안전한 값으로 재생성(악성 id 인젝션 차단)
+      return { id:'ind'+Math.random().toString(36).slice(2,9), type:i.type, params };
+    });
+}
+function _bkSanitizeState(s){
+  // 심볼/시간봉
+  s.symbol = _BK_SYM_RE.test(String(s.symbol)) ? s.symbol : 'btcusdt';
+  if(typeof IV_SEC!=='undefined' && !IV_SEC[s.interval]) s.interval='1m';
+  // 포지션: 유효 심볼 키 + 숫자 필드만
+  if(s.positions && typeof s.positions==='object' && !Array.isArray(s.positions)){
+    const clean={};
+    for(const k of Object.keys(s.positions)){
+      if(!_BK_SYM_RE.test(String(k))) continue;
+      const p=s.positions[k]; if(!p||typeof p!=='object') continue;
+      const qty=_bkNum(p.qty), entry=_bkNum(p.entry);
+      if(!(qty>0)||!(entry>0)) continue;
+      clean[k]={ side:p.side==='short'?'short':'long', qty, entry, margin:_bkNum(p.margin),
+        openTime:_bkNum(p.openTime), lev:_bkNum(p.lev)||S.leverage, mode:p.mode==='cross'?'cross':'isolated' };
+    }
+    s.positions=clean;
+  } else s.positions={};
+  // 미체결: 유효 심볼·알려진 kind·숫자 좌표만
+  const _kinds={limit:1,tp:1,sl:1};
+  s.pending = Array.isArray(s.pending) ? s.pending
+    .filter(o=>o&&typeof o==='object'&&_kinds[o.kind]&&(!o.sym||_BK_SYM_RE.test(String(o.sym))))
+    .slice(0,500)
+    .map(o=>({ ...o, price:_bkNum(o.price), qty:_bkNum(o.qty),
+      tpRaw:_bkNum(o.tpRaw), slRaw:_bkNum(o.slRaw), side:o.side==='short'?'short':'long' }))
+    : [];
+  // 거래내역: 길이 캡 + 핵심 숫자 강제(type은 출력 단계 escHtml로 별도 방어)
+  s.history = Array.isArray(s.history) ? s.history.slice(0,200)
+    .map(h=>({ ...h, pnl:_bkNum(h&&h.pnl), fee:_bkNum(h&&h.fee), roe:_bkNum(h&&h.roe),
+      qty:_bkNum(h&&h.qty), price:_bkNum(h&&h.price), time:_bkNum(h&&h.time, Date.now()) }))
+    : [];
+  s.indicators=_bkSanitizeIndicators(s.indicators);
+  s.walletBalance=_bkNum(s.walletBalance, START_BAL);
+  s.totalFee=_bkNum(s.totalFee); s.totalFunding=_bkNum(s.totalFunding);
+  s.leverage=_bkNum(s.leverage, 20)||20;
+  return s;
+}
+window.importAccountFile = function(file){
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onerror=()=>toast('복원 실패: 파일을 읽지 못했습니다.');
+  reader.onload=()=>{
+    let parsed;
+    try{ parsed=JSON.parse(String(reader.result)); }
+    catch(e){ toast('복원 실패: JSON 형식이 아닙니다.'); return; }
+    if(!parsed || parsed.app!=='btc-futures-sim' || parsed.kind!=='account-backup'
+       || !parsed.state || typeof parsed.state!=='object'){
+      toast('복원 실패: 이 앱의 백업 파일이 아닙니다.'); return;
+    }
+    const nTrades=Array.isArray(parsed.state.history)?parsed.state.history.length:0;
+    if(!confirm(`백업 파일로 현재 계좌를 덮어씁니다.\n현재 계좌의 모든 거래·잔액·설정이 사라지고 복원됩니다.\n(백업 시점: ${parsed.exportedAt||'알 수 없음'} · 거래내역 ${nTrades}건)\n\n계속할까요?`)) return;
+    try{
+      const ns=_bkSanitizeState(normalizeState(parsed.state));
+      ns._rev=Math.max(Date.now(), (S._rev||0)+1);   // 클라우드 LWW에서 '가장 최신'으로 인정되도록
+      localStorage.setItem('btcSimState', JSON.stringify(ns));
+      if(parsed.drawings && typeof parsed.drawings==='object'){
+        for(const [k,v] of Object.entries(parsed.drawings)){
+          if(/^btcSimDrawings_[a-z0-9]{3,20}$/i.test(k) && typeof v==='string') localStorage.setItem(k,v);
+        }
+      }
+      localStorage.setItem('btcSimLastCritical', String(Date.now()));
+      toast('복원 완료 — 화면을 새로고침합니다.');
+      setTimeout(()=>location.reload(), 600);
+    }catch(e){ toast('복원 실패: '+((e&&e.message)||e)); }
+  };
+  reader.readAsText(file);
+};
+
 function updatePriceLines(){ drawPriceLines(); }
 function addMarker(){ /* 차트 마커 미사용 */ }
 
@@ -2500,7 +2623,7 @@ function renderHistory(){
       const col = h.type==="강제청산"?"red":(h.pnl>0?"green":h.pnl<0?"red":"");
       const roe = h.roe ?? 0;
       const roeStr = h.pnl!==0 ? `${roe>=0?'+':''}${fmt(roe,1)}%` : '-';
-      return `<tr><td>${ts}</td><td class="${col}">${h.type}</td>
+      return `<tr><td>${ts}</td><td class="${col}">${escHtml(h.type)}</td>
         <td>${fmtQty(h.qty)}</td><td>${fmtPrice(h.price)}</td>
         <td class="${h.pnl>=0?'green':'red'}">${h.pnl!==undefined&&h.pnl!==0?fmtUsd(h.pnl):'-'}</td>
         <td class="${roe>=0?'green':'red'}">${roeStr}</td>
@@ -5574,6 +5697,12 @@ function bindUI(){
   document.getElementById("resetBtn").onclick = ()=>{
     if(confirm("계좌를 초기화하고 5,000 USDT를 다시 받으시겠습니까?")) resetAccount();
   };
+  const _bkBtn=document.getElementById("backupBtn"); if(_bkBtn) _bkBtn.onclick=exportAccount;
+  const _rsBtn=document.getElementById("restoreBtn"), _rsFile=document.getElementById("restoreFile");
+  if(_rsBtn&&_rsFile){
+    _rsBtn.onclick=()=>_rsFile.click();
+    _rsFile.onchange=()=>{ const f=_rsFile.files&&_rsFile.files[0]; importAccountFile(f); _rsFile.value=''; };
+  }
   document.getElementById("liqReset").onclick = ()=>{
     document.getElementById("liqModal").classList.remove("show"); resetAccount();
   };
