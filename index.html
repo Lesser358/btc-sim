@@ -2825,25 +2825,64 @@ function _sigStatsLoad(){
   return { pending:[], stats:{} };
 }
 function _sigStatsSave(o){ try{ localStorage.setItem(SIG_STATS_KEY, JSON.stringify(o)); }catch(e){} }
-function _sigBucket(o,style){ if(!o.stats[style]) o.stats[style]={win:0,loss:0,flat:0}; return o.stats[style]; }
+function _sigBucket(o,style){
+  if(!o.stats[style]) o.stats[style]={win:0,loss:0,flat:0,tradeWin:0,tradeLoss:0,tradeFlat:0,netSum:0,gainSum:0,lossSum:0};
+  const b=o.stats[style];
+  // 구버전 버킷 하위호환: 순손익 필드 누락 시 보정
+  if(b.tradeWin==null){ b.tradeWin=0; b.tradeLoss=0; b.tradeFlat=0; b.netSum=0; b.gainSum=0; b.lossSum=0; }
+  return b;
+}
 // 성숙한 예측 평가 + 새 신호 기록. priceOf(sym)->현재가(없으면 0)
 function sigLogAndEval(style, rows, priceOf){
   const cfg=SIG_EVAL[style]; if(!cfg) return;
   const o=_sigStatsLoad();
   const now=Date.now();
-  // 1) 평가: evalAt 지난 pending 처리
+  // 0) 진행 중 모든 pending의 경로 극값(MFE/MAE) 갱신 + 호라이즌 내 TP/SL '첫 터치' 기록.
+  //    라이브는 OHLC가 아니라 단일 표본가 → 한 표본이 TP·SL 동시 충족 불가라 첫 터치 순서가 자연히 정확.
+  //    (스캐너가 열려 있는 동안 ~3분 간격 표집이라 표본 사이 급등락은 놓칠 수 있음 → 못 잡으면 시간만기로 폴백.)
+  for(const p of o.pending){
+    const tc=_sigBtTradeCfg(p.style); if(!tc) continue;
+    if(p.mfe==null) p.mfe=0;
+    if(p.mae==null) p.mae=0;
+    const px=priceOf(p.sym);
+    if(px>0 && p.entry>0){
+      const move=p.type==='long'?(px/p.entry-1)*100:((p.entry-px)/p.entry)*100;
+      if(move>p.mfe) p.mfe=move;
+      if(move<p.mae) p.mae=move;
+      if(!p.exitKind){
+        if(move>=tc.tpPct){ p.exitKind='tp'; p.grossPct=tc.tpPct; }
+        else if(move<=-tc.slPct){ p.exitKind='sl'; p.grossPct=-tc.slPct; }
+      }
+    }
+  }
+  // 1) 평가: TP/SL이 이미 확정됐거나 evalAt 지난 pending 처리
   const keep=[];
   for(const p of o.pending){
     const c=SIG_EVAL[p.style]; if(!c) continue;
-    if(now < p.evalAt){ keep.push(p); continue; }
-    const px=priceOf(p.sym);
-    if(!(px>0)){ if(now < p.evalAt + c.horizonMs*3) keep.push(p); continue; } // 가격 못 구하면 잠시 보관
-    const movePct=(px/p.entry-1)*100;
-    const fav=p.type==='long'?movePct:-movePct;
+    const tc=_sigBtTradeCfg(p.style);
+    if(now < p.evalAt && !p.exitKind){ keep.push(p); continue; }
+    let grossPct, favEnd;
+    if(p.exitKind){
+      grossPct=p.grossPct; favEnd=p.grossPct;            // TP=+tp / SL=-sl
+    } else {
+      const px=priceOf(p.sym);
+      if(!(px>0)){ if(now < p.evalAt + c.horizonMs*3) keep.push(p); continue; } // 가격 못 구하면 잠시 보관
+      grossPct=p.type==='long'?(px/p.entry-1)*100:((p.entry-px)/p.entry)*100;   // 시간 만기 종점가
+      favEnd=grossPct;
+    }
+    const netPct=grossPct-(tc?tc.costPct:0);
     const b=_sigBucket(o,p.style);
-    if(fav>=c.winPct) b.win++;
-    else if(fav<=-c.winPct) b.loss++;
+    // 방향 적중(참고 지표): 종점/청산 방향이 맞았나
+    if(favEnd>=c.winPct) b.win++;
+    else if(favEnd<=-c.winPct) b.loss++;
     else b.flat++;
+    // 순손익(실거래 추정) — 수수료·슬리피지·TP/SL 반영
+    if(netPct>0) b.tradeWin++;
+    else if(netPct<0) b.tradeLoss++;
+    else b.tradeFlat++;
+    b.netSum+=netPct;
+    if(netPct>0) b.gainSum+=netPct;
+    else if(netPct<0) b.lossSum+=Math.abs(netPct);
   }
   o.pending=keep;
   // 2) 기록: 현재 스타일 신호 중 type!=='wait'이고 동일 (style,sym) 진행건 없을 때만(중복 방지)
@@ -2851,7 +2890,7 @@ function sigLogAndEval(style, rows, priceOf){
   for(const r of (rows||[])){
     if(!r||r.type==='wait'||open.has(r.sym)) continue;
     const px=priceOf(r.sym); if(!(px>0)) continue;
-    o.pending.push({ style, sym:r.sym, type:r.type, entry:px, ts:now, evalAt:now+cfg.horizonMs });
+    o.pending.push({ style, sym:r.sym, type:r.type, entry:px, ts:now, evalAt:now+cfg.horizonMs, mfe:0, mae:0, exitKind:null, grossPct:0 });
     open.add(r.sym);
   }
   if(o.pending.length>SIG_PENDING_MAX) o.pending=o.pending.slice(-SIG_PENDING_MAX);
@@ -2860,18 +2899,29 @@ function sigLogAndEval(style, rows, priceOf){
 function sigAccuracy(style){
   const o=_sigStatsLoad(); const b=o.stats[style];
   const pending=o.pending.filter(p=>p.style===style).length;
-  if(!b) return { win:0,loss:0,flat:0,decided:0,acc:null,pending };
+  if(!b) return { win:0,loss:0,flat:0,decided:0,acc:null,pending, tradeWin:0,tradeLoss:0,tradeFlat:0,tradeDecided:0,total:0,netAcc:null,avgNet:0,pf:0 };
   const decided=b.win+b.loss;
-  return { win:b.win,loss:b.loss,flat:b.flat||0,decided, acc: decided>=10?Math.round(b.win/decided*100):null, pending };
+  const tradeWin=b.tradeWin||0, tradeLoss=b.tradeLoss||0, tradeFlat=b.tradeFlat||0;
+  const tradeDecided=tradeWin+tradeLoss;
+  const total=tradeWin+tradeLoss+tradeFlat;
+  const avgNet=total>0?(b.netSum||0)/total:0;
+  const pf=(b.lossSum||0)>0?(b.gainSum||0)/(b.lossSum||1):((b.gainSum||0)>0?99:0);
+  return {
+    win:b.win,loss:b.loss,flat:b.flat||0,decided,
+    acc: decided>=10?Math.round(b.win/decided*100):null, pending,
+    tradeWin,tradeLoss,tradeFlat,tradeDecided,total,
+    netAcc: tradeDecided>=10?Math.round(tradeWin/tradeDecided*100):null,
+    avgNet, pf
+  };
 }
 function _sigAccText(style){
   const a=sigAccuracy(style);
-  if(a.acc==null){
-    const need=Math.max(0,10-a.decided);
-    return `적중률 측정 중 — 평가 완료 ${a.decided}건${need>0?` (정확도 표시까지 ${need}건 더 필요)`:''} · 진행 중 ${a.pending}건`;
+  if(a.netAcc==null){
+    const need=Math.max(0,10-a.tradeDecided);
+    return `실측 측정 중 — 평가 완료 ${a.tradeDecided}건${need>0?` (표시까지 ${need}건 더 필요)`:''} · 진행 중 ${a.pending}건`;
   }
-  const col=a.acc>=55?'var(--green)':a.acc<=45?'var(--red)':'var(--yellow)';
-  return `적중률 <b style="color:${col}">${a.acc}%</b> · ${a.win}승 ${a.loss}패${a.flat?` · 무효 ${a.flat}`:''} · 진행 중 ${a.pending}건`;
+  const col=a.avgNet>0?'var(--green)':a.avgNet<0?'var(--red)':'var(--yellow)';
+  return `순승률 <b style="color:${col}">${a.netAcc}%</b> · 평균 <b style="color:${col}">${a.avgNet>=0?'+':''}${fmt(a.avgNet,2)}%</b> · PF ${a.pf>=99?'∞':fmt(a.pf,2)} · 방향 ${a.acc==null?'-':a.acc+'%'} · 진행 중 ${a.pending}건`;
 }
 
 /* ===== 신호 스캐너 캔들 백테스트(서버 없이 과거 캔들로 1차 검증) ===== */
@@ -3614,10 +3664,10 @@ window.showAiHelp=function(){
       <em>매수벽(지지)</em>·<em>매도벽(저항)</em>은 한쪽에 쏠린 큰 주문입니다. 단, 호가는 취소·조작될 수 있어 보조 참고용으로만 씁니다.</p>
     </div>
     <div class="ai-help-term">
-      <b>적중률 (이 기기 기준)</b>
-      <p>스캐너가 낸 과거 신호가 실제로 맞았는지 이 기기에 기록해 계산한 값입니다.<br>
-      스타일별 보유 기간(<em>스캘핑 30분 · 단타 4시간 · 스윙 1일 · 중기 4일</em>) 뒤 가격이 예측 방향으로 충분히 움직였으면 '승'입니다.<br>
-      평가 완료 <em>10건 이상</em> 쌓여야 표시되며, 쓸수록 더 정확해집니다. 추세 없이 거의 안 움직이면 '무효'로 빠집니다.</p>
+      <b>실측 순승률 (이 기기 기준)</b>
+      <p>스캐너가 낸 과거 신호를 이 기기에 기록해, 예상 수수료·슬리피지와 가상 TP/SL을 반영해 '실제로 돈이 남았는지'로 계산합니다(단순 방향 적중이 아님).<br>
+      스타일별 보유 기간(<em>스캘핑 30분 · 단타 4시간 · 스윙 1일 · 중기 4일</em>) 안에 TP/SL이 닿으면 그 시점, 아니면 만기 종점가로 청산해 순손익(%)을 집계합니다. <em>순승률</em>=순이익 거래 비율, <em>평균</em>=거래당 평균 순손익%, <em>PF</em>=총이익÷총손실, <em>방향</em>=참고용 방향 적중률.<br>
+      평가 완료 <em>10건 이상</em>부터 표시됩니다. 스캐너가 열려 있는 동안 ~3분 간격으로 표집하므로 표본 사이 급등락은 놓칠 수 있어, 더 완전한 검증은 아래 <em>백테스트</em>를 함께 보세요.</p>
     </div>
     <div class="ai-help-term">
       <b>백테스트 (과거 캔들 기준)</b>
