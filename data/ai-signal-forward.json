@@ -1,96 +1,8 @@
 {
   "version": 1,
   "source": "github-actions",
-  "updatedAt": "2026-06-27T12:17:51.735Z",
+  "updatedAt": "2026-06-27T16:50:57.245Z",
   "pending": [
-    {
-      "id": "swing:btcusdt:1782393179814",
-      "style": "swing",
-      "sym": "btcusdt",
-      "type": "short",
-      "entry": 61281.5,
-      "score": -12,
-      "confidence": 54,
-      "ts": 1782393179814,
-      "evalAt": 1782479579814
-    },
-    {
-      "id": "swing:ethusdt:1782393179814",
-      "style": "swing",
-      "sym": "ethusdt",
-      "type": "short",
-      "entry": 1637.67,
-      "score": -13,
-      "confidence": 55,
-      "ts": 1782393179814,
-      "evalAt": 1782479579814
-    },
-    {
-      "id": "swing:solusdt:1782393179814",
-      "style": "swing",
-      "sym": "solusdt",
-      "type": "short",
-      "entry": 68.28,
-      "score": -15,
-      "confidence": 57,
-      "ts": 1782393179814,
-      "evalAt": 1782479579814
-    },
-    {
-      "id": "swing:xrpusdt:1782393179814",
-      "style": "swing",
-      "sym": "xrpusdt",
-      "type": "short",
-      "entry": 1.0748,
-      "score": -32,
-      "confidence": 94,
-      "ts": 1782393179814,
-      "evalAt": 1782479579814
-    },
-    {
-      "id": "swing:dogeusdt:1782393179814",
-      "style": "swing",
-      "sym": "dogeusdt",
-      "type": "short",
-      "entry": 0.07605,
-      "score": -49,
-      "confidence": 96,
-      "ts": 1782393179814,
-      "evalAt": 1782479579814
-    },
-    {
-      "id": "swing:bnbusdt:1782393179814",
-      "style": "swing",
-      "sym": "bnbusdt",
-      "type": "short",
-      "entry": 564.91,
-      "score": -32,
-      "confidence": 94,
-      "ts": 1782393179814,
-      "evalAt": 1782479579814
-    },
-    {
-      "id": "swing:adausdt:1782393179814",
-      "style": "swing",
-      "sym": "adausdt",
-      "type": "short",
-      "entry": 0.1485,
-      "score": -12,
-      "confidence": 54,
-      "ts": 1782393179814,
-      "evalAt": 1782479579814
-    },
-    {
-      "id": "swing:avaxusdt:1782393179814",
-      "style": "swing",
-      "sym": "avaxusdt",
-      "type": "short",
-      "entry": 6.366,
-      "score": -13,
-      "confidence": 55,
-      "ts": 1782393179814,
-      "evalAt": 1782479579814
-    },
     {
       "id": "mid:btcusdt:1782393179814",
       "style": "mid",
@@ -217,6 +129,25 @@
       "slHit": 0,
       "timeExit": 0,
       "dropped": 3,
+      "lastEvalAt": null
+    },
+    "swing": {
+      "win": 0,
+      "loss": 0,
+      "flat": 0,
+      "total": 0,
+      "tradeWin": 0,
+      "tradeLoss": 0,
+      "tradeFlat": 0,
+      "netSum": 0,
+      "gainSum": 0,
+      "lossSum": 0,
+      "mfeSum": 0,
+      "maeSum": 0,
+      "tpHit": 0,
+      "slHit": 0,
+      "timeExit": 0,
+      "dropped": 8,
       "lastEvalAt": null
     }
   },
@@ -552,6 +483,11 @@
   },
   "recentEvaluations": [],
   "runs": [
+    {
+      "ts": "2026-06-27T16:50:57.245Z",
+      "added": 0,
+      "pending": 8
+    },
     {
       "ts": "2026-06-27T12:17:51.735Z",
       "added": 0,
